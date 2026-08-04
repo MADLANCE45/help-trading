@@ -4,32 +4,72 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = 3000;
 
-// Aumentiamo il limite del payload perché i blocchi di Solana possono essere pesanti
+// Permette al server di leggere i file JSON in arrivo
 app.use(bodyParser.json({ limit: '50mb' }));
 
-// Il nostro "Radar" ora è un endpoint REST
+// Il nostro "cervello" che analizza i webhook
 app.post('/webhook', async (req, res) => {
-    const payload = req.body;
+    const data = req.body;
+    res.status(200).send('OK'); // Risponde subito a Helius
 
-    // Rispondiamo ISTANTANEAMENTE con 200 OK per evitare che Helius vada in timeout e ritenti l'invio
-    res.status(200).send('Webhook ricevuto');
-
-    // Analizziamo il payload in background
-    if (payload && payload.length > 0) {
-        console.log(`\n🚨 RICEVUTE ${payload.length} TRANSAZIONI DA HELIUS!`);
-        
-        payload.forEach(tx => {
-            console.log(`--------------------------------------------------`);
-            console.log(`Firma: ${tx.signature}`);
-            console.log(`Mittente (Fee Payer): ${tx.feePayer}`);
-            console.log(`Tipo: ${tx.type}`);
+    if (data && data.length > 0) {
+        data.forEach(tx => {
+            console.log(`\n🚨 ANALISI TRANSAZIONE: ${tx.signature}`);
             
-            // Qui innesteremo la logica per l'analisi dei Jito Bundles e le tempistiche (Δt)
+            let scamScore = 0;
+            let logAnalisi = [];
+
+            // 1. Controllo Jito
+            const isJito = tx.description && tx.description.toLowerCase().includes("jito");
+            if (isJito) {
+                scamScore += 50;
+                logAnalisi.push("🚩 Uso di Jito Bundle rilevato (+50 pt)");
+            }
+
+            // 2. Controllo Fee
+            if (tx.fee > 100000) { 
+                scamScore += 20;
+                logAnalisi.push("⚠️ Fee pagata sospettosamente alta (+20 pt)");
+            }
+
+            // 3. Controllo età del Wallet
+            if (tx.walletAgeDays !== undefined && tx.walletAgeDays < 1) {
+                scamScore += 30;
+                logAnalisi.push("🛑 Wallet creato da meno di 24 ore! (+30 pt)");
+            }
+
+            // 4. Controllo percentuale acquistata
+            if (tx.percentageBought !== undefined && tx.percentageBought >= 5) {
+                scamScore += 40;
+                logAnalisi.push("🐳 Acquisto massivo! Ha comprato il " + tx.percentageBought + "% della supply (+40 pt)");
+            }
+
+            // Limita il punteggio a 100 massimo
+            scamScore = Math.min(scamScore, 100);
+
+            // Stampa il report finale
+            console.log(`Punteggio Scam: ${scamScore}/100`);
+            
+            if (logAnalisi.length > 0) {
+                console.log(`Motivazioni: \n  - ${logAnalisi.join('\n  - ')}`);
+            } else {
+                console.log(`✅ Nessun indicatore sospetto rilevato. Sicuro!`);
+            }
+
+            // Verdetto
+            if (scamScore >= 80) {
+                console.log(`❌ VERDETTO: ALLARME ROSSO! Possibile Scam/Sniper.`);
+            } else if (scamScore >= 40) {
+                console.log(`⚠️ VERDETTO: Rischio Moderato. Fare attenzione.`);
+            } else {
+                console.log(`🟢 VERDETTO: Sembra pulito.`);
+            }
+            console.log(`--------------------------------------------------`);
         });
     }
 });
 
+// Accensione del server
 app.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato e in ascolto sulla porta ${PORT}`);
-    console.log(`In attesa dei webhook su http://localhost:${PORT}/webhook`);
 });

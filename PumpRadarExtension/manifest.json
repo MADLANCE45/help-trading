@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Solana Pump Radar",
+  "version": "1.0",
+  "description": "Rileva rug pulls e sniper bot su Pump.fun",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.pump.fun/*", "*://pump.fun/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
