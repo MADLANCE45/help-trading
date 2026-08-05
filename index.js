@@ -1,13 +1,24 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const cors = require('cors');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3000; 
 
-// Permette al server di leggere i file JSON in arrivo
-app.use(bodyParser.json({ limit: '50mb' }));
+// 1. Sblocca le chiamate dal browser (Pump.fun)
+app.use(cors());
 
-// Il nostro "cervello" che analizza i webhook
+// 2. Permette al server di leggere i file JSON in arrivo (sostituisce bodyParser)
+app.use(express.json({ limit: '50mb' })); 
+
+
+// --- ROTTE PER L'ESTENSIONE ---
+app.get('/api/scan/:token', (req, res) => {
+    // Qui andrà la tua logica del radar per i Fresh Wallets, Sniper Bots, ecc...
+    res.json({ message: "Dati recuperati con successo!" });
+});
+
+
+// --- ROTTA PER I WEBHOOK DI HELIUS ---
 app.post('/webhook', async (req, res) => {
     const data = req.body;
     res.status(200).send('OK'); // Risponde subito a Helius
@@ -69,7 +80,7 @@ app.post('/webhook', async (req, res) => {
     }
 });
 
-// Accensione del server
+// --- ACCENSIONE DEL SERVER ---
 app.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato e in ascolto sulla porta ${PORT}`);
 });
