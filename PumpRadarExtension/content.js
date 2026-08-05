@@ -1,115 +1,81 @@
-// Variabili globali per tenere traccia dello stato
-let currentToken = null;
-let radarHost = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const contentDiv = document.getElementById('content');
 
-// Funzione per estrarre l'indirizzo del token dall'URL
-function getTokenFromURL() {
-    const path = window.location.pathname;
-    const parts = path.split('/');
-    const possibleToken = parts[parts.length - 1];
-    
-    if (possibleToken && possibleToken.endsWith('pump')) {
-        return possibleToken;
-    }
-    return null;
-}
-
-// 🛡️ Creazione del widget
-function createRadarWidget() {
-    // Se c'è già un vecchio widget, lo rimuoviamo per non crearne due
-    if (radarHost) {
-        radarHost.remove();
-    }
-
-    radarHost = document.createElement('div');
-    radarHost.id = 'pump-radar-host';
-    radarHost.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 2147483647; pointer-events: none;';
-    document.documentElement.appendChild(radarHost);
-
-    const shadow = radarHost.attachShadow({ mode: 'open' });
-
-    const widget = document.createElement('div');
-    widget.style.cssText = `
-        pointer-events: auto;
-        background-color: #121212;
-        color: #ffffff;
-        padding: 16px;
-        border-radius: 12px;
-        border: 2px solid #555;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 14px;
-        min-width: 260px;
-        box-shadow: 0 10px 30px rgba(0,0,0,1);
-        margin: 0;
-        line-height: 1.4;
-    `;
-    widget.innerHTML = '<span style="font-size: 16px;">🕵️</span> Radar in scansione...';
-    
-    shadow.appendChild(widget);
-    
-    return widget; 
-}
-
-// Funzione principale di analisi
-async function initRadar(tokenMint) {
-    const widget = createRadarWidget();
-
-   try {
-        // RIGA MODIFICATA: Inserito il tuo VERO indirizzo Ngrok e l'header per il lasciapassare
-        const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
-            headers: {
-                "ngrok-skip-browser-warning": "true"
-            }
-        });
-        const data = await response.json();
-
-        if (data.error) {
-            widget.innerHTML = `❌ Errore: ${data.error}`;
-            widget.style.borderColor = '#ff4444';
+    // Chiediamo a Chrome l'URL della scheda attiva
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+        if (!tabs || tabs.length === 0) {
+            contentDiv.innerHTML = '<p>❌ Errore: Impossibile leggere la scheda attiva.</p>';
+            return;
+        }
+        
+        const url = tabs[0].url;
+        
+        // Verifichiamo di essere su Pump.fun
+        if (!url || !url.includes('pump.fun')) {
+            contentDiv.innerHTML = '<p>Apri la pagina di un token su Pump.fun per usare il radar.</p>';
             return;
         }
 
-        // Se non abbiamo ancora integrato questi dati nel backend, usiamo un fallback
-        const score = data.score || 0;
-        const rischio = data.rischio || "Analisi completata";
-        const dumper = data.dumperTrovati || "N/A";
+        // Estrazione sicura del token dall'URL
+        try {
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+            const tokenMint = pathParts[pathParts.length - 1];
 
-        const borderColor = score >= 50 ? '#ff4444' : '#00C851';
-        widget.style.borderColor = borderColor;
+            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                contentDiv.innerHTML = '<p>Nessun token rilevato in questo URL. Entra nella pagina specifica di una coin.</p>';
+                return;
+            }
 
-        widget.innerHTML = `
-            <div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #333; font-weight: bold; font-size: 16px;">
-                Radar Report
-            </div>
-            <div style="margin-bottom: 6px;"><strong>Status:</strong> <span style="color: ${borderColor}">${rischio}</span></div>
-            <div style="margin-bottom: 6px;"><strong>Rischio:</strong> ${score}/100</div>
-            <div><strong>Dumper:</strong> ${dumper}</div>
-        `;
+            contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>Scansione in corso...</p>`;
 
-    } catch (error) {
-        widget.innerHTML = "⚠️ Nessuna connessione col server locale.";
-        widget.style.borderColor = '#ffaa00';
-    }
-}
+            // Chiamata al server Node.js
+            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                headers: {
+                    "ngrok-skip-browser-warning": "true"
+                }
+            });
+            const data = await response.json();
+            
+            if (data.error) {
+                contentDiv.innerHTML = `<p style="color: #ff4444;">❌ Errore Backend: ${data.error}</p>`;
+                return;
+            }
 
-// 🔄 IL SEGUGIO: Controlla se cambiamo pagina
-function monitorURL() {
-    const tokenMint = getTokenFromURL();
-    
-    // Se siamo su un nuovo token
-    if (tokenMint && tokenMint !== currentToken) {
-        currentToken = tokenMint;
-        initRadar(tokenMint);
-    } 
-    // Se siamo tornati alla home (non c'è più il token)
-    else if (!tokenMint && currentToken) {
-        currentToken = null;
-        if (radarHost) {
-            radarHost.remove();
-            radarHost = null;
+            // Estrazione sicura dei dati (se un dato manca, mettiamo un valore di default)
+            const score = data.score || 0;
+            const rischio = data.rischio || "N/A";
+            const dumper = data.dumperTrovati || "In sviluppo...";
+            const devWallet = data.devWallet || "Sconosciuto";
+            const devAge = data.devAgeDays !== undefined && data.devAgeDays !== "N/A" ? `${data.devAgeDays} giorni` : "N/A";
+            
+            const colorClass = score >= 50 ? 'danger' : 'safe';
+
+            // Costruiamo la lista puntata per i log in modo dinamico
+            let logHTML = "";
+            if (data.dettagli && data.dettagli.length > 0) {
+                logHTML = "<ul style='padding-left: 20px; font-size: 0.9em; margin-top: 5px;'>" + 
+                          data.dettagli.map(log => `<li style="margin-bottom: 4px;">${log}</li>`).join("") + 
+                          "</ul>";
+            }
+
+            // Stampiamo tutta l'interfaccia aggiornata in un colpo solo
+            contentDiv.innerHTML = `
+                <div class="token-mint">Target: ${tokenMint}</div>
+                <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
+                <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
+                <div style="margin-bottom: 10px;"><strong>Dev Wallet:</strong> <span style="font-size: 0.8em; word-break: break-all;">${devWallet}</span></div>
+                <div style="margin-bottom: 10px;"><strong>Età Wallet Dev:</strong> ${devAge}</div>
+                <div style="margin-bottom: 10px;"><strong>Dumper Trovati:</strong> ${dumper}</div>
+                
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444;">
+                    <strong>Dettagli Analisi:</strong>
+                    ${logHTML}
+                </div>
+            `;
+            
+        } catch (error) {
+            contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione a Ngrok o lettura URL: ${error.message}</p>`;
         }
-    }
-}
-
-// Avvia il segugio: controlla l'URL ogni 1 secondo (1000 millisecondi)
-setInterval(monitorURL, 1000);
+    });
+});

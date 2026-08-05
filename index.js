@@ -1,61 +1,160 @@
 const express = require('express');
-
 const cors = require('cors');
+const { Connection, PublicKey } = require('@solana/web3.js'); // Importiamo la libreria Solana
+
+// Inserisci qui la tua API Key
+const HELIUS_API_KEY = "b85ff0ae-b208-4fe9-897b-1d7a446b9d36"; 
+const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+
+// Creiamo la connessione diretta e ad alte prestazioni con la blockchain
+const solanaConnection = new Connection(RPC_URL, 'confirmed');
 
 const app = express();
 const PORT = 3000; 
+// Esempio logico da integrare nel tuo index.js
+async function detectBundle(tokenMint) {
+    // 1. Prendi le prime 20-30 transazioni della moneta appena nata
+    const signatures = await connection.getSignaturesForAddress(
+        new PublicKey(tokenMint), 
+        { limit: 30 }
+    );
 
+    // 2. Raggruppa le transazioni per "Slot" (Blocco)
+    const slotCounts = {};
+    signatures.forEach(sig => {
+        slotCounts[sig.slot] = (slotCounts[sig.slot] || 0) + 1;
+    });
+
+    // 3. Se nel blocco di creazione (o in quello immediatamente successivo) 
+    // ci sono più di 3-4 acquisti, è matematicamente un Bundle Bot.
+    const creationSlot = signatures[signatures.length - 1].slot;
+    const bundledTxCount = slotCounts[creationSlot];
+
+    if (bundledTxCount > 3) {
+        return {
+            isBundle: true,
+            bundleSize: bundledTxCount,
+            warning: `⚠️ BUNDLE RILEVATO: ${bundledTxCount} transazioni nello stesso blocco di lancio!`
+        };
+    }
+    return { isBundle: false };
+}
+
+app.use(express.json({ limit: '50mb' }));
 // 1. Sblocca le chiamate dal browser (Pump.fun)
 app.use(cors());
 
-// 2. Permette al server di leggere i file JSON in arrivo (sostituisce bodyParser)
-app.use(express.json({ limit: '50mb' })); 
 
 
+async function calcolaEtaWallet(walletAddress) {
+    try {
+        const pubKey = new PublicKey(walletAddress);
+        
+        // Otteniamo la cronologia delle firme (transazioni) associate a questo wallet
+        const signatures = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 1000 });
+        
+        if (signatures.length === 0) return 0; // Wallet vuoto o inesistente
+
+        // L'ultima transazione nell'array è la più vecchia
+        const oldestTx = signatures[signatures.length - 1];
+        
+        // Se la transazione ha un timestamp, calcoliamo i giorni trascorsi
+        if (oldestTx.blockTime) {
+            const firstTxTime = oldestTx.blockTime * 1000; // Convertiamo in millisecondi
+            const ageInDays = (Date.now() - firstTxTime) / (1000 * 60 * 60 * 24);
+            return ageInDays;
+        }
+        
+        return null;
+
+    } catch (error) {
+        console.error(`Errore nella lettura del wallet ${walletAddress}:`, error);
+        return null;
+    }
+}
+// --- ROTTE PER L'ESTENSIONE ---
 // --- ROTTE PER L'ESTENSIONE ---
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
 
     try {
-        // 1. Chiamiamo un'API esterna per ottenere i dati reali del token
-        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
-        const data = await response.json();
+        console.log(`\n🔍 Scansione ON-CHAIN avviata per: ${tokenMint}`);
 
-        // 2. Logica di calcolo del rischio
-        let score = 0;
-        let rischioStatus = "Analisi in corso";
-        let dumperTrovati = "0";
+        // 1. Cerchiamo il creatore del token (il "Dev") analizzando le transazioni
+        const mintPubKey = new PublicKey(tokenMint);
+        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 1000 });
+        
+        let devWallet = "Sconosciuto";
+        let walletAgeDays = null;
+        let onChainScore = 0; // Punteggio basato sui dati puri della blockchain
+        let logAnalisi = [];
 
-        // Se l'API non trova il token o non ha liquidità
-        if (!data.pairs || data.pairs.length === 0) {
-            score = 90;
-            rischioStatus = "Estremo (Nessuna liquidità / Appena lanciato)";
-        } else {
-            // Analizziamo la liquidità del primo pair trovato
-            const liquidity = data.pairs[0].liquidity?.usd || 0;
+        if (signatures.length > 0) {
+            // L'ultima transazione nell'array è la prima cronologicamente (il momento della creazione)
+            const launchTx = signatures[signatures.length - 1];
             
-            if (liquidity < 5000) {
-                score = 75;
-                rischioStatus = "Alto (Bassa Liquidità)";
-            } else if (liquidity > 50000) {
-                score = 10;
-                rischioStatus = "Basso (Buona Liquidità)";
-            } else {
-                score = 40;
-                rischioStatus = "Medio";
+            // Scarichiamo i dettagli di quella primissima transazione
+            const txDetails = await solanaConnection.getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
+            
+            if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
+                // Il primo account che firma la transazione di creazione è il Dev
+                devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                console.log(`👤 Dev Wallet individuato: ${devWallet}`);
+                
+                // 2. Calcoliamo l'età del wallet del Dev usando la nostra funzione!
+                walletAgeDays = await calcolaEtaWallet(devWallet);
+                
+                if (walletAgeDays !== null) {
+                    console.log(`⏳ Età del portafoglio Dev: ${walletAgeDays.toFixed(2)} giorni`);
+                    
+                    if (walletAgeDays < 1) {
+                        onChainScore += 80;
+                        logAnalisi.push("🛑 FAKE DEV: Il portafoglio del creatore è nato da meno di 24 ore!");
+                    } else if (walletAgeDays < 7) {
+                        onChainScore += 40;
+                        logAnalisi.push("⚠️ ATTENZIONE: Portafoglio del creatore molto recente (meno di una settimana).");
+                    } else {
+                        logAnalisi.push("✅ Portafoglio storico. Il Dev usa un wallet consolidato.");
+                    }
+                }
             }
         }
 
-        // 3. Inviamo i dati dinamici all'estensione Chrome
+        // 3. Controlliamo comunque la liquidità per avere un quadro completo
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
+        const data = await response.json();
+
+        let dexscreenerScore = 0;
+        if (!data.pairs || data.pairs.length === 0) {
+            dexscreenerScore = 20; 
+            logAnalisi.push("⚠️ Nessuna pool di liquidità trovata su DexScreener.");
+        } else {
+            const liquidity = data.pairs[0].liquidity?.usd || 0;
+            if (liquidity < 5000) {
+                dexscreenerScore = 20;
+                logAnalisi.push("⚠️ Liquidità sotto i $5000 (rischio rug veloce).");
+            }
+        }
+
+        // 4. Calcolo del punteggio finale
+        let finalScore = Math.min(onChainScore + dexscreenerScore, 100);
+        let rischioStatus = finalScore >= 80 ? "ESTREMO (Fake Dev / Rug Probabile)" : finalScore >= 50 ? "ALTO" : finalScore >= 20 ? "MODERATO" : "BASSO";
+
+        console.log(`📊 Punteggio finale calcolato: ${finalScore}/100\n`);
+
+        // 5. Spediamo i dati veri all'estensione!
         res.json({
-            score: score,
+            score: finalScore,
             rischio: rischioStatus,
-            dumperTrovati: dumperTrovati
+            dumperTrovati: "In sviluppo...", // Lo aggiungeremo dopo con i WebSockets
+            devWallet: devWallet,
+            devAgeDays: walletAgeDays !== null ? walletAgeDays.toFixed(2) : "N/A",
+            dettagli: logAnalisi
         });
 
     } catch (error) {
-        console.error("Errore nel backend:", error);
-        res.status(500).json({ error: "Impossibile analizzare il token sulla blockchain." });
+        console.error("Errore nell'analisi on-chain:", error);
+        res.status(500).json({ error: "Errore durante la scansione della blockchain. Riprova." });
     }
 });
 

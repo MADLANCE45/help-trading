@@ -36,7 +36,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             const data = await response.json();
+            
+            if (data.error) {
+                contentDiv.innerHTML = `<p style="color: #ff4444;">❌ Errore Backend: ${data.error}</p>`;
+                return;
+            }
 
+            // Estrazione sicura dei dati (se un dato manca, mettiamo un valore di default)
+            const score = data.score || 0;
+            const rischio = data.rischio || "N/A";
+            const dumper = data.dumperTrovati || "In sviluppo...";
+            const devWallet = data.devWallet || "Sconosciuto";
+            const devAge = data.devAgeDays !== undefined && data.devAgeDays !== "N/A" ? `${data.devAgeDays} giorni` : "N/A";
+            
+            const colorClass = score >= 50 ? 'danger' : 'safe';
+
+            // Costruiamo la lista puntata per i log in modo dinamico
+            let logHTML = "";
+            if (data.dettagli && data.dettagli.length > 0) {
+                logHTML = "<ul style='padding-left: 20px; font-size: 0.9em; margin-top: 5px;'>" + 
+                          data.dettagli.map(log => `<li style="margin-bottom: 4px;">${log}</li>`).join("") + 
+                          "</ul>";
+            }
+
+            // Stampiamo tutta l'interfaccia aggiornata in un colpo solo
+            contentDiv.innerHTML = `
+                <div class="token-mint">Target: ${tokenMint}</div>
+                <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
+                <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
+                <div style="margin-bottom: 10px;"><strong>Dev Wallet:</strong> <span style="font-size: 0.8em; word-break: break-all;">${devWallet}</span></div>
+                <div style="margin-bottom: 10px;"><strong>Età Wallet Dev:</strong> ${devAge}</div>
+                <div style="margin-bottom: 10px;"><strong>Dumper Trovati:</strong> ${dumper}</div>
+                
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444;">
+                    <strong>Dettagli Analisi:</strong>
+                    ${logHTML}
+                </div>
+            `;
             if (data.error) {
                 contentDiv.innerHTML = `<p style="color: #ff4444;">❌ Errore Backend: ${data.error}</p>`;
                 return;
@@ -53,8 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
                 <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
                 <div><strong>Dumper Trovati:</strong> ${dumper}</div>
-                <div style="margin-top: 15px; font-size: 11px; color: #ffaa00; border-top: 1px solid #333; padding-top: 8px;">
-                    ⚠️ Avviso Sviluppo: Il server Node.js sta attualmente inviando dati simulati.
+                
                 </div>
             `;
         } catch (error) {
