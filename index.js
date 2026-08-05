@@ -13,11 +13,51 @@ app.use(express.json({ limit: '50mb' }));
 
 
 // --- ROTTE PER L'ESTENSIONE ---
-app.get('/api/scan/:token', (req, res) => {
-    // Qui andrà la tua logica del radar per i Fresh Wallets, Sniper Bots, ecc...
-    res.json({ message: "Dati recuperati con successo!" });
-});
+app.get('/api/scan/:tokenMint', async (req, res) => {
+    const tokenMint = req.params.tokenMint;
 
+    try {
+        // 1. Chiamiamo un'API esterna per ottenere i dati reali del token
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
+        const data = await response.json();
+
+        // 2. Logica di calcolo del rischio
+        let score = 0;
+        let rischioStatus = "Analisi in corso";
+        let dumperTrovati = "0";
+
+        // Se l'API non trova il token o non ha liquidità
+        if (!data.pairs || data.pairs.length === 0) {
+            score = 90;
+            rischioStatus = "Estremo (Nessuna liquidità / Appena lanciato)";
+        } else {
+            // Analizziamo la liquidità del primo pair trovato
+            const liquidity = data.pairs[0].liquidity?.usd || 0;
+            
+            if (liquidity < 5000) {
+                score = 75;
+                rischioStatus = "Alto (Bassa Liquidità)";
+            } else if (liquidity > 50000) {
+                score = 10;
+                rischioStatus = "Basso (Buona Liquidità)";
+            } else {
+                score = 40;
+                rischioStatus = "Medio";
+            }
+        }
+
+        // 3. Inviamo i dati dinamici all'estensione Chrome
+        res.json({
+            score: score,
+            rischio: rischioStatus,
+            dumperTrovati: dumperTrovati
+        });
+
+    } catch (error) {
+        console.error("Errore nel backend:", error);
+        res.status(500).json({ error: "Impossibile analizzare il token sulla blockchain." });
+    }
+});
 
 // --- ROTTA PER I WEBHOOK DI HELIUS ---
 app.post('/webhook', async (req, res) => {
