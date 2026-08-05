@@ -1,4 +1,8 @@
-// Funzione per estrarre l'indirizzo del token dall'URL di Pump.fun
+// Variabili globali per tenere traccia dello stato
+let currentToken = null;
+let radarHost = null;
+
+// Funzione per estrarre l'indirizzo del token dall'URL
 function getTokenFromURL() {
     const path = window.location.pathname;
     const parts = path.split('/');
@@ -10,18 +14,20 @@ function getTokenFromURL() {
     return null;
 }
 
-// 🛡️ Creazione del widget in una bolla protetta (Shadow DOM)
+// 🛡️ Creazione del widget
 function createRadarWidget() {
-    // 1. Creiamo un contenitore invisibile e lo attacchiamo FUORI dal body dell'app React
-    const host = document.createElement('div');
-    host.id = 'pump-radar-host';
-    host.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 2147483647; pointer-events: none;';
-    document.documentElement.appendChild(host);
+    // Se c'è già un vecchio widget, lo rimuoviamo per non crearne due
+    if (radarHost) {
+        radarHost.remove();
+    }
 
-    // 2. Creiamo lo Shadow DOM (la nostra bolla impenetrabile)
-    const shadow = host.attachShadow({ mode: 'open' });
+    radarHost = document.createElement('div');
+    radarHost.id = 'pump-radar-host';
+    radarHost.style.cssText = 'position: fixed; bottom: 30px; right: 30px; z-index: 2147483647; pointer-events: none;';
+    document.documentElement.appendChild(radarHost);
 
-    // 3. Creiamo il vero widget dentro la bolla
+    const shadow = radarHost.attachShadow({ mode: 'open' });
+
     const widget = document.createElement('div');
     widget.style.cssText = `
         pointer-events: auto;
@@ -41,20 +47,20 @@ function createRadarWidget() {
     
     shadow.appendChild(widget);
     
-    return widget; // Restituiamo il widget per aggiornarlo dopo
+    return widget; 
 }
 
-async function initRadar() {
-    const tokenMint = getTokenFromURL();
-    
-    if (!tokenMint) {
-        return; 
-    }
-
+// Funzione principale di analisi
+async function initRadar(tokenMint) {
     const widget = createRadarWidget();
 
-    try {
-        const response = await fetch(`http://localhost:3000/api/scan/${tokenMint}`);
+   try {
+        // RIGA MODIFICATA: Inserito il tuo VERO indirizzo Ngrok e l'header per il lasciapassare
+        const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+            headers: {
+                "ngrok-skip-browser-warning": "true"
+            }
+        });
         const data = await response.json();
 
         if (data.error) {
@@ -63,16 +69,21 @@ async function initRadar() {
             return;
         }
 
-        const borderColor = data.score >= 50 ? '#ff4444' : '#00C851';
+        // Se non abbiamo ancora integrato questi dati nel backend, usiamo un fallback
+        const score = data.score || 0;
+        const rischio = data.rischio || "Analisi completata";
+        const dumper = data.dumperTrovati || "N/A";
+
+        const borderColor = score >= 50 ? '#ff4444' : '#00C851';
         widget.style.borderColor = borderColor;
 
         widget.innerHTML = `
             <div style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #333; font-weight: bold; font-size: 16px;">
                 Radar Report
             </div>
-            <div style="margin-bottom: 6px;"><strong>Status:</strong> <span style="color: ${borderColor}">${data.rischio}</span></div>
-            <div style="margin-bottom: 6px;"><strong>Rischio:</strong> ${data.score}/100</div>
-            <div><strong>Dumper:</strong> ${data.dumperTrovati}</div>
+            <div style="margin-bottom: 6px;"><strong>Status:</strong> <span style="color: ${borderColor}">${rischio}</span></div>
+            <div style="margin-bottom: 6px;"><strong>Rischio:</strong> ${score}/100</div>
+            <div><strong>Dumper:</strong> ${dumper}</div>
         `;
 
     } catch (error) {
@@ -81,4 +92,24 @@ async function initRadar() {
     }
 }
 
-setTimeout(initRadar, 2500);
+// 🔄 IL SEGUGIO: Controlla se cambiamo pagina
+function monitorURL() {
+    const tokenMint = getTokenFromURL();
+    
+    // Se siamo su un nuovo token
+    if (tokenMint && tokenMint !== currentToken) {
+        currentToken = tokenMint;
+        initRadar(tokenMint);
+    } 
+    // Se siamo tornati alla home (non c'è più il token)
+    else if (!tokenMint && currentToken) {
+        currentToken = null;
+        if (radarHost) {
+            radarHost.remove();
+            radarHost = null;
+        }
+    }
+}
+
+// Avvia il segugio: controlla l'URL ogni 1 secondo (1000 millisecondi)
+setInterval(monitorURL, 1000);

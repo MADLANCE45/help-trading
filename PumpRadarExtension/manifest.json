@@ -9,6 +9,11 @@
   "host_permissions": [
     "http://localhost:3000/*"
   ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Pump Radar"
+  },
+  
   "content_scripts": [
     {
       "matches": ["*://*.pump.fun/*", "*://pump.fun/*"],
