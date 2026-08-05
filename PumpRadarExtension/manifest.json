@@ -4,7 +4,9 @@
   "version": "1.0",
   "description": "Rileva rug pulls e sniper bot su Pump.fun",
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost:3000/*"
@@ -13,7 +15,6 @@
     "default_popup": "popup.html",
     "default_title": "Pump Radar"
   },
-  
   "content_scripts": [
     {
       "matches": ["*://*.pump.fun/*", "*://pump.fun/*"],

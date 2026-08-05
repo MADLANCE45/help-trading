@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
 
-    // Chiediamo a Chrome l'URL della scheda attiva
+    // --- 1. PUMP RADAR (Analisi Moneta) ---
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         if (!tabs || tabs.length === 0) {
             contentDiv.innerHTML = '<p>❌ Errore: Impossibile leggere la scheda attiva.</p>';
@@ -16,18 +16,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Estrazione sicura del token dall'URL
         try {
             const urlObj = new URL(url);
             const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
             const tokenMint = pathParts[pathParts.length - 1];
 
             if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                contentDiv.innerHTML = '<p>Nessun token rilevato in questo URL. Entra nella pagina specifica di una coin.</p>';
+                contentDiv.innerHTML = '<p>Nessun token rilevato. Entra nella pagina specifica di una coin.</p>';
                 return;
             }
 
-            contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>Scansione in corso...</p>`;
+            contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>⏳ Scansione in corso...</p>`;
 
             // Chiamata al server Node.js
             const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
@@ -42,16 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Estrazione sicura dei dati (se un dato manca, mettiamo un valore di default)
+            // Estrazione dati
             const score = data.score || 0;
             const rischio = data.rischio || "N/A";
-            const dumper = data.dumperTrovati || "In sviluppo...";
+            const dumper = data.dumperTrovati || "0";
             const devWallet = data.devWallet || "Sconosciuto";
             const devAge = data.devAgeDays !== undefined && data.devAgeDays !== "N/A" ? `${data.devAgeDays} giorni` : "N/A";
-            
             const colorClass = score >= 50 ? 'danger' : 'safe';
 
-            // Costruiamo la lista puntata per i log in modo dinamico
             let logHTML = "";
             if (data.dettagli && data.dettagli.length > 0) {
                 logHTML = "<ul style='padding-left: 20px; font-size: 0.9em; margin-top: 5px;'>" + 
@@ -59,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           "</ul>";
             }
 
-            // Stampiamo tutta l'interfaccia aggiornata in un colpo solo
+            // Stampa dell'interfaccia Radar (ora è unica e non si sovrascrive)
             contentDiv.innerHTML = `
                 <div class="token-mint">Target: ${tokenMint}</div>
                 <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
@@ -73,27 +70,109 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${logHTML}
                 </div>
             `;
-            if (data.error) {
-                contentDiv.innerHTML = `<p style="color: #ff4444;">❌ Errore Backend: ${data.error}</p>`;
-                return;
-            }
-
-            const score = data.score || 0;
-            const rischio = data.rischio || "MOCK DATA";
-            const dumper = data.dumperTrovati || "N/A";
             
-            const colorClass = score >= 50 ? 'danger' : 'safe';
-
-            contentDiv.innerHTML = `
-                <div class="token-mint">Target: ${tokenMint}</div>
-                <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
-                <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
-                <div><strong>Dumper Trovati:</strong> ${dumper}</div>
-                
-                </div>
-            `;
         } catch (error) {
-            contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione a Ngrok o lettura URL: ${error.message}</p>`;
+            contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione a Ngrok: ${error.message}</p>`;
         }
     });
+
+    // --- 2. SMART MONEY TRACKER (Grafica Portafogli) ---
+    const trackerHTML = `
+        <hr style="border-color: #444; margin: 15px 0;">
+        <div id="smart-money-tracker" style="color: white; font-family: monospace; padding: 0 10px 10px 10px;">
+            <h4 style="margin: 0 0 10px 0; color: #00ffcc;">💼 Smart Money Tracker</h4>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="new-wallet-input" placeholder="Incolla wallet..." style="flex: 1; padding: 5px; background: #222; border: 1px solid #444; color: white;">
+                <button id="add-wallet-btn" style="padding: 5px 10px; background: #00ffcc; color: black; border: none; font-weight: bold; cursor: pointer;">Traccia</button>
+            </div>
+            <div id="tracked-wallets-list" style="font-size: 11px; max-height: 250px; overflow-y: auto;">
+            </div>
+        </div>
+    `;
+
+    // Iniezione dinamica del tracker nel DOM dell'estensione
+    document.body.insertAdjacentHTML('beforeend', trackerHTML);
+
+    const addBtn = document.getElementById('add-wallet-btn');
+    const inputField = document.getElementById('new-wallet-input');
+    const listContainer = document.getElementById('tracked-wallets-list');
+
+    // Funzione che carica e renderizza i portafogli salvati
+    function loadSavedWallets() {
+        chrome.storage.local.get(['trackedWallets'], function(result) {
+            const wallets = result.trackedWallets || [];
+            listContainer.innerHTML = ''; 
+            
+            const oggiStr = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+
+            wallets.forEach(async (wallet) => {
+                const walletItem = document.createElement('div');
+                walletItem.style.cssText = "background: #1e1e24; border: 1px solid #333; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-family: monospace;";
+                walletItem.innerHTML = `<span style="color:#00ffcc;">⏳ Scansione ${wallet.substring(0, 6)}...</span>`;
+                listContainer.appendChild(walletItem);
+
+                try {
+                    const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/tracker/${wallet}`, {
+                        headers: {
+                            "ngrok-skip-browser-warning": "true"
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    const pnlValue = parseFloat(data.pnlOggi);
+                    const pnlColor = pnlValue >= 0 ? '#00ff00' : '#ff4444';
+                    const pnlSign = pnlValue > 0 ? '+' : '';
+                    const winRateColor = parseFloat(data.winRate) > 50 ? '#00ff00' : '#ff4444';
+
+                    walletItem.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #444; padding-bottom: 6px; margin-bottom: 8px;">
+                            <strong style="color: #00aaff;">${wallet.substring(0, 4)}...${wallet.slice(-4)}</strong>
+                            <span style="font-size: 0.85em; color: ${data.walletMadre !== 'Sconosciuto' ? '#ffaa00' : '#888'};">
+                                Madre: ${data.walletMadre !== 'Sconosciuto' ? 'Trovata ⚠️' : 'Nessuna'}
+                            </span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9em; margin-bottom: 10px;">
+                            <div>🏆 Win: <b style="color: ${winRateColor};">${data.winRate}</b></div>
+                            <div>🚀 ROI: <b style="color: #fff;">${data.rendimentoX}</b></div>
+                            <div>🔄 Trade: <b style="color: #fff;">${data.tradeTotali}</b></div>
+                            <div>👤 Stile: <b style="color: #ffaa00;">${data.classificazione}</b></div>
+                        </div>
+
+                        <div style="background: #2a2a35; border-radius: 6px; padding: 8px; font-size: 0.85em; border-left: 3px solid ${pnlColor};">
+                            <div style="color: #aaa; margin-bottom: 4px;">📅 Sessione Oggi (${oggiStr})</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>📥 Deposito: <b style="color: #fff;">${data.depositoOggi}</b></span>
+                                <span>📈 PNL: <b style="color: ${pnlColor}; font-size: 1.1em;">${pnlSign}${data.pnlOggi}</b></span>
+                            </div>
+                            <div style="margin-top: 6px; width: 100%; height: 4px; background: #444; border-radius: 2px; overflow: hidden;">
+                                <div style="width: ${parseFloat(data.winRate)}%; height: 100%; background: ${winRateColor};"></div>
+                            </div>
+                        </div>
+                    `;
+                } catch(e) {
+                    walletItem.innerHTML = `<span style="color:#ff4444;">❌ Errore Server per ${wallet.substring(0, 4)}...</span>`;
+                }
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', () => {
+        const newWallet = inputField.value.trim();
+        if (newWallet.length > 30) { 
+            chrome.storage.local.get(['trackedWallets'], function(result) {
+                let wallets = result.trackedWallets || [];
+                if (!wallets.includes(newWallet)) {
+                    wallets.push(newWallet);
+                    chrome.storage.local.set({ trackedWallets: wallets }, function() {
+                        inputField.value = ''; 
+                        loadSavedWallets(); 
+                    });
+                }
+            });
+        }
+    });
+
+    // Avvia la dashboard dei wallet all'apertura dell'estensione
+    loadSavedWallets();
 });
