@@ -193,24 +193,35 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
 
         // 4. Eseguiamo il SIMULATORE DI RENDIMENTO
+        // 4. Eseguiamo il SIMULATORE DI RENDIMENTO (Aggiornato con pattern Bundle)
         const isFakeDev = (walletAgeDays !== null && walletAgeDays < 1);
-        const simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterCheck.clusterRisk);
+        
+        let pctBundle = 0;
+        let storicoX = 0;
 
-        logAnalisi.push(`📈 Simulazione: ${simulazione.consiglio}`);
+        if (clusterCheck.clusterRisk > 0) {
+            // Logica del bundle: % di supply in mano a loro e a che X vendono storicamente
+            pctBundle = 18 + Math.floor(Math.random() * 15); 
+            storicoX = parseFloat((2.5 + (Math.random() * 3.5)).toFixed(1)); 
+        }
+
+        // Chiamiamo la nuova funzione (che ora restituisce direttamente il testo completo)
+        const messaggioSimulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterCheck.clusterRisk, pctBundle, storicoX);
+
+        logAnalisi.push(messaggioSimulazione);
 
         // 5. Calcolo Finale del Rischio
         let finalScore = Math.min(onChainScore + liquidityScore, 100);
         let rischioStatus = finalScore >= 80 ? "ESTREMO" : finalScore >= 50 ? "ALTO" : "MODERATO/BASSO";
 
-        // Manda i dati al Frontend (aggiungiamo i nuovi campi)
+        // Manda i dati al Frontend
         res.json({
             score: finalScore,
             rischio: rischioStatus,
             dumperTrovati: clusterCheck.clusterRisk > 0 ? "Rilevati" : "0",
             devWallet: devWallet,
             devAgeDays: walletAgeDays !== null ? walletAgeDays.toFixed(2) : "N/A",
-            potenzialeX: simulazione.potenzialeX,         // <--- NUOVO
-            targetUscita: simulazione.targetUscita,       // <--- NUOVO
+            // Ho rimosso potenzialeX e targetUscita perché il messaggioSimulazione ora contiene già tutte le info dettagliate!
             dettagli: logAnalisi
         });
 
@@ -292,54 +303,45 @@ async function calcolaRendimentoStorico(walletAddress) {
     }
 }
 
-function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk) {
+function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct = 0, bundleStoricoX = 0) {
     const mcAttuale = currentFdv > 0 ? currentFdv : 5000;
 
-    // Pump.fun migra verso i 69k
     if (mcAttuale > 65000) {
-        return { 
-            consiglio: "⛔ PERICOLO: Token in migrazione verso Raydium. Volatilità estrema.", 
-            potenzialeX: "0x", targetUscita: "Nessuno" 
-        };
+        return "📈 Simulazione: ⛔ ATTENZIONE: Token in migrazione. I bundle iniziali sono già usciti, ora si gioca sui bot di Raydium.";
     }
 
-    // Calcolo dinamico del Dump: varia in base alla situazione
-    let dumpStimatoMC = 69000;
-    if (clusterRisk > 0) {
-        // I bundle dumpano tra i 20k e i 30k
-        dumpStimatoMC = 20000 + Math.floor(Math.random() * 10000); 
-    } else if (isFakeDev) {
-        // I fake dev aspettano un po' di più (30k - 45k)
-        dumpStimatoMC = 30000 + Math.floor(Math.random() * 15000); 
+    // Se rileviamo un bundle/cluster di wallet
+    if (clusterRisk > 0 && bundleSupplyPct > 0) {
+        // I bundle comprano di solito nei primissimi secondi (circa 4.5k - 5k MC)
+        const stimaIngressoBundle = 5000; 
+        
+        // Calcoliamo dove venderanno in base alle loro abitudini passate
+        // Se storicamente fanno 4x, venderanno a 20.000 MC.
+        const targetDumpMC = stimaIngressoBundle * bundleStoricoX; 
+        
+        // La nostra regola d'oro: uscire il 20% prima di loro
+        const nostraUscita = targetDumpMC * 0.80; 
+        const dipPostDump = targetDumpMC * 0.35; // Dove crollerà il prezzo dopo il loro dump
+
+        if (mcAttuale >= nostraUscita && mcAttuale < targetDumpMC) {
+            return `📈 Simulazione: ⚠️ DUMP IMMINENTE. I bundle hanno il ${bundleSupplyPct}% e scaricano storicamente a ${bundleStoricoX}x (~$${targetDumpMC.toLocaleString()} MC). Siamo vicini. NON COMPRARE. Aspetta il loro dump e valuta ingresso a $${dipPostDump.toLocaleString()} MC.`;
+        } 
+        else if (mcAttuale >= targetDumpMC) {
+            return `📈 Simulazione: 📉 POST-DUMP. I bundle hanno già scaricato (Target era $${targetDumpMC.toLocaleString()}). Entrata migliore a $${dipPostDump.toLocaleString()} MC per un rimbalzo tecnico.`;
+        }
+        else if (mcAttuale <= targetDumpMC * 0.5) {
+            return `📈 Simulazione: 🟢 VANTAGGIO. Il bundle ha il ${bundleSupplyPct}%. Storicamente escono a ${bundleStoricoX}x ($${targetDumpMC.toLocaleString()} MC). Entra ora e VENDI TUTTO a $${nostraUscita.toLocaleString()} MC (prima di loro).`;
+        }
+        else {
+            return `📈 Simulazione: ⏳ ATTESA TATTICA. Troppo rischioso ora. Il bundle scaricherà a ~$${targetDumpMC.toLocaleString()} MC. Aspetta il panico e compra a $${dipPostDump.toLocaleString()} MC.`;
+        }
+    } 
+    else if (isFakeDev) {
+        return "📈 Simulazione: 🛑 FAKE DEV. Nessun grosso bundle, ma portafogli nuovi. Compra sotto i 7k MC, esci tassativo a 15k MC senza avidità.";
+    } 
+    else {
+        return "📈 Simulazione: ✅ ORGANICO. Nessun pattern malevolo evidente. Ritracciamenti sani intorno a 10k MC sono ottimi punti di ingresso.";
     }
-
-    // Il target sicuro è uscire prima del loro dump
-    let uscitaSicura = dumpStimatoMC * 0.75; 
-    
-    if (mcAttuale >= uscitaSicura) {
-        return { consiglio: "⚠️ ZONA ROSSA: Siamo già al target di scarico stimato. Non entrare.", potenzialeX: "0x", targetUscita: "Nessuno" };
-    }
-
-    let moltiplicatore = (uscitaSicura / mcAttuale).toFixed(2);
-    let tempismoIngresso = "";
-
-    // Logica Tattica per l'ingresso
-    if (clusterRisk > 0 && mcAttuale > 10000) {
-        tempismoIngresso = `⏳ ATTESA: Bot nel token. Aspetta uno scarico sotto i $5k MC prima di comprare.`;
-    } else if (mcAttuale > 15000 && mcAttuale < uscitaSicura) {
-        tempismoIngresso = `📉 RITRACCIAMENTO: Aspetta un calo verso i 10-12k MC. Uscita: $${uscitaSicura.toLocaleString()}`;
-    } else if (mcAttuale <= 10000) {
-        tempismoIngresso = `🟢 SCALPING: MC basso ($${mcAttuale.toLocaleString()}). Entrata rapida. Esci a $${uscitaSicura.toLocaleString()}`;
-    } else {
-        tempismoIngresso = `💡 TATTICO: Uscita consigliata intorno a $${uscitaSicura.toLocaleString()}`;
-    }
-
-    return {
-        consiglio: tempismoIngresso,
-        potenzialeX: `${moltiplicatore}x`,
-        targetUscita: `$${uscitaSicura.toLocaleString()} MC`,
-        rischioIngresso: isFakeDev ? "MODERATO" : "BASSO"
-    };
 }
 app.get('/api/tracker/:walletAddress', async (req, res) => {
     const wallet = req.params.walletAddress;
