@@ -215,16 +215,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         addBtn.addEventListener('click', () => {
             const newWallet = inputField.value.trim();
-            if (newWallet.length > 30) { 
+            // Controllo rigoroso: un wallet Solana ha tra i 32 e i 44 caratteri
+            if (newWallet.length >= 32 && newWallet.length <= 44) { 
                 chrome.storage.local.get(['trackedWallets'], function(result) {
                     let wallets = result.trackedWallets || [];
                     if (!wallets.includes(newWallet)) {
                         wallets.push(newWallet);
                         chrome.storage.local.set({ trackedWallets: wallets }, () => {
-                            inputField.value = ''; loadSavedWallets(); 
+                            inputField.value = ''; 
+                            loadSavedWallets(); 
                         });
                     }
                 });
+            } else {
+                alert("⚠️ Errore: Inserisci un Indirizzo Solana valido (es. 8goER...), non un nome! Usa la matita ✏️ per rinominarlo dopo averlo salvato.");
             }
         });
 
@@ -287,53 +291,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadSavedWallets() {
-        const listContainer = contentDiv.querySelector('#tracked-wallets-list');
+        const listContainer = document.getElementById('tracked-wallets-list');
         if (!listContainer) return; 
 
-        chrome.storage.local.get(['trackedWallets', 'walletNames'], function(result) {
+        chrome.storage.local.get(['trackedWallets', 'walletNames'], async function(result) {
             const wallets = result.trackedWallets || [];
             const walletNames = result.walletNames || {};
             listContainer.innerHTML = ''; 
 
-            wallets.forEach(async (wallet) => {
+            for (const wallet of wallets) {
                 const walletItem = document.createElement('div');
-                walletItem.style.cssText = "background: #1e1e24; border: 1px solid #333; border-radius: 4px; padding: 10px; margin-bottom: 8px;";
-                walletItem.innerHTML = `<span style="color:#00ffcc;">⏳ Fetch ${wallet.substring(0, 6)}...</span>`;
+                walletItem.style.cssText = "background: linear-gradient(145deg, #161821, #1a1c29); border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);";
+                walletItem.innerHTML = `<div style="color:#00ffcc; font-size: 0.85em;">⏳ Analisi on-chain: ${wallet.substring(0, 6)}...</div>`;
                 listContainer.appendChild(walletItem);
 
-                const displayName = walletNames[wallet] ? walletNames[wallet] : `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
+                const displayName = walletNames[wallet] || `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
 
                 try {
                     const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/tracker/${wallet}`, {
                         headers: { "ngrok-skip-browser-warning": "true" }
                     });
-                    const data = await response.json();
-                    const pnlVal = parseFloat(data.pnlOggi);
-                    const pnlColor = pnlVal >= 0 ? '#00ff00' : '#ff4444';
                     
+                    const data = await response.json();
+                    if (!response.ok || data.error) throw new Error(data.error || "Errore Server");
+
+                    // SALVAGENTE: Se manca il calendario, crea una struttura vuota per non far crashare la grafica
+                    const cal = data.calendario || {
+                        oggi: { pnl: 0, win: '0/0' },
+                        ieri: { pnl: 0, win: '0/0' },
+                        totale: { pnl: 0, winRateGlobale: '0%' }
+                    };
+
+                    const pnlOggiVal = parseFloat(cal.oggi.pnl) || 0;
+                    const colOggi = pnlOggiVal >= 0 ? '#00e676' : '#ff4d4d';
+                    const pnlIeriVal = parseFloat(cal.ieri.pnl) || 0;
+                    const colIeri = pnlIeriVal >= 0 ? '#00e676' : '#ff4d4d';
+                    const pnlTotVal = parseFloat(cal.totale.pnl) || 0;
+                    const colTot = pnlTotVal >= 0 ? '#00aaff' : '#ff4d4d';
+
                     walletItem.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #444; padding-bottom:6px; margin-bottom:6px;">
-                            <strong style="color:#00aaff; font-size:1.1em; max-width:65%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${wallet}">
-                                ${displayName}
-                            </strong>
-                            <div style="display:flex; gap:8px;">
-                                <span class="edit-name-btn" data-wallet="${wallet}" style="cursor:pointer;" title="Rinomina">✏️</span>
-                                <span class="delete-wallet-btn" data-wallet="${wallet}" style="cursor:pointer;" title="Elimina">🗑️</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2d3142; padding-bottom:8px; margin-bottom:10px;">
+                            <strong style="color:#00e6e6; font-size:1.05em; max-width:40%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${wallet}">${displayName}</strong>
+                            <div style="background:#0a0c10; border:1px solid #00ffcc; border-radius:4px; padding:3px 6px; color:#00ffcc; font-size:0.75em; font-weight:bold; box-shadow: 0 0 5px rgba(0,255,204,0.2);">💰 ${data.balance || '0.00'} SOL</div>
+                            <div style="display:flex; gap:4px;">
+                                <button class="edit-name-btn" data-wallet="${wallet}" style="background:#242736; border:1px solid #3a3f58; color:#fff; border-radius:4px; padding:3px 6px; cursor:pointer; font-size:0.8em;" title="Rinomina">✏️</button>
+                                <button class="delete-wallet-btn" data-wallet="${wallet}" style="background:#362424; border:1px solid #583a3a; color:#ff4d4d; border-radius:4px; padding:3px 6px; cursor:pointer; font-size:0.8em;" title="Elimina">🗑️</button>
                             </div>
                         </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin: 6px 0;">
-                            <div>WinRate: <b style="color:${parseFloat(data.winRate)>50?'#00ff00':'#ff4444'};">${data.winRate}</b></div>
-                            <div>ROI: <b>${data.rendimentoX}</b></div>
-                        </div>
-                        <div style="background:#222; padding:6px; border-radius: 4px; border-left:3px solid ${pnlColor}; display:flex; justify-content:space-between;">
-                            <span>Oggi: <b>${data.depositoOggi}</b></span>
-                            <span style="color:${pnlColor}">PNL: <b>${pnlVal > 0 ? '+' : ''}${data.pnlOggi}</b></span>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; text-align: center;">
+                            <div style="background:#11121a; border-radius:6px; padding:6px; border-top:2px solid ${colOggi};">
+                                <div style="color:#777; font-size:0.7em; letter-spacing:1px; margin-bottom:4px;">OGGI</div>
+                                <div style="color:${colOggi}; font-weight:bold; font-size:1em;">${pnlOggiVal >= 0 ? '+' : ''}${cal.oggi.pnl}</div>
+                                <div style="color:#555; font-size:0.75em; margin-top:3px;">Win: ${cal.oggi.win}</div>
+                            </div>
+                            <div style="background:#11121a; border-radius:6px; padding:6px; border-top:2px solid ${colIeri};">
+                                <div style="color:#777; font-size:0.7em; letter-spacing:1px; margin-bottom:4px;">IERI</div>
+                                <div style="color:${colIeri}; font-weight:bold; font-size:1em;">${pnlIeriVal >= 0 ? '+' : ''}${cal.ieri.pnl}</div>
+                                <div style="color:#555; font-size:0.75em; margin-top:3px;">Win: ${cal.ieri.win}</div>
+                            </div>
+                            <div style="background:#0a0d14; border-radius:6px; padding:6px; border-top:2px solid ${colTot}; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">
+                                <div style="color:#00aaff; font-size:0.7em; letter-spacing:1px; margin-bottom:4px; font-weight:bold;">GLOBALE</div>
+                                <div style="color:${colTot}; font-weight:bold; font-size:1em;">${pnlTotVal >= 0 ? '+' : ''}${cal.totale.pnl}</div>
+                                <div style="color:#aaa; font-size:0.75em; margin-top:3px;">${cal.totale.winRateGlobale}</div>
+                            </div>
                         </div>
                     `;
                 } catch(e) {
-                    walletItem.innerHTML = `<div style="display:flex; justify-content:space-between;"><span style="color:#ff4444;">❌ Timeout ${displayName}</span><span class="delete-wallet-btn" data-wallet="${wallet}" style="cursor:pointer;">🗑️</span></div>`;
+                    walletItem.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:#ff4d4d; font-weight:bold; font-size:0.85em;">❌ Errore API o Corrotto</span>
+                            <button class="delete-wallet-btn" data-wallet="${wallet}" style="background:#362424; border:1px solid #583a3a; color:#ff4d4d; border-radius:4px; padding:3px 6px; cursor:pointer;">🗑️</button>
+                        </div>
+                    `;
                 }
-            });
+                
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
         });
     }
 });
