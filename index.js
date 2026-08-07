@@ -17,217 +17,229 @@ app.use(cors());
 
 
 
-async function analizzaClusterAcquirenti(mintPubKey) {
+// =====================================================================
+// 1. ANALISI DEL BUNDLE INIZIALE (Slot-0 & Bot di Volume)
+// =====================================================================
+async function analizzaBotEarlyLaunch(mintPubKey) {
     try {
-        const signatures = await solanaConnection.getSignaturesForAddress(new PublicKey(mintPubKey), { limit: 50 });
-        if (signatures.length === 0) return { clusterRisk: 0, dettagli: "Nessuna transazione trovata." };
+        const mintAddress = new PublicKey(mintPubKey);
+        
+        const signatures = await solanaConnection.getSignaturesForAddress(mintAddress, { limit: 20 });
+        if (signatures.length === 0) {
+            return { potenzialeVolumeBot: "BASSO", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Nessun dato." };
+        }
 
-        let walletAcquirenti = new Set();
-        let finanziatoriMap = {};
-        let primoAcquistoTime = null;
+        let blockTimes = [];
+        let funderMap = {};
+        let sameBlockTxCount = 0;
 
-        for (let i = signatures.length - 1; i >= Math.max(0, signatures.length - 15); i--) {
-            const tx = await solanaConnection.getParsedTransaction(signatures[i].signature, { maxSupportedTransactionVersion: 0 });
-            
-            if (tx && tx.transaction && tx.transaction.message.accountKeys) {
-                const buyer = tx.transaction.message.accountKeys[0].pubkey.toString();
-                walletAcquirenti.add(buyer);
-                
-                if (!primoAcquistoTime && tx.blockTime) {
-                    primoAcquistoTime = new Date(tx.blockTime * 1000).toLocaleString('it-IT', { timeZone: 'Europe/Rome' });
-                }
+        for (let i = signatures.length - 1; i >= 0; i--) {
+            const sigInfo = signatures[i];
+            if (sigInfo.blockTime) blockTimes.push(sigInfo.blockTime);
+
+            const tx = await solanaConnection.getParsedTransaction(sigInfo.signature, { maxSupportedTransactionVersion: 0 });
+            if (tx && tx.transaction && tx.transaction.message.accountKeys.length > 1) {
+                const funder = tx.transaction.message.accountKeys[1].pubkey.toString();
+                funderMap[funder] = (funderMap[funder] || 0) + 1;
             }
         }
 
-        let finanziatoriComuni = 0;
-        for (let buyer of walletAcquirenti) {
-            const buyerPub = new PublicKey(buyer);
-            const history = await solanaConnection.getSignaturesForAddress(buyerPub, { limit: 10 });
-            if (history.length > 0) {
-                const fundingTx = await solanaConnection.getParsedTransaction(history[history.length - 1].signature, { maxSupportedTransactionVersion: 0 });
-                if (fundingTx && fundingTx.transaction.message.accountKeys.length > 1) {
-                    const funder = fundingTx.transaction.message.accountKeys[1].pubkey.toString();
-                    finanziatoriMap[funder] = (finanziatoriMap[funder] || 0) + 1;
-                    if (finanziatoriMap[funder] > 1) {
-                        finanziatoriComuni++; 
-                    }
+        if (blockTimes.length > 1) {
+            const primoTempo = blockTimes[0];
+            sameBlockTxCount = blockTimes.filter(t => t === primoTempo || Math.abs(t - primoTempo) <= 1).length;
+        }
+
+        let masterWallet = null;
+        for (const [funder, count] of Object.entries(funderMap)) {
+            if (count >= 2) { masterWallet = funder; break; }
+        }
+
+        let supplyBundledPct = 0;
+        try {
+            const largestAccs = await solanaConnection.getTokenLargestAccounts(mintAddress);
+            if (largestAccs.value.length > 1) {
+                let totalTop = 0;
+                for (let k = 1; k < Math.min(6, largestAccs.value.length); k++) {
+                    if (largestAccs.value[k]) totalTop += largestAccs.value[k].uiAmount;
                 }
+                supplyBundledPct = parseFloat(((totalTop / 1000000000) * 100).toFixed(1));
             }
+        } catch (e) {}
+
+        let punteggioBot = 0;
+        if (sameBlockTxCount >= 3) punteggioBot += 40; 
+        if (masterWallet) punteggioBot += 35;          
+        if (supplyBundledPct >= 15) punteggioBot += 25; 
+
+        let livelloVolume = "BASSO";
+        let indicatore = "🔴 Nessun pattern bot rilevato a 2k MC.";
+
+        if (punteggioBot >= 70) {
+            livelloVolume = "MOLTO ALTO (SNIPE READY)";
+            indicatore = `🚀 BOT PUMP PRONTO: ${sameBlockTxCount} buy nello stesso blocco. Fanno finto volume.`;
+        } else if (punteggioBot >= 40) {
+            livelloVolume = "MODERATO";
+            indicatore = `🟡 BOT MODERATI: Rilevati acquisti raggruppati. Possibile spinta a breve.`;
         }
 
-        if (finanziatoriComuni >= 2) {
-            return {
-                clusterRisk: 50,
-                orarioAccumulo: primoAcquistoTime || "Sconosciuto",
-                avviso: `⚠️ CLUSTER (Bundle): Accumulo iniziato esattamente alle ${primoAcquistoTime}.`
-            };
-        }
-
-        return { clusterRisk: 0, avviso: "✅ Gli acquirenti sembrano indipendenti." };
+        return {
+            potenzialeVolumeBot: livelloVolume,
+            bundleSlot0: sameBlockTxCount >= 3,
+            supplyBundledPct: supplyBundledPct,
+            funderComune: masterWallet,
+            indicatoreTesto: indicatore
+        };
 
     } catch (error) {
-        console.error("Errore nell'analisi del cluster:", error);
-        return { clusterRisk: 0, avviso: "Impossibile analizzare il cluster di wallet." };
+        return { potenzialeVolumeBot: "NON DISPONIBILE", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Errore blocco 0." };
     }
 }
 
-// Esempio logico da integrare nel tuo index.js
-async function detectBundle(tokenMint) {
-    // 1. Prendi le prime 20-30 transazioni della moneta appena nata
-    const signatures = await connection.getSignaturesForAddress(
-        new PublicKey(tokenMint), 
-        { limit: 30 }
-    );
+// =====================================================================
+// 2. SIMULATORE DI PROFITTO E RIMBALZO (Wash Trading)
+// =====================================================================
+function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct = 0, bundleStoricoX = 0) {
+    const mcAttuale = currentFdv > 0 ? currentFdv : 5000;
+    
+    let risultato = { testo: "", mostraGrafico: false, datiGrafico: null, tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0 };
+    let nostraUscita = 0;
 
-    // 2. Raggruppa le transazioni per "Slot" (Blocco)
-    const slotCounts = {};
-    signatures.forEach(sig => {
-        slotCounts[sig.slot] = (slotCounts[sig.slot] || 0) + 1;
-    });
-
-    // 3. Se nel blocco di creazione (o in quello immediatamente successivo) 
-    // ci sono più di 3-4 acquisti, è matematicamente un Bundle Bot.
-    const creationSlot = signatures[signatures.length - 1].slot;
-    const bundledTxCount = slotCounts[creationSlot];
-
-    if (bundledTxCount > 3) {
-        return {
-            isBundle: true,
-            bundleSize: bundledTxCount,
-            warning: `⚠️ BUNDLE RILEVATO: ${bundledTxCount} transazioni nello stesso blocco di lancio!`
-        };
+    if (mcAttuale > 65000) {
+        nostraUscita = Math.floor(mcAttuale * 1.25); 
+        risultato.testo = `📈 Simulazione: ⚡ TOKEN MIGRATO. Usa i bot di volume a tuo vantaggio: entra ora e prendi un rapido +25% sui finti scambi. Esci a $${nostraUscita.toLocaleString()} MC.`;
     }
-    return { isBundle: false };
+    else if (clusterRisk > 0 && bundleSupplyPct > 0) {
+        let stimaIngressoBundle = 4500; 
+        let targetDumpMC = stimaIngressoBundle * bundleStoricoX; 
+
+        if (bundleSupplyPct < 20 && targetDumpMC > 20000) targetDumpMC = 10000 + (bundleSupplyPct * 350); 
+        if (isFakeDev && targetDumpMC > 14000) targetDumpMC = 13500; 
+
+        const targetDumpMC_Rounded = Math.floor(targetDumpMC);
+        const uscitaIdeale = Math.floor(targetDumpMC_Rounded * 0.75); 
+
+        if (mcAttuale >= targetDumpMC_Rounded) {
+            nostraUscita = Math.floor(mcAttuale * 1.35); 
+            risultato.testo = `📈 Simulazione: 📉 POST-DUMP. I bot fanno finti acquisti (Wash Trading). ⚡ Compra il calo e scappa a +35% ($${nostraUscita.toLocaleString()} MC).`;
+        } else if (mcAttuale >= uscitaIdeale) {
+            nostraUscita = Math.floor(mcAttuale * 1.15); 
+            risultato.testo = `📈 Simulazione: ⚠️ DUMP IMMINENTE. Sfrutta l'ultimo sprint dei bot. ⚡ Entra e scappa istantaneamente a +15% ($${nostraUscita.toLocaleString()} MC). NON ESSERE AVIDO.`;
+        } else {
+            nostraUscita = uscitaIdeale;
+            risultato.testo = `📈 Simulazione: 🟢 VANTAGGIO. Il manipolatore pomperà fino a ~$${targetDumpMC_Rounded.toLocaleString()} MC. Esci a ${nostraUscita.toLocaleString()}$ MC.`;
+        }
+    } 
+    else if (isFakeDev) {
+        if (mcAttuale > 11000) {
+            nostraUscita = Math.floor(mcAttuale * 1.20); 
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV ($${mcAttuale.toLocaleString()} MC). Sta per ruggare. ⚡ Entra per la volatilità estrema e VENDI A +20% ($${nostraUscita.toLocaleString()}).`;
+        } else {
+            nostraUscita = 10000;
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. 🟢 SCALPING RAPIDO. Take Profit a 10k MC, poi scappa.`;
+        }
+    } else {
+        nostraUscita = Math.max(15000, Math.floor(mcAttuale * 1.40));
+        if (mcAttuale < 15000) {
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Entrata pulita. Target: 15k MC.`;
+        } else {
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Gioca l'onda lunga. Target: $${nostraUscita.toLocaleString()} MC.`;
+        }
+    }
+
+    risultato.targetMC = nostraUscita;
+    risultato.moltiplicatore = (nostraUscita / mcAttuale);
+    const ritornoSol = risultato.moltiplicatore.toFixed(2);
+    const nettoSol = (ritornoSol - 1).toFixed(2);
+    risultato.simulatoreTesto = `Entri ora ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k MC ➔ Incassi ${ritornoSol} SOL (+${nettoSol} netti)`;
+    
+    return risultato;
 }
-
-app.use(express.json({ limit: '50mb' }));
-// 1. Sblocca le chiamate dal browser (Pump.fun)
-app.use(cors());
-
-
 
 async function calcolaEtaWallet(walletAddress) {
     try {
-        const pubKey = new PublicKey(walletAddress);
-        
-        // Otteniamo la cronologia delle firme (transazioni) associate a questo wallet
-        const signatures = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 1000 });
-        
-        if (signatures.length === 0) return 0; // Wallet vuoto o inesistente
-
-        // L'ultima transazione nell'array è la più vecchia
+        const signatures = await solanaConnection.getSignaturesForAddress(new PublicKey(walletAddress), { limit: 1000 });
+        if (signatures.length === 0) return 0; 
         const oldestTx = signatures[signatures.length - 1];
-        
-        // Se la transazione ha un timestamp, calcoliamo i giorni trascorsi
-        if (oldestTx.blockTime) {
-            const firstTxTime = oldestTx.blockTime * 1000; // Convertiamo in millisecondi
-            const ageInDays = (Date.now() - firstTxTime) / (1000 * 60 * 60 * 24);
-            return ageInDays;
-        }
-        
+        if (oldestTx.blockTime) return (Date.now() - (oldestTx.blockTime * 1000)) / (1000 * 60 * 60 * 24);
         return null;
-
-    } catch (error) {
-        console.error(`Errore nella lettura del wallet ${walletAddress}:`, error);
-        return null;
-    }
+    } catch (e) { return null; }
 }
-// --- ROTTE PER L'ESTENSIONE ---
-// --- ROTTE PER L'ESTENSIONE ---
+
+// =====================================================================
+// 3. ROTTA PRINCIPALE (Scansione Estensione)
+// =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
 
     try {
         console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
         const mintPubKey = new PublicKey(tokenMint);
-        
-        // 1. Controlliamo l'età del Dev (come prima)
-        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 1000 });
-        let devWallet = "Sconosciuto";
+
+        const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
+
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
+        const data = await response.json();
+        let currentFdv = (data.pairs && data.pairs.length > 0) ? data.pairs[0].fdv : 0;
+
+        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 });
         let walletAgeDays = null;
-        let onChainScore = 0;
+        let isFakeDev = false;
         let logAnalisi = [];
 
         if (signatures.length > 0) {
             const launchTx = signatures[signatures.length - 1];
             const txDetails = await solanaConnection.getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
-            
             if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
-                devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                const devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
                 walletAgeDays = await calcolaEtaWallet(devWallet);
-                
-                if (walletAgeDays !== null) {
-                    if (walletAgeDays < 1) {
-                        onChainScore += 50;
-                        logAnalisi.push("🛑 FAKE DEV: Portafoglio del creatore nato da meno di 24 ore!");
-                    } else {
-                        logAnalisi.push("✅ Portafoglio Dev storico.");
-                    }
+                if (walletAgeDays !== null && walletAgeDays < 1) {
+                    isFakeDev = true;
+                    logAnalisi.push("🛑 FAKE DEV: Wallet creato da meno di 24 ore!");
                 }
             }
         }
 
-        // 2. Eseguiamo il nuovo controllo dei Cluster (I bot coordinati)
-        const clusterCheck = await analizzaClusterAcquirenti(mintPubKey);
-        onChainScore += clusterCheck.clusterRisk;
-        logAnalisi.push(clusterCheck.avviso);
+        logAnalisi.push(earlyBotData.indicatoreTesto);
 
-        // 3. Controlliamo la liquidità di base
-        // 3. Controlliamo la liquidità e il Market Cap da DexScreener
-        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
-        const data = await response.json();
+        const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
+        const simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, 3.5);
+        logAnalisi.push(simulazione.testo);
 
-        let liquidityScore = 0;
-        let currentFdv = 0; // Market Cap (Fully Diluted Valuation)
+        let solPriceUsd = 150;
+        try {
+            const solResp = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
+            const solData = await solResp.json();
+            if (solData.price) solPriceUsd = parseFloat(solData.price);
+        } catch(e) {}
 
-        if (!data.pairs || data.pairs.length === 0) {
-            liquidityScore = 20;
-            logAnalisi.push("⚠️ Dati Dex non trovati (Token appena nato).");
-        } else {
-            const liquidity = data.pairs[0].liquidity?.usd || 0;
-            currentFdv = data.pairs[0].fdv || 0; // Prendiamo il Market Cap
+        let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
+        let rischioStatus = finalScore >= 70 ? "ALTO / BOT" : "MODERATO";
 
-            if (liquidity < 5000) {
-                liquidityScore = 20;
-            }
-        }
-
-        // 4. Eseguiamo il SIMULATORE DI RENDIMENTO
-        // 4. Eseguiamo il SIMULATORE DI RENDIMENTO (Aggiornato con pattern Bundle)
-        const isFakeDev = (walletAgeDays !== null && walletAgeDays < 1);
-        
-        let pctBundle = 0;
-        let storicoX = 0;
-
-        if (clusterCheck.clusterRisk > 0) {
-            // Logica del bundle: % di supply in mano a loro e a che X vendono storicamente
-            pctBundle = 18 + Math.floor(Math.random() * 15); 
-            storicoX = parseFloat((2.5 + (Math.random() * 3.5)).toFixed(1)); 
-        }
-
-        // Chiamiamo la nuova funzione (che ora restituisce direttamente il testo completo)
-        const messaggioSimulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterCheck.clusterRisk, pctBundle, storicoX);
-
-        logAnalisi.push(messaggioSimulazione);
-
-        // 5. Calcolo Finale del Rischio
-        let finalScore = Math.min(onChainScore + liquidityScore, 100);
-        let rischioStatus = finalScore >= 80 ? "ESTREMO" : finalScore >= 50 ? "ALTO" : "MODERATO/BASSO";
-
-        // Manda i dati al Frontend
         res.json({
             score: finalScore,
             rischio: rischioStatus,
-            dumperTrovati: clusterCheck.clusterRisk > 0 ? "Rilevati" : "0",
-            devWallet: devWallet,
-            devAgeDays: walletAgeDays !== null ? walletAgeDays.toFixed(2) : "N/A",
-            // Ho rimosso potenzialeX e targetUscita perché il messaggioSimulazione ora contiene già tutte le info dettagliate!
-            dettagli: logAnalisi
+            dettagli: logAnalisi,
+            graficoAttivo: false, // Disattivato temporaneamente per usare il layout Early Radar
+            datiGrafico: null,
+            // SEZIONE SPECIALIZZATA "EARLY BOT SNIPER"
+            earlyRadar: {
+                potenzialeVolume: earlyBotData.potenzialeVolumeBot,
+                bundleSlot0: earlyBotData.bundleSlot0,
+                supplyBot: earlyBotData.supplyBundledPct,
+                // 🔥 Modifica qui: passiamo l'indirizzo INTERO, non tagliato!
+                masterWalletFull: earlyBotData.funderComune || "Nessuno",
+                masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
+            },
+            tradeValido: simulazione.tradeValido,
+            simulatoreTesto: simulazione.simulatoreTesto,
+            moltiplicatore: simulazione.moltiplicatore,
+            targetMC: simulazione.targetMC,
+            prezzoSol: solPriceUsd
         });
 
     } catch (error) {
-        console.error("Errore nell'analisi avanzata:", error);
-        res.status(500).json({ error: "Errore durante l'analisi della blockchain." });
+        console.error("Errore durante la scansione:", error);
+        res.status(500).json({ error: "Errore durante la scansione del token." });
     }
 });
 async function trovaWalletMadre(walletAddress) {
@@ -305,72 +317,65 @@ async function calcolaRendimentoStorico(walletAddress) {
 
 function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct = 0, bundleStoricoX = 0) {
     const mcAttuale = currentFdv > 0 ? currentFdv : 5000;
+    
+    let risultato = { testo: "", mostraGrafico: false, datiGrafico: null, tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0 };
+
+    let nostraUscita = 0;
 
     if (mcAttuale > 65000) {
-        return "📈 Simulazione: ⛔ ATTENZIONE: Token in migrazione. I bundle iniziali sono già usciti, ora si gioca sui bot di Raydium.";
+        nostraUscita = Math.floor(mcAttuale * 1.25); // Rimbalzo su Raydium del 25%
+        risultato.testo = `📈 Simulazione: ⚡ TOKEN MIGRATO. Usa i bot di volume a tuo vantaggio: entra ora e prendi un rapido +25% sui finti scambi. Esci a $${nostraUscita.toLocaleString()} MC.`;
     }
+    else if (clusterRisk > 0 && bundleSupplyPct > 0) {
+        let stimaIngressoBundle = 4500; 
+        let targetDumpMC = stimaIngressoBundle * bundleStoricoX; 
 
-    // Se rileviamo un bundle/cluster di wallet
-    if (clusterRisk > 0 && bundleSupplyPct > 0) {
-        // I bundle comprano di solito nei primissimi secondi (circa 4.5k - 5k MC)
-        const stimaIngressoBundle = 5000; 
-        
-        // Calcoliamo dove venderanno in base alle loro abitudini passate
-        // Se storicamente fanno 4x, venderanno a 20.000 MC.
-        const targetDumpMC = stimaIngressoBundle * bundleStoricoX; 
-        
-        // La nostra regola d'oro: uscire il 20% prima di loro
-        const nostraUscita = targetDumpMC * 0.80; 
-        const dipPostDump = targetDumpMC * 0.35; // Dove crollerà il prezzo dopo il loro dump
+        if (bundleSupplyPct < 20 && targetDumpMC > 20000) targetDumpMC = 10000 + (bundleSupplyPct * 350); 
+        if (isFakeDev && targetDumpMC > 14000) targetDumpMC = 13500; 
 
-        if (mcAttuale >= nostraUscita && mcAttuale < targetDumpMC) {
-            return `📈 Simulazione: ⚠️ DUMP IMMINENTE. I bundle hanno il ${bundleSupplyPct}% e scaricano storicamente a ${bundleStoricoX}x (~$${targetDumpMC.toLocaleString()} MC). Siamo vicini. NON COMPRARE. Aspetta il loro dump e valuta ingresso a $${dipPostDump.toLocaleString()} MC.`;
-        } 
-        else if (mcAttuale >= targetDumpMC) {
-            return `📈 Simulazione: 📉 POST-DUMP. I bundle hanno già scaricato (Target era $${targetDumpMC.toLocaleString()}). Entrata migliore a $${dipPostDump.toLocaleString()} MC per un rimbalzo tecnico.`;
-        }
-        else if (mcAttuale <= targetDumpMC * 0.5) {
-            return `📈 Simulazione: 🟢 VANTAGGIO. Il bundle ha il ${bundleSupplyPct}%. Storicamente escono a ${bundleStoricoX}x ($${targetDumpMC.toLocaleString()} MC). Entra ora e VENDI TUTTO a $${nostraUscita.toLocaleString()} MC (prima di loro).`;
-        }
-        else {
-            return `📈 Simulazione: ⏳ ATTESA TATTICA. Troppo rischioso ora. Il bundle scaricherà a ~$${targetDumpMC.toLocaleString()} MC. Aspetta il panico e compra a $${dipPostDump.toLocaleString()} MC.`;
+        const targetDumpMC_Rounded = Math.floor(targetDumpMC);
+        const uscitaIdeale = Math.floor(targetDumpMC_Rounded * 0.75); 
+
+        if (mcAttuale >= targetDumpMC_Rounded) {
+            // IL PREZZO E' GIA' CROLLATO - GIOCHIAMO IL RIMBALZO
+            nostraUscita = Math.floor(mcAttuale * 1.35); // I bot ricompreranno per il finto pump (Rimbalzo del 35%)
+            risultato.testo = `📈 Simulazione: 📉 POST-DUMP. I bot hanno scaricato, ma faranno finti acquisti (Wash Trading). ⚡ Compra il calo e scappa a +35% ($${nostraUscita.toLocaleString()} MC).`;
+        } else if (mcAttuale >= uscitaIdeale) {
+            // TERRA DI NESSUNO: GIOCHIAMO CORTISSIMO
+            nostraUscita = Math.floor(mcAttuale * 1.15); // Scalp estremo del 15%
+            risultato.testo = `📈 Simulazione: ⚠️ DUMP IMMINENTE. Sfrutta l'ultimo sprint dei bot. ⚡ Entra e scappa istantaneamente a +15% ($${nostraUscita.toLocaleString()} MC). NON ESSERE AVIDO.`;
+        } else {
+            nostraUscita = uscitaIdeale;
+            risultato.testo = `📈 Simulazione: 🟢 VANTAGGIO. Il manipolatore pomperà fino a ~$${targetDumpMC_Rounded.toLocaleString()} MC. Esci a ${nostraUscita.toLocaleString()}$ MC.`;
         }
     } 
     else if (isFakeDev) {
-        return "📈 Simulazione: 🛑 FAKE DEV. Nessun grosso bundle, ma portafogli nuovi. Compra sotto i 7k MC, esci tassativo a 15k MC senza avidità.";
-    } 
-    else {
-        return "📈 Simulazione: ✅ ORGANICO. Nessun pattern malevolo evidente. Ritracciamenti sani intorno a 10k MC sono ottimi punti di ingresso.";
+        if (mcAttuale > 11000) {
+            nostraUscita = Math.floor(mcAttuale * 1.20); // Rimbalzo del 20% anche se è altissimo
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV ($${mcAttuale.toLocaleString()} MC). Sta per ruggare. ⚡ Entra per la volatilità estrema e VENDI A +20% ($${nostraUscita.toLocaleString()}).`;
+        } else {
+            nostraUscita = 10000;
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. 🟢 SCALPING RAPIDO. I bot creeranno il primo spike. Take Profit a 10k MC, poi scappa.`;
+        }
+    } else {
+        nostraUscita = Math.max(15000, Math.floor(mcAttuale * 1.40));
+        if (mcAttuale < 15000) {
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Entrata pulita. Target: 15k MC.`;
+        } else {
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Gioca l'onda lunga. Target: $${nostraUscita.toLocaleString()} MC.`;
+        }
     }
+
+    // CALCOLO UNIVERSALE (Sempre attivo)
+    risultato.targetMC = nostraUscita;
+    risultato.moltiplicatore = (nostraUscita / mcAttuale);
+    
+    const ritornoSol = risultato.moltiplicatore.toFixed(2);
+    const nettoSol = (ritornoSol - 1).toFixed(2);
+    risultato.simulatoreTesto = `Entri ora ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k MC ➔ Incassi ${ritornoSol} SOL (+${nettoSol} netti)`;
+    
+    return risultato;
 }
-app.get('/api/tracker/:walletAddress', async (req, res) => {
-    const wallet = req.params.walletAddress;
-    console.log(`\n🕵️ Tracciamento Wallet Attivato: ${wallet}`);
-
-    try {
-        // 1. Cerchiamo il Wallet Madre
-        const madre = await trovaWalletMadre(wallet);
-        console.log(`🔗 Connesso a Madre: ${madre}`);
-
-        // 2. Calcoliamo Win Rate e Rendimento
-        const stats = await calcolaRendimentoStorico(wallet);
-        console.log(`📊 Stile: ${stats.stile} (Win: ${stats.winRate}, ROI: ${stats.rendimentoMedio})`);
-
-        // Mandiamo tutto all'estensione
-        res.json({
-            wallet: wallet,
-            walletMadre: madre,
-            winRate: stats.winRate,
-            rendimentoX: stats.rendimentoMedio,
-            tradeTotali: stats.tradeAnalizzati,
-            classificazione: stats.stile
-        });
-
-    } catch (error) {
-        console.error("Errore nel tracker:", error);
-        res.status(500).json({ error: "Impossibile tracciare il portafoglio." });
-    }
-});
 // --- ROTTA PER I WEBHOOK DI HELIUS ---
 app.post('/webhook', async (req, res) => {
     const data = req.body;
