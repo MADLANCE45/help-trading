@@ -166,7 +166,61 @@ async function calcolaEtaWallet(walletAddress) {
 }
 
 // =====================================================================
-// 3. ROTTA PRINCIPALE (Scansione Estensione)
+// 3. RADAR DELLA VOLUME VELOCITY (Battito Cardiaco)
+// =====================================================================
+async function analizzaBattitoCardiaco(mintPubKey) {
+    try {
+        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 50 });
+        if (signatures.length === 0) return { stato: "MORTO", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 };
+
+        const nowSec = Math.floor(Date.now() / 1000);
+        let txInLast60s = 0;
+        
+        let lastTxTime = signatures[0].blockTime || nowSec; 
+        let secondiDaUltimaTx = nowSec - lastTxTime;
+
+        signatures.forEach(sig => {
+            if (sig.blockTime && (nowSec - sig.blockTime <= 60)) {
+                txInLast60s++;
+            }
+        });
+
+        let stato = "";
+        let colore = "";
+        let blocco = false;
+
+        if (secondiDaUltimaTx > 30 || txInLast60s < 5) {
+            stato = "☠️ ZERO LIQUIDITÀ (Trappola)";
+            colore = "#ff4d4d";
+            blocco = true;
+        } else if (txInLast60s < 15) {
+            stato = "⚠️ MORENTE (Bassi scambi)";
+            colore = "#ffaa00";
+            blocco = false;
+        } else if (txInLast60s < 40) {
+            stato = "🟢 SANO (Buon ritmo)";
+            colore = "#00e676";
+            blocco = false;
+        } else {
+            stato = "🔥 IPER-ATTIVO (FOMO)";
+            colore = "#00aaff";
+            blocco = false;
+        }
+
+        return {
+            stato: stato,
+            txMinuto: txInLast60s,
+            colore: colore,
+            blocco: blocco,
+            secondiDaUltimaTx: secondiDaUltimaTx > 0 ? secondiDaUltimaTx : 0
+        };
+    } catch (error) {
+        return { stato: "ERRORE LETTURA", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 };
+    }
+}
+
+// =====================================================================
+// 4. ROTTA PRINCIPALE (Scansione Estensione)
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
@@ -176,15 +230,32 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         const mintPubKey = new PublicKey(tokenMint);
 
         const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
+        const velocityData = await analizzaBattitoCardiaco(mintPubKey);
+        const cabalaData = await analizzaCabalaSupply(mintPubKey);
 
         const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
         const data = await response.json();
-        let currentFdv = (data.pairs && data.pairs.length > 0) ? data.pairs[0].fdv : 0;
+        
+        let currentFdv = 0;
+        let pairCreatedAt = null; 
+        
+        if (data.pairs && data.pairs.length > 0) {
+            currentFdv = data.pairs[0].fdv || 0;
+            pairCreatedAt = data.pairs[0].pairCreatedAt; 
+        }
 
         const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 });
         let walletAgeDays = null;
         let isFakeDev = false;
         let logAnalisi = [];
+
+        let tokenAgeMinutes = 0;
+        if (pairCreatedAt) {
+            tokenAgeMinutes = (Date.now() - pairCreatedAt) / 60000;
+        } else if (signatures.length > 0) {
+            const oldestTx = signatures[signatures.length - 1];
+            if (oldestTx.blockTime) tokenAgeMinutes = (Date.now() - (oldestTx.blockTime * 1000)) / 60000;
+        }
 
         if (signatures.length > 0) {
             const launchTx = signatures[signatures.length - 1];
@@ -200,10 +271,65 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
 
         logAnalisi.push(earlyBotData.indicatoreTesto);
-
+        
+        // 🔥 INIEZIONE VISIVA DELL'ELETTROCARDIOGRAMMA 🔥
+        const segnaleECG = velocityData.blocco ? '🛑' : '✅';
+        logAnalisi.push(`${segnaleECG} Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
+        if (cabalaData && cabalaData.testo) {
+    logAnalisi.push(cabalaData.testo);
+}
         const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
-        const simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, 3.5);
+        let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes);
+
+        // BLOCCO DI EMERGENZA
+        if (velocityData.blocco) {
+            simulazione.azione = "MORTO (Illiquido)";
+            simulazione.coloreAzione = velocityData.colore;
+            simulazione.tradeValido = false;
+            simulazione.testo = `📈 Simulazione: ☠️ TRAPPOLA DI LIQUIDITÀ. Scambi fermi da ${velocityData.secondiDaUltimaTx} secondi. ⛔ NON COMPRARE.`;
+            simulazione.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Zero compratori attivi nel mercato.`;
+        }
+
         logAnalisi.push(simulazione.testo);
+
+        let memeChange24h = 0;
+        let memeVolM = 0;
+        let marketTrend = "Analisi...";
+        let hudColor = "#fff";
+        let marketIcon = "📊";
+
+        try {
+            const [wifResp, bonkResp] = await Promise.all([
+                fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=WIFUSDT"),
+                fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BONKUSDT")
+            ]);
+            const wifData = await wifResp.json();
+            const bonkData = await bonkResp.json();
+            
+            const wifChange = parseFloat(wifData.priceChangePercent || 0);
+            const bonkChange = parseFloat(bonkData.priceChangePercent || 0);
+            const wifVol = parseFloat(wifData.quoteVolume || 0);
+            const bonkVol = parseFloat(bonkData.quoteVolume || 0);
+            
+            memeChange24h = ((wifChange + bonkChange) / 2).toFixed(2);
+            memeVolM = ((wifVol + bonkVol) / 1000000).toFixed(1);
+            
+            if (memeChange24h >= 3) {
+                marketTrend = "RISK-ON (Meme Season)";
+                hudColor = "#00e676"; 
+                marketIcon = "🔥";
+            } else if (memeChange24h <= -3) {
+                marketTrend = "RISK-OFF (Sangue, Rugg)";
+                hudColor = "#ff4d4d"; 
+                marketIcon = "🩸";
+            } else {
+                marketTrend = "NEUTRO (Range laterale)";
+                hudColor = "#ffaa00"; 
+                marketIcon = "⚖️";
+            }
+        } catch(e) {
+            marketIcon = "⚠️";
+        }
 
         let solPriceUsd = 150;
         try {
@@ -213,28 +339,48 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         } catch(e) {}
 
         let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
-        let rischioStatus = finalScore >= 70 ? "ALTO / BOT" : "MODERATO";
+        
+        // Penalità estreme per Scudo Supply e Battito
+        if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
+        if (earlyBotData.supplyBundledPct >= 20) finalScore = 100; // Bundle oltre il 20% è morte certa
+        if (velocityData.blocco) finalScore = Math.max(finalScore, 85); 
+
+        let rischioStatus = finalScore >= 80 ? "ALTISSIMO / RUG" : (finalScore >= 60 ? "ALTO / BOT" : "MODERATO");
+        
+        // Se lo Scudo Supply trova pericolo, l'algoritmo SPEGNE il calcolatore
+        if (cabalaData && cabalaData.pericolo) simulazione.tradeValido = false;
 
         res.json({
             score: finalScore,
             rischio: rischioStatus,
             dettagli: logAnalisi,
-            graficoAttivo: false, // Disattivato temporaneamente per usare il layout Early Radar
+            graficoAttivo: false,
             datiGrafico: null,
-            // SEZIONE SPECIALIZZATA "EARLY BOT SNIPER"
             earlyRadar: {
                 potenzialeVolume: earlyBotData.potenzialeVolumeBot,
                 bundleSlot0: earlyBotData.bundleSlot0,
                 supplyBot: earlyBotData.supplyBundledPct,
-                // 🔥 Modifica qui: passiamo l'indirizzo INTERO, non tagliato!
                 masterWalletFull: earlyBotData.funderComune || "Nessuno",
                 masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
             },
+            vitaToken: tokenAgeMinutes.toFixed(1),
+            timeToRug: simulazione.azione, 
+            ctoStatus: simulazione.ctoStatus, 
+            fugaColor: simulazione.coloreAzione, 
+            
+            hud: {
+                change: memeChange24h,
+                volume: memeVolM,
+                trend: marketTrend,
+                color: hudColor,
+                icon: marketIcon
+            },
+
             tradeValido: simulazione.tradeValido,
             simulatoreTesto: simulazione.simulatoreTesto,
             moltiplicatore: simulazione.moltiplicatore,
             targetMC: simulazione.targetMC,
-            prezzoSol: solPriceUsd
+            prezzoSol: parseFloat(solPriceUsd)
         });
 
     } catch (error) {
@@ -242,6 +388,189 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         res.status(500).json({ error: "Errore durante la scansione del token." });
     }
 });
+// =====================================================================
+// 4. LO SCUDO DELLA SUPPLY (Investigatore di Cabale e Alberi Genealogici)
+// =====================================================================
+async function analizzaCabalaSupply(mintPubKey) {
+    try {
+        // 1. Prendi i conti che detengono più token in assoluto
+        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        if (!largestAccs.value || largestAccs.value.length === 0) return null;
+
+        // Prendiamo i Top 10 Holders
+        const topAccounts = largestAccs.value.slice(0, 10);
+        let cabalaMap = {}; 
+        let topHoldersAnalizzati = 0;
+
+        // Eseguiamo l'investigazione in parallelo per non rallentare troppo il radar
+        const analisiPromises = topAccounts.map(async (acc) => {
+            // Ignoriamo chi ha meno dello 0.5% (su 1 Miliardo di supply)
+            if (acc.uiAmount < 5000000) return null; 
+            const pct = (acc.uiAmount / 1000000000) * 100;
+
+            try {
+                // 2. Troviamo il VERO PROPRIETARIO del conto token
+                const accountInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
+                if (!accountInfo.value || !accountInfo.value.data.parsed) return null;
+                
+                const ownerWallet = accountInfo.value.data.parsed.info.owner;
+                
+                // 3. Andiamo indietro nel tempo: troviamo la primissima transazione dell'Owner
+                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 50 });
+                if(sigs.length === 0) return null;
+                
+                const oldestTx = sigs[sigs.length - 1]; 
+                const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
+                
+                let funder = "Sconosciuto";
+                if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
+                    // Il primo account della transazione originale è chi ha pagato (il Funder)
+                    funder = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                    
+                    // Se l'ha pagata da solo o da un exchange (Binance), non lo consideriamo "Cabala"
+                    if (funder === ownerWallet || txDetails.transaction.message.accountKeys.length > 10) {
+                       funder = "Exchange/Auto-finanziato";
+                    }
+                }
+                return { owner: ownerWallet, funder: funder, pct: pct };
+            } catch (e) { return null; }
+        });
+
+        const risultati = await Promise.all(analisiPromises);
+
+        // 4. Raggruppiamo i portafogli: se hanno la stessa madre, li sommiamo
+        for (let res of risultati) {
+            if (!res || res.funder === "Exchange/Auto-finanziato" || res.funder === "Sconosciuto") continue;
+            
+            topHoldersAnalizzati++;
+            if (!cabalaMap[res.funder]) {
+                cabalaMap[res.funder] = { pct: 0, count: 0 };
+            }
+            cabalaMap[res.funder].pct += res.pct;
+            cabalaMap[res.funder].count++;
+        }
+
+        // 5. Cerchiamo la Cabala più grande (Il Funder che controlla più wallet)
+        let maxPct = 0;
+        let worstCabal = null;
+        for (const [funder, data] of Object.entries(cabalaMap)) {
+            // Conta come Cabala solo se la stessa madre finanzia almeno 2 Top Holders diversi
+            if (data.count >= 2 && data.pct > maxPct) { 
+                maxPct = data.pct;
+                worstCabal = { funder, pct: data.pct, count: data.count };
+            }
+        }
+
+        // 6. Generazione Alert
+        if (worstCabal) {
+            if (worstCabal.pct >= 15) {
+                return { 
+                    pericolo: true, 
+                    scoreAggiuntivo: 40,
+                    testo: `🚨 SCUDO SUPPLY: Rischio Cabala! ${worstCabal.count} Top Holders sono controllati dallo stesso Wallet Segreto. Hanno in mano il ${worstCabal.pct.toFixed(1)}% dei token. RUG IMMINENTE.` 
+                };
+            } else if (worstCabal.pct >= 8) {
+                return { 
+                    pericolo: false, 
+                    scoreAggiuntivo: 15,
+                    testo: `⚠️ SCUDO SUPPLY: Attenzione. ${worstCabal.count} Top Holders appartengono alla stessa persona (${worstCabal.pct.toFixed(1)}%).` 
+                };
+            }
+        }
+
+        return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SUPPLY: Nessun collegamento segreto trovato tra i Top Holders.` };
+
+    } catch (error) {
+        return null;
+    }
+}
+// =====================================================================
+// 4. LO SCUDO DELLA SUPPLY (Investigatore Cabale e Anti-Sybil)
+// =====================================================================
+async function analizzaCabalaSupply(mintPubKey) {
+    try {
+        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        if (!largestAccs.value || largestAccs.value.length === 0) return null;
+
+        const topAccounts = largestAccs.value.slice(0, 10);
+        let cabalaMap = {}; 
+        let sybilCount = 0; // Conta i portafogli fantasma (creati solo per questa truffa)
+
+        const analisiPromises = topAccounts.map(async (acc) => {
+            if (acc.uiAmount < 5000000) return null; 
+            const pct = (acc.uiAmount / 1000000000) * 100;
+
+            try {
+                const accountInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
+                if (!accountInfo.value || !accountInfo.value.data.parsed) return null;
+                
+                const ownerWallet = accountInfo.value.data.parsed.info.owner;
+                
+                // Analizziamo la cronologia dell'Owner
+                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 50 });
+                if(sigs.length === 0) return null;
+
+                // 🔥 CONTROLLO ANTI-SYBIL: Se il wallet ha fatto meno di 5 transazioni in tutta la sua vita, è un wallet fantasma.
+                if (sigs.length < 5) sybilCount++;
+                
+                const oldestTx = sigs[sigs.length - 1]; 
+                const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
+                
+                let funder = "Sconosciuto";
+                if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
+                    funder = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                    if (funder === ownerWallet || txDetails.transaction.message.accountKeys.length > 10) {
+                       funder = "Exchange/Auto-finanziato";
+                    }
+                }
+                return { owner: ownerWallet, funder: funder, pct: pct };
+            } catch (e) { return null; }
+        });
+
+        const risultati = await Promise.all(analisiPromises);
+
+        for (let res of risultati) {
+            if (!res || res.funder === "Exchange/Auto-finanziato" || res.funder === "Sconosciuto") continue;
+            if (!cabalaMap[res.funder]) cabalaMap[res.funder] = { pct: 0, count: 0 };
+            cabalaMap[res.funder].pct += res.pct;
+            cabalaMap[res.funder].count++;
+        }
+
+        let maxPct = 0;
+        let worstCabal = null;
+        for (const [funder, data] of Object.entries(cabalaMap)) {
+            if (data.count >= 2 && data.pct > maxPct) { 
+                maxPct = data.pct;
+                worstCabal = { funder, pct: data.pct, count: data.count };
+            }
+        }
+
+        // 🔥 KILL SWITCH 1: Attacco Sybil (Portafogli appena nati)
+        if (sybilCount >= 3) {
+            return { 
+                pericolo: true, 
+                scoreAggiuntivo: 50,
+                testo: `🚨 ATTACCO SYBIL: ${sybilCount} Top Holders sono portafogli fantasma appena creati. Frode pre-programmata al 100%. RUG IMMINENTE.` 
+            };
+        }
+
+        // 🔥 KILL SWITCH 2: Cabala Finanziaria
+        if (worstCabal) {
+            if (worstCabal.pct >= 15) {
+                return { 
+                    pericolo: true, 
+                    scoreAggiuntivo: 40,
+                    testo: `🚨 SCUDO SUPPLY: ${worstCabal.count} Top Holders (con il ${worstCabal.pct.toFixed(1)}%) sono manovrati dallo stesso Burattinaio. RUG IMMINENTE.` 
+                };
+            }
+        }
+
+        return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SUPPLY: Nessun attacco Sybil o Cabala rilevato.` };
+
+    } catch (error) {
+        return null;
+    }
+}
 async function trovaWalletMadre(walletAddress) {
     try {
         const pubKey = new PublicKey(walletAddress);
@@ -366,64 +695,111 @@ app.get('/api/tracker/:walletAddress', async (req, res) => {
         res.status(500).json({ error: "Errore interno del server" });
     }
 });
-function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct = 0, bundleStoricoX = 0) {
+// =====================================================================
+// 2. SIMULATORE DI PROFITTO E STATO D'AZIONE (Cervello Unico)
+// =====================================================================
+function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct, tokenAgeMinutes) {
     const mcAttuale = currentFdv > 0 ? currentFdv : 5000;
     
-    let risultato = { testo: "", mostraGrafico: false, datiGrafico: null, tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0 };
-
+    let risultato = { testo: "", tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0, azione: "", coloreAzione: "", ctoStatus: "Basso" };
     let nostraUscita = 0;
 
-    if (mcAttuale > 65000) {
-        nostraUscita = Math.floor(mcAttuale * 1.25); // Rimbalzo su Raydium del 25%
-        risultato.testo = `📈 Simulazione: ⚡ TOKEN MIGRATO. Usa i bot di volume a tuo vantaggio: entra ora e prendi un rapido +25% sui finti scambi. Esci a $${nostraUscita.toLocaleString()} MC.`;
+    // 🔥 NUOVO KILL SWITCH: BUNDLE NUCLEARE 🔥
+    // Se i bot hanno snipato più del 20%, il token è matematicamente morto. Nessun rimbalzo.
+    if (bundleSupplyPct >= 20) {
+        risultato.azione = "DUMP NUCLEARE IN CORSO";
+        risultato.coloreAzione = "#ff4d4d";
+        risultato.tradeValido = false;
+        risultato.testo = `📈 Simulazione: 🚨 BUNDLE MORTALE (${bundleSupplyPct}%). I bot possiedono troppa supply per permettere un rimbalzo. Il dev prosciugherà la liquidità. ⛔ FUGA IMMEDIATA.`;
+        risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Rischio azzeramento capitale al 100%.`;
+        return risultato; // Esce subito, niente calcoli di profitto.
     }
-    else if (clusterRisk > 0 && bundleSupplyPct > 0) {
-        let stimaIngressoBundle = 4500; 
-        let targetDumpMC = stimaIngressoBundle * bundleStoricoX; 
 
-        if (bundleSupplyPct < 20 && targetDumpMC > 20000) targetDumpMC = 10000 + (bundleSupplyPct * 350); 
-        if (isFakeDev && targetDumpMC > 14000) targetDumpMC = 13500; 
-
+    // A. TOKEN BOT & MANIPOLATI (Sotto il 20% di supply)
+    if (clusterRisk > 0 && bundleSupplyPct > 0) {
+        let targetDumpMC = 8500 + (bundleSupplyPct * 90); 
+        if (tokenAgeMinutes > 2 && mcAttuale < 8500) targetDumpMC = 7000; 
+        
         const targetDumpMC_Rounded = Math.floor(targetDumpMC);
-        const uscitaIdeale = Math.floor(targetDumpMC_Rounded * 0.75); 
+        const uscitaIdeale = Math.floor(targetDumpMC_Rounded * 0.80); 
 
         if (mcAttuale >= targetDumpMC_Rounded) {
-            // IL PREZZO E' GIA' CROLLATO - GIOCHIAMO IL RIMBALZO
-            nostraUscita = Math.floor(mcAttuale * 1.35); // I bot ricompreranno per il finto pump (Rimbalzo del 35%)
-            risultato.testo = `📈 Simulazione: 📉 POST-DUMP. I bot hanno scaricato, ma faranno finti acquisti (Wash Trading). ⚡ Compra il calo e scappa a +35% ($${nostraUscita.toLocaleString()} MC).`;
+            risultato.azione = "DUMP AVVENUTO (No Entry)";
+            risultato.coloreAzione = "#ff4d4d";
+            risultato.tradeValido = false; 
+            risultato.testo = `📈 Simulazione: 📉 POST-DUMP. I bot hanno scaricato. Rimbalzo troppo rischioso. ⛔ NON ENTRARE.`;
+            
+            if (tokenAgeMinutes > 10 && mcAttuale > 10000) {
+                risultato.ctoStatus = "🚨 ALTO (CTO in corso)";
+                risultato.azione = "POSSIBILE CTO (Specula)";
+                risultato.coloreAzione = "#00e676";
+                risultato.tradeValido = true;
+                nostraUscita = Math.floor(mcAttuale * 1.30);
+                risultato.testo = `📈 Simulazione: 🔄 CTO. Un nuovo team sta rialzando il prezzo. Target rapido: $${nostraUscita.toLocaleString()} MC.`;
+            }
         } else if (mcAttuale >= uscitaIdeale) {
-            // TERRA DI NESSUNO: GIOCHIAMO CORTISSIMO
-            nostraUscita = Math.floor(mcAttuale * 1.15); // Scalp estremo del 15%
-            risultato.testo = `📈 Simulazione: ⚠️ DUMP IMMINENTE. Sfrutta l'ultimo sprint dei bot. ⚡ Entra e scappa istantaneamente a +15% ($${nostraUscita.toLocaleString()} MC). NON ESSERE AVIDO.`;
+            risultato.azione = "DUMP IMMINENTE (Fuggi)";
+            risultato.coloreAzione = "#ffaa00";
+            risultato.tradeValido = false;
+            risultato.testo = `📈 Simulazione: ⚠️ SCARICO BOT. Venderanno a ~${targetDumpMC_Rounded.toLocaleString()}$. ⛔ TRADE BLOCCATO.`;
         } else {
             nostraUscita = uscitaIdeale;
-            risultato.testo = `📈 Simulazione: 🟢 VANTAGGIO. Il manipolatore pomperà fino a ~$${targetDumpMC_Rounded.toLocaleString()} MC. Esci a ${nostraUscita.toLocaleString()}$ MC.`;
+            risultato.azione = "FASE PUMP BOT (Scalping)";
+            risultato.coloreAzione = "#00ffcc";
+            risultato.testo = `📈 Simulazione: 🟢 MICRO-SCALPING. Il dev venderà a $${targetDumpMC_Rounded.toLocaleString()} MC. 🛡️ Uscita sicura: ${nostraUscita.toLocaleString()}$ MC.`;
         }
     } 
+    // B. FAKE DEV
     else if (isFakeDev) {
-        if (mcAttuale > 11000) {
-            nostraUscita = Math.floor(mcAttuale * 1.20); // Rimbalzo del 20% anche se è altissimo
-            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV ($${mcAttuale.toLocaleString()} MC). Sta per ruggare. ⚡ Entra per la volatilità estrema e VENDI A +20% ($${nostraUscita.toLocaleString()}).`;
+        let maxTarget = tokenAgeMinutes > 2 ? 6500 : 8500; 
+        if (mcAttuale >= maxTarget) {
+            risultato.azione = "RUG PULL IMMINENTE";
+            risultato.coloreAzione = "#ff4d4d";
+            risultato.tradeValido = false;
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. MC troppo alto ($${mcAttuale.toLocaleString()}). ⛔ RUG IMMEDIATO.`;
         } else {
-            nostraUscita = 10000;
-            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. 🟢 SCALPING RAPIDO. I bot creeranno il primo spike. Take Profit a 10k MC, poi scappa.`;
+            nostraUscita = maxTarget;
+            risultato.azione = "VOLATILITÀ FAKE DEV";
+            risultato.coloreAzione = "#ffaa00";
+            risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. 🟢 SCALPING ESTREMO. Scappa a ${maxTarget}$ MC massimi.`;
         }
-    } else {
-        nostraUscita = Math.max(15000, Math.floor(mcAttuale * 1.40));
-        if (mcAttuale < 15000) {
-            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Entrata pulita. Target: 15k MC.`;
+    } 
+    // C. ORGANICO
+    else {
+        if (tokenAgeMinutes > 30 && mcAttuale < 10000) {
+            risultato.azione = "TOKEN MORTO (Bassi Volumi)";
+            risultato.coloreAzione = "#ffaa00";
+            risultato.tradeValido = false;
+            risultato.testo = `📈 Simulazione: 🧟 ZOMBIE TOKEN. Vivo da ${Math.floor(tokenAgeMinutes)} min ma senza volumi. ⛔ NON INVESTIRE.`;
+        } else if (mcAttuale > 60000) {
+            nostraUscita = Math.floor(mcAttuale * 1.15);
+            risultato.azione = "TREND MATURO (Scalping)";
+            risultato.coloreAzione = "#00aaff";
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO MATURO. Token già esploso. Target: $${nostraUscita.toLocaleString()} MC.`;
+        } else if (mcAttuale >= 15000) {
+            nostraUscita = Math.floor(mcAttuale * 1.25);
+            risultato.azione = "TREND RIALZISTA";
+            risultato.coloreAzione = "#00ffcc";
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Ottimi volumi. Target: $${nostraUscita.toLocaleString()} MC.`;
         } else {
-            risultato.testo = `📈 Simulazione: ✅ ORGANICO. Gioca l'onda lunga. Target: $${nostraUscita.toLocaleString()} MC.`;
+            nostraUscita = Math.floor(mcAttuale * 1.40);
+            if (nostraUscita < 10000) nostraUscita = 10000;
+            risultato.azione = "FASE ACCUMULO ORGANICA";
+            risultato.coloreAzione = "#00ffcc";
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO EARLY. Prezzo basso. Target: $${nostraUscita.toLocaleString()} MC.`;
         }
     }
 
-    // CALCOLO UNIVERSALE (Sempre attivo)
     risultato.targetMC = nostraUscita;
     risultato.moltiplicatore = (nostraUscita / mcAttuale);
     
-    const ritornoSol = risultato.moltiplicatore.toFixed(2);
-    const nettoSol = (ritornoSol - 1).toFixed(2);
-    risultato.simulatoreTesto = `Entri ora ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k MC ➔ Incassi ${ritornoSol} SOL (+${nettoSol} netti)`;
+    if (risultato.tradeValido) {
+        const ritornoSol = risultato.moltiplicatore.toFixed(2);
+        const nettoSol = (ritornoSol - 1).toFixed(2);
+        risultato.simulatoreTesto = `Entri ora ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k MC ➔ Incassi ${ritornoSol} SOL (+${nettoSol} netti)`;
+    } else {
+        risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Rischio troppo elevato.`;
+    }
     
     return risultato;
 }

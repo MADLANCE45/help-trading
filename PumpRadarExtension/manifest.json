@@ -9,7 +9,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://*.ngrok-free.dev/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -20,5 +21,11 @@
       "matches": ["*://*.pump.fun/*", "*://pump.fun/*"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pumpradar@solana.com",
+      "strict_min_version": "109.0"
+    }
+  }
 }
