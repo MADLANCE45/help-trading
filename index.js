@@ -944,7 +944,55 @@ app.get('/api/tracker/:walletAddress', async (req, res) => {
         res.status(500).json({ error: "Errore interno del server" });
     }
 });
+// =====================================================================
+// 7. LIVE SPY RADAR (Intercetta l'ultimo Token scambiato)
+// =====================================================================
+// =====================================================================
+// 7. LIVE SPY RADAR (Traccia COMPRE, VENDITE e Storico Multiplo)
+// =====================================================================
+app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
+    try {
+        const walletAddress = req.params.walletAddress;
+        const pubKey = new PublicKey(walletAddress);
+        
+        // Prende le ultime 5 transazioni (non più solo 3) per non perdersi nulla
+        const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 5 });
+        if (sigs.length === 0) return res.json({ actions: [] });
 
+        let actions = [];
+
+        for (let sigInfo of sigs) {
+            const tx = await solanaConnection.getParsedTransaction(sigInfo.signature, { maxSupportedTransactionVersion: 0 });
+            if (!tx || !tx.meta || !tx.meta.postTokenBalances) continue;
+
+            // Filtriamo i saldi appartenenti SOLO al wallet spiato
+            const preBals = tx.meta.preTokenBalances.filter(b => b.owner === walletAddress);
+            const postBals = tx.meta.postTokenBalances.filter(b => b.owner === walletAddress);
+
+            for (let post of postBals) {
+                const mint = post.mint;
+                if (mint === "So11111111111111111111111111111111111111112") continue; // Ignora il SOL (ci interessano le memecoin)
+
+                const pre = preBals.find(b => b.mint === mint);
+                const preAmount = pre ? (pre.uiTokenAmount.uiAmount || 0) : 0;
+                const postAmount = post.uiTokenAmount.uiAmount || 0;
+
+                // Se il saldo finale è MAGGIORE, ha COMPRATO
+                if (postAmount > preAmount) {
+                    actions.push({ type: "BUY", mint: mint, signature: sigInfo.signature });
+                } 
+                // Se il saldo finale è MINORE, ha VENDUTO (Ha scaricato!)
+                else if (postAmount < preAmount) {
+                    actions.push({ type: "SELL", mint: mint, signature: sigInfo.signature });
+                }
+            }
+        }
+        
+        res.json({ actions: actions });
+    } catch (error) {
+        res.json({ actions: [], error: error.message });
+    }
+});
 // ROTTA PER L'ESTENSIONE
 app.get('/api/tracker/:walletAddress', async (req, res) => {
     const wallet = req.params.walletAddress;
