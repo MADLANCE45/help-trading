@@ -218,7 +218,268 @@ async function analizzaBattitoCardiaco(mintPubKey) {
         return { stato: "ERRORE LETTURA", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 };
     }
 }
+// =====================================================================
+// 5. RILEVATORE MICRO-DUMPING (Scudo Sanguisuga)
+// =====================================================================
+async function analizzaMicroDumping(mintPubKey) {
+    try {
+        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        // Serve almeno la pool e qualche holder per analizzare
+        if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
+        // Escludiamo il primo (che al 99% è la Bonding Curve di Pump.fun o Raydium)
+        // Analizziamo i successivi 4 top holders (dal 2° al 5°)
+        const topHolders = largestAccs.value.slice(1, 5);
+        let sanguisugheTrovate = 0;
+        let totaleVenditeSanguisughe = 0;
+
+        const analisiPromises = topHolders.map(async (acc) => {
+            // Se ha meno dell'1% non ha abbastanza potere per fare danni devastanti
+            if (acc.uiAmount < 10000000) return null;
+
+            try {
+                // Leggiamo le ultime 10 transazioni del Token Account
+                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
+                if (sigs.length < 3) return null; // Se ha mosso poco, sta solo holdando
+
+                const txs = await solanaConnection.getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
+                
+                let vendite = 0;
+                
+                txs.forEach(tx => {
+                    if (!tx || !tx.meta || !tx.transaction.message.accountKeys) return;
+                    
+                    // Cerchiamo il saldo del token account prima e dopo l'operazione
+                    const preToken = tx.meta.preTokenBalances.find(b => {
+                        const keyObj = tx.transaction.message.accountKeys[b.accountIndex];
+                        return keyObj && keyObj.pubkey.toString() === acc.address;
+                    });
+                    const postToken = tx.meta.postTokenBalances.find(b => {
+                        const keyObj = tx.transaction.message.accountKeys[b.accountIndex];
+                        return keyObj && keyObj.pubkey.toString() === acc.address;
+                    });
+                    
+                    if (preToken && postToken) {
+                        // Se il bilancio finale è minore, significa che ha venduto o trasferito fuori
+                        if (postToken.uiTokenAmount.uiAmount < preToken.uiTokenAmount.uiAmount) {
+                            vendite++;
+                        }
+                    }
+                });
+
+                // 🔥 Se nelle ultime 10 transazioni ci sono state 3 o più vendite, è un Micro-Dumper (Sanguisuga)!
+                if (vendite >= 3) {
+                    sanguisugheTrovate++;
+                    totaleVenditeSanguisughe += vendite;
+                    return true;
+                }
+                return null;
+            } catch (e) { return null; }
+        });
+
+        await Promise.all(analisiPromises);
+
+        if (sanguisugheTrovate > 0) {
+            return {
+                pericolo: true,
+                scoreAggiuntivo: 35,
+                testo: `🩸 SCUDO SANGUISUGA: Rilevato Micro-Dumping! ${sanguisugheTrovate} Top Holder stanno frammentando le vendite (${totaleVenditeSanguisughe} micro-dump recenti). Ti stanno prosciugando lentamente. RUG LENTO IN CORSO.`
+            };
+        }
+
+        return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SANGUISUGA: Nessuna anomalia. I Top Holders non stanno farmando la liquidità.` };
+
+    } catch (error) {
+        return null;
+    }
+}
+
+// =====================================================================
+// 6. ROTTA PRINCIPALE (Scansione Estensione)
+// =====================================================================
+app.get('/api/scan/:tokenMint', async (req, res) => {
+    const tokenMint = req.params.tokenMint;
+
+    try {
+        console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
+        const mintPubKey = new PublicKey(tokenMint);
+
+        // 🧠 A. L'Algoritmo esegue tutte le indagini incrociate
+        const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
+        const velocityData = await analizzaBattitoCardiaco(mintPubKey);
+        const cabalaData = await analizzaCabalaSupply(mintPubKey);
+        const microDumpData = await analizzaMicroDumping(mintPubKey);
+
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
+        const data = await response.json();
+        
+        let currentFdv = 0;
+        let pairCreatedAt = null; 
+        
+        if (data.pairs && data.pairs.length > 0) {
+            currentFdv = data.pairs[0].fdv || 0;
+            pairCreatedAt = data.pairs[0].pairCreatedAt; 
+        }
+
+        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 });
+        let walletAgeDays = null;
+        let isFakeDev = false;
+        let logAnalisi = [];
+
+        let tokenAgeMinutes = 0;
+        if (pairCreatedAt) {
+            tokenAgeMinutes = (Date.now() - pairCreatedAt) / 60000;
+        } else if (signatures.length > 0) {
+            const oldestTx = signatures[signatures.length - 1];
+            if (oldestTx.blockTime) tokenAgeMinutes = (Date.now() - (oldestTx.blockTime * 1000)) / 60000;
+        }
+
+        if (signatures.length > 0) {
+            const launchTx = signatures[signatures.length - 1];
+            const txDetails = await solanaConnection.getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
+            if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
+                const devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                walletAgeDays = await calcolaEtaWallet(devWallet);
+                if (walletAgeDays !== null && walletAgeDays < 1) {
+                    isFakeDev = true;
+                    logAnalisi.push("🛑 FAKE DEV: Wallet creato da meno di 24 ore!");
+                }
+            }
+        }
+
+        // 📋 B. Costruiamo il Report per l'estensione visiva
+        logAnalisi.push(earlyBotData.indicatoreTesto);
+        
+        const segnaleECG = velocityData.blocco ? '🛑' : '✅';
+        logAnalisi.push(`${segnaleECG} Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
+
+        if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
+        if (microDumpData && microDumpData.testo) logAnalisi.push(microDumpData.testo);
+
+        const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
+        let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes);
+
+        // 🛡️ C. INTERRUTTORI DI EMERGENZA (Kill Switches) 🛡️
+        
+        // Emergenza 1: Cabala (Gruppo criminale)
+        if (cabalaData && cabalaData.pericolo) simulazione.tradeValido = false; 
+
+        // Emergenza 2: Sanguisughe (Micro-Dumping)
+        if (microDumpData && microDumpData.pericolo) {
+            simulazione.tradeValido = false;
+            simulazione.azione = "MICRO-DUMPING IN CORSO";
+            simulazione.coloreAzione = "#ff4d4d";
+            simulazione.testo = `📈 Simulazione: ☠️ TRAPPOLA LENTA. I Top Holders stanno svuotando la liquidità con micro-vendite. Fuggire.`;
+            simulazione.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Rischio prosciugamento capitale.`;
+        }
+
+        // Emergenza 3: Mancanza di Battito (La più importante sovrascrive tutto)
+        if (velocityData.blocco) {
+            simulazione.azione = "MORTO (Illiquido)";
+            simulazione.coloreAzione = velocityData.colore;
+            simulazione.tradeValido = false;
+            simulazione.testo = `📈 Simulazione: ☠️ TRAPPOLA DI LIQUIDITÀ. Scambi fermi da ${velocityData.secondiDaUltimaTx} secondi. ⛔ NON COMPRARE.`;
+            simulazione.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Zero compratori attivi nel mercato.`;
+        }
+
+        logAnalisi.push(simulazione.testo);
+
+        // 📈 D. Dati Globali (HUD)
+        let memeChange24h = 0;
+        let memeVolM = 0;
+        let marketTrend = "Analisi...";
+        let hudColor = "#fff";
+        let marketIcon = "📊";
+
+        try {
+            const [wifResp, bonkResp] = await Promise.all([
+                fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=WIFUSDT"),
+                fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BONKUSDT")
+            ]);
+            const wifData = await wifResp.json();
+            const bonkData = await bonkResp.json();
+            
+            const wifChange = parseFloat(wifData.priceChangePercent || 0);
+            const bonkChange = parseFloat(bonkData.priceChangePercent || 0);
+            const wifVol = parseFloat(wifData.quoteVolume || 0);
+            const bonkVol = parseFloat(bonkData.quoteVolume || 0);
+            
+            memeChange24h = ((wifChange + bonkChange) / 2).toFixed(2);
+            memeVolM = ((wifVol + bonkVol) / 1000000).toFixed(1);
+            
+            if (memeChange24h >= 3) {
+                marketTrend = "RISK-ON (Meme Season)";
+                hudColor = "#00e676"; 
+                marketIcon = "🔥";
+            } else if (memeChange24h <= -3) {
+                marketTrend = "RISK-OFF (Sangue, Rugg)";
+                hudColor = "#ff4d4d"; 
+                marketIcon = "🩸";
+            } else {
+                marketTrend = "NEUTRO (Range laterale)";
+                hudColor = "#ffaa00"; 
+                marketIcon = "⚖️";
+            }
+        } catch(e) {
+            marketIcon = "⚠️";
+        }
+
+        let solPriceUsd = 150;
+        try {
+            const solResp = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
+            const solData = await solResp.json();
+            if (solData.price) solPriceUsd = parseFloat(solData.price);
+        } catch(e) {}
+
+        // 🎯 E. Calcolo Punteggio Finale Rischio
+        let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
+        
+        // Applichiamo le penalità
+        if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
+        if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
+        if (earlyBotData.supplyBundledPct >= 20) finalScore = 100; 
+        if (velocityData.blocco) finalScore = Math.max(finalScore, 85); 
+
+        let rischioStatus = finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO");
+
+        res.json({
+            score: finalScore,
+            rischio: rischioStatus,
+            dettagli: logAnalisi,
+            graficoAttivo: false,
+            datiGrafico: null,
+            earlyRadar: {
+                potenzialeVolume: earlyBotData.potenzialeVolumeBot,
+                bundleSlot0: earlyBotData.bundleSlot0,
+                supplyBot: earlyBotData.supplyBundledPct,
+                masterWalletFull: earlyBotData.funderComune || "Nessuno",
+                masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
+            },
+            vitaToken: tokenAgeMinutes.toFixed(1),
+            timeToRug: simulazione.azione, 
+            ctoStatus: simulazione.ctoStatus, 
+            fugaColor: simulazione.coloreAzione, 
+            
+            hud: {
+                change: memeChange24h,
+                volume: memeVolM,
+                trend: marketTrend,
+                color: hudColor,
+                icon: marketIcon
+            },
+
+            tradeValido: simulazione.tradeValido,
+            simulatoreTesto: simulazione.simulatoreTesto,
+            moltiplicatore: simulazione.moltiplicatore,
+            targetMC: simulazione.targetMC,
+            prezzoSol: parseFloat(solPriceUsd)
+        });
+
+    } catch (error) {
+        console.error("Errore durante la scansione:", error);
+        res.status(500).json({ error: "Errore durante la scansione del token." });
+    }
+});
 // =====================================================================
 // 4. ROTTA PRINCIPALE (Scansione Estensione)
 // =====================================================================
@@ -387,7 +648,9 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         console.error("Errore durante la scansione:", error);
         res.status(500).json({ error: "Errore durante la scansione del token." });
     }
+    
 });
+
 // =====================================================================
 // 4. LO SCUDO DELLA SUPPLY (Investigatore di Cabale e Alberi Genealogici)
 // =====================================================================

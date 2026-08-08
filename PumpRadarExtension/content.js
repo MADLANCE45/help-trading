@@ -8,17 +8,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const url = tabs[0].url;
-            if (!url || !url.includes('pump.fun')) {
-                contentDiv.innerHTML = '<div style="padding: 10px; text-align:center; color:#fff;">Apri un token su Pump.fun per usare il radar.</div>';
-                return;
-            }
-
+            
             try {
-                const urlObj = new URL(url);
-                const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
-                const tokenMint = pathParts[pathParts.length - 1];
+                // Intelligenza RegEx: Cerca automaticamente un indirizzo Solana valido (32-44 caratteri base58) nell'URL
+                const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+                
+                if (!matchToken) {
+                    contentDiv.innerHTML = `
+                        <div style="padding: 20px; text-align:center; color:#ffaa00;">
+                            ⚠️ <b>Nessun Token Rilevato</b><br><br>
+                            Apri la pagina di una moneta su Pump.fun o Axiom Trade per analizzarla.
+                        </div>`;
+                    return;
+                }
 
-                if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
+                const tokenMint = matchToken[0];
 
                 contentDiv.innerHTML = `
                     <div style="padding: 20px; color: #00ffcc; text-align: center; font-family: monospace;">
