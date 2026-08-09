@@ -10,14 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = tabs[0].url;
             
             try {
-                // Intelligenza RegEx: Cerca indirizzo su Pump.fun, Axiom, DexScreener, ecc.
                 const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
                 
                 let tokenMint = null;
                 if (matchToken) tokenMint = matchToken[0];
 
                 if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                    // Costruiamo comunque l'interfaccia se siamo su una pagina senza token (es. homepage)
                     costruisciInterfacciaBase(null, null);
                     return;
                 }
@@ -25,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 contentDiv.innerHTML = `
                     <div style="padding: 20px; color: #00ffcc; text-align: center; font-family: monospace;">
                         <div style="font-size: 2em; margin-bottom: 10px;">📡</div>
-                        ⏳ Analisi on-chain 5-Layer in corso...<br>
+                        ⏳ Analisi on-chain in corso...<br>
                         <span style="font-size: 0.7em; color: #888;">${tokenMint.substring(0,12)}...</span>
                     </div>`;
 
@@ -44,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function costruisciInterfacciaBase(tokenMint, data) {
-        // Se non c'è un token attivo, creiamo dati finti grigi
         if (!data) {
             data = {
                 score: 0, rischio: "IN ATTESA",
@@ -111,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        // --- ASSEMBLAGGIO DEI 3 TAB ---
         contentDiv.innerHTML = `
             <style>
                 @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
@@ -156,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc;">💼 Smart Money</h3><div style="font-size: 0.75em; color: #aaa;">Traccia i portafogli dei balenotteri</div></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc;">💼 Smart Money</h3><div style="font-size: 0.75em; color: #aaa;">Seleziona chi vuoi spiare attivamente</div></div>
                         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
                             <input type="text" id="new-wallet-input" placeholder="Indirizzo Solana..." style="flex-grow: 1; padding: 10px; background: #12151f; border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em;">
                             <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Salva</button>
@@ -168,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div id="view-spy" style="display: none;">
                         <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f;">🚨 Live Spy Feed</h3><div style="font-size: 0.75em; color: #aaa;">Cosa stanno comprando ORA le tue balene?</div></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai tuoi wallet spiati...<br><br>👀</div>
+                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai tuoi wallet con l'allarme attivo (🔔)...</div>
                         </div>
                     </div>
 
@@ -189,13 +185,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        // Switch Tab Logic
         const tabs = ['radar', 'tracker', 'spy'];
         function switchTab(activeId) {
             tabs.forEach(id => {
                 document.getElementById(`view-${id}`).style.display = (id === activeId) ? 'block' : 'none';
                 const tab = document.getElementById(`tab-${id}`);
-                tab.classList.remove('spy-alert-active'); // Resetta lampeggio se c'è
+                tab.classList.remove('spy-alert-active');
                 if(id === activeId) {
                     const highlightColor = (id === 'spy') ? '#ff007f' : '#00ffcc';
                     tab.style.color = highlightColor;
@@ -242,10 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
     avviaRadar();
 
     // =========================================================
-    // MOTORE IN BACKGROUND: SPY & TRACKER
+    // MOTORE IN BACKGROUND: SPY & TRACKER CON SELEZIONE
     // =========================================================
     
-    // Funzioni Tracker (Salvataggio Wallet)
     function inizializzaTracker() {
         const addBtn = document.getElementById('add-wallet-btn');
         const inputField = document.getElementById('new-wallet-input');
@@ -264,20 +258,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // Listener per i tasti del tracker (Elimina, Rinomina)
         document.getElementById('content').addEventListener('click', (e) => {
+            // Elimina Wallet
             if (e.target.classList.contains('delete-wallet-btn')) {
                 const wallet = e.target.getAttribute('data-wallet');
                 if(confirm("Smettere di tracciare questo wallet?")) {
-                    chrome.storage.local.get(['trackedWallets', 'walletNames'], (res) => {
+                    chrome.storage.local.get(['trackedWallets', 'walletNames', 'spiedWallets'], (res) => {
                         let wallets = res.trackedWallets || [];
                         let names = res.walletNames || {};
+                        let spied = res.spiedWallets || [];
+                        
                         wallets = wallets.filter(w => w !== wallet);
+                        spied = spied.filter(w => w !== wallet);
                         delete names[wallet];
-                        chrome.storage.local.set({ trackedWallets: wallets, walletNames: names }, () => loadSavedWallets());
+                        
+                        chrome.storage.local.set({ trackedWallets: wallets, walletNames: names, spiedWallets: spied }, () => loadSavedWallets());
                     });
                 }
             }
+            // Rinomina Wallet
             if (e.target.classList.contains('edit-name-btn')) {
                 const wallet = e.target.getAttribute('data-wallet');
                 const nuovoNome = prompt("Inserisci un nome breve per ricordarlo (es. Balena 1):");
@@ -289,6 +288,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
+            // ATTIVA/DISATTIVA NOTIFICHE SPIA (Nuovo!)
+            if (e.target.classList.contains('toggle-spy-btn')) {
+                const wallet = e.target.getAttribute('data-wallet');
+                chrome.storage.local.get(['spiedWallets'], (res) => {
+                    let spied = res.spiedWallets || [];
+                    if (spied.includes(wallet)) {
+                        spied = spied.filter(w => w !== wallet); // Disattiva spia
+                    } else {
+                        spied.push(wallet); // Attiva spia
+                    }
+                    chrome.storage.local.set({ spiedWallets: spied }, () => loadSavedWallets());
+                });
+            }
         });
         loadSavedWallets();
     }
@@ -296,21 +308,31 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadSavedWallets() {
         const listContainer = document.getElementById('tracked-wallets-list');
         if (!listContainer) return; 
-        chrome.storage.local.get(['trackedWallets', 'walletNames'], async function(result) {
+        
+        chrome.storage.local.get(['trackedWallets', 'walletNames', 'spiedWallets'], async function(result) {
             const wallets = result.trackedWallets || [];
             const walletNames = result.walletNames || {};
+            const spiedWallets = result.spiedWallets || [];
             listContainer.innerHTML = ''; 
 
             for (const wallet of wallets) {
                 const displayName = walletNames[wallet] || `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
+                const isSpied = spiedWallets.includes(wallet);
+                
+                // Colori dinamici per il bottone spia
+                const spyBtnBg = isSpied ? '#ff007f' : '#242736';
+                const spyBtnText = isSpied ? '🔔 Spia ON' : '🔕 OFF';
+                const spyBtnColor = isSpied ? '#fff' : '#888';
+
                 const walletItem = document.createElement('div');
                 walletItem.style.cssText = "background: linear-gradient(145deg, #161821, #1a1c29); border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 12px;";
                 walletItem.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:#00e6e6; font-size:1.1em;" title="${wallet}">${displayName}</strong>
+                        <strong style="color:#00e6e6; font-size:1.05em;" title="${wallet}">${displayName}</strong>
                         <div style="display:flex; gap:4px;">
-                            <button class="edit-name-btn" data-wallet="${wallet}" style="background:#242736; border:1px solid #3a3f58; color:#fff; border-radius:4px; padding:3px 6px; cursor:pointer;">✏️</button>
-                            <button class="delete-wallet-btn" data-wallet="${wallet}" style="background:#362424; border:1px solid #583a3a; color:#ff4d4d; border-radius:4px; padding:3px 6px; cursor:pointer;">🗑️</button>
+                            <button class="toggle-spy-btn" data-wallet="${wallet}" style="background:${spyBtnBg}; border:1px solid #3a3f58; color:${spyBtnColor}; border-radius:4px; padding:3px 6px; cursor:pointer; font-weight:bold; font-size:0.75em; transition:0.2s;">${spyBtnText}</button>
+                            <button class="edit-name-btn" data-wallet="${wallet}" style="background:#242736; border:1px solid #3a3f58; color:#fff; border-radius:4px; padding:3px 6px; cursor:pointer;" title="Rinomina">✏️</button>
+                            <button class="delete-wallet-btn" data-wallet="${wallet}" style="background:#362424; border:1px solid #583a3a; color:#ff4d4d; border-radius:4px; padding:3px 6px; cursor:pointer;" title="Elimina">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -319,78 +341,138 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 🔥 MOTORE LIVE SPY ULTRA-VELOCE 🔥
+    // 🔥 MOTORE LIVE SPY (Controlla SOLO i wallet con Spia ON) 🔥
+    // 🔥 MOTORE LIVE SPY (Con Filtro Anti-Intasamento) 🔥
     let processedSigs = new Set();
+    let lastNotificationTime = {}; // Memoria per non spammare notifiche
     let isFirstSpyRun = true;
 
+    chrome.storage.local.get(['spyHistory'], (res) => {
+        const history = res.spyHistory || [];
+        history.forEach(item => aggiungiSpyCardHTML(item, false));
+    });
+
     async function checkSpyWallets() {
-        chrome.storage.local.get(['trackedWallets', 'walletNames'], async (res) => {
-            const wallets = res.trackedWallets || [];
+        chrome.storage.local.get(['spiedWallets', 'walletNames'], async (res) => {
+            const spiedWallets = res.spiedWallets || []; 
             const names = res.walletNames || {};
             
-            for(const w of wallets) {
+            for(const w of spiedWallets) {
                 try {
                     const r = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/spy-wallet/${w}`, { headers: {"ngrok-skip-browser-warning": "true"} });
                     const d = await r.json();
                     
                     if (d.actions && d.actions.length > 0) {
-                        // Leggiamo al contrario per processare prima le più vecchie
                         const actions = d.actions.reverse();
                         
                         for (let action of actions) {
                             if (isFirstSpyRun) {
-                                // Al primo avvio salviamo le firme senza spammare allerte
                                 processedSigs.add(action.signature);
                             } else if (!processedSigs.has(action.signature)) {
                                 processedSigs.add(action.signature);
                                 
-                                // 🚀 NUOVA AZIONE RILEVATA!
+                                const walletName = names[w] || `${w.substring(0,4)}...`;
+                                const now = Date.now();
+                                const lastAlert = lastNotificationTime[w] || 0;
+                                // 🛡️ FILTRO ANTI-SPAM: Massimo 1 notifica al minuto per wallet
+                                const canNotify = (now - lastAlert) > 60000;
+
                                 if (action.type === "BUY") {
-                                    // Se compra, facciamo lo scan di sicurezza completo
                                     const scanR = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${action.mint}`, { headers: {"ngrok-skip-browser-warning": "true"} });
                                     const scanD = await scanR.json();
-                                    aggiungiSpyCard(names[w] || `${w.substring(0,4)}...`, action.mint, scanD, "BUY");
+                                    
+                                    const alertData = { walletName, mint: action.mint, scanData: scanD, type: "BUY", strategy: action.strategy };
+                                    
+                                    if (canNotify) {
+                                        try {
+                                            chrome.notifications.create({
+                                                type: 'basic',
+                                                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 
+                                                title: `🚨 ${walletName} ha Comprato!`,
+                                                message: `Strategia: ${action.strategy.conviction}.`
+                                            });
+                                            lastNotificationTime[w] = now;
+                                        } catch(e) {}
+                                    }
+
+                                    salvaStoricoSpy(alertData);
+                                    aggiungiSpyCardHTML(alertData, true);
                                 } else {
-                                    // Se vende, avvisiamo istantaneamente senza fare calcoli
-                                    aggiungiSpyCard(names[w] || `${w.substring(0,4)}...`, action.mint, null, "SELL");
+                                    const alertData = { walletName, mint: action.mint, type: "SELL" };
+                                    
+                                    if (canNotify) {
+                                        try {
+                                            chrome.notifications.create({
+                                                type: 'basic',
+                                                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 
+                                                title: `🔴 ${walletName} sta VENDENDO!`,
+                                                message: `Attenzione allo scarico.`
+                                            });
+                                            lastNotificationTime[w] = now;
+                                        } catch(e) {}
+                                    }
+
+                                    salvaStoricoSpy(alertData);
+                                    aggiungiSpyCardHTML(alertData, true);
                                 }
                             }
                         }
                     }
-                } catch(e){}
+                } catch(e){
+                    console.log("Errore connessione con Spia:", e);
+                }
             }
             isFirstSpyRun = false;
         });
     }
 
-    function aggiungiSpyCard(walletName, mint, scanData, type) {
+    function salvaStoricoSpy(alertData) {
+        chrome.storage.local.get(['spyHistory'], (res) => {
+            let history = res.spyHistory || [];
+            history.unshift(alertData); 
+            if (history.length > 20) history.pop(); 
+            chrome.storage.local.set({ spyHistory: history });
+        });
+    }
+
+    function aggiungiSpyCardHTML(data, isNew) {
         const feed = document.getElementById('spy-feed-list');
         if (feed && feed.innerHTML.includes('In attesa')) feed.innerHTML = '';
 
-        const isBuy = type === "BUY";
+        const isBuy = data.type === "BUY";
         const themeColor = isBuy ? '#00ffcc' : '#ff4d4d';
         const titleText = isBuy ? '🟢 HA COMPRATO' : '🔴 HA VENDUTO';
         
         let contentHTML = "";
 
-        if (isBuy && scanData) {
-            const score = scanData.score || 0;
+        if (isBuy && data.scanData) {
+            const score = data.scanData.score || 0;
             const scoreColor = score >= 80 ? '#ff4d4d' : (score >= 60 ? '#ffaa00' : '#00e676');
-            const azione = scanData.tradeValido ? '✅ ' + scanData.azione : '⛔ ' + scanData.azione;
+            const azione = data.scanData.tradeValido ? '✅ ' + data.scanData.azione : '⛔ ' + data.scanData.azione;
             
+            let stratHTML = "";
+            if (data.strategy) {
+                stratHTML = `
+                <div style="background:#11121a; border-left: 3px solid ${data.strategy.color}; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.8em;">
+                    <strong style="color:${data.strategy.color};">${data.strategy.conviction}</strong><br>
+                    <span style="color:#aaa;">${data.strategy.reason}</span>
+                </div>`;
+            }
+
             contentHTML = `
+                ${stratHTML}
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div style="font-size:0.85em;">Rischio: <b style="color:${scoreColor}; font-size:1.2em;">${score}/100</b></div>
+                    <div style="font-size:0.85em;">Rischio On-Chain: <b style="color:${scoreColor}; font-size:1.2em;">${score}/100</b></div>
                 </div>
                 <div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; margin-bottom:12px; font-size:0.85em; border-left: 2px solid ${scoreColor};">
                     ${azione}<br>
-                    <span style="color:#aaa; font-size:0.9em; display:block; margin-top:4px;">${scanData.simulatoreTesto ? scanData.simulatoreTesto.replace('Entri ora ➔ ', '') : ''}</span>
+                    <span style="color:#aaa; font-size:0.9em; display:block; margin-top:4px;">${data.scanData.simulatoreTesto ? data.scanData.simulatoreTesto.replace('Entri ora ➔ ', '') : ''}</span>
                 </div>
             `;
         } else {
             contentHTML = `
                 <div style="background:rgba(255, 77, 77, 0.1); padding:8px; border-radius:4px; margin-bottom:12px; font-size:0.85em; color:#ff4d4d; border: 1px solid #ff4d4d;">
-                    ⚠️ ATTENZIONE: La balena sta scaricando i suoi token! Se sei dentro, valuta l'uscita.
+                    ⚠️ ATTENZIONE: La balena sta scaricando i suoi token!
                 </div>
             `;
         }
@@ -399,14 +481,14 @@ document.addEventListener('DOMContentLoaded', () => {
         card.style.cssText = `background:#161821; border-top: 3px solid ${themeColor}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
         card.innerHTML = `
             <div style="color:${themeColor}; font-size:0.85em; margin-bottom:6px; font-weight:bold;">
-                ${titleText}: <span style="color:#aaa; font-weight:normal;">${walletName}</span>
+                ${titleText}: <span style="color:#aaa; font-weight:normal;">${data.walletName}</span>
             </div>
             
             <div style="display:flex; justify-content:space-between; align-items:center; background:#0a0c10; padding:6px; border-radius:4px; margin-bottom:10px; border: 1px solid #2d3142;">
-                <div style="font-family:monospace; font-size:0.95em; color:#fff;" id="spy-mint-${mint}">
-                    ${mint.substring(0,20)}...
+                <div style="font-family:monospace; font-size:0.95em; color:#fff;">
+                    ${data.mint.substring(0,20)}...
                 </div>
-                <button class="copy-spy-mint-btn" data-mint="${mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold; font-size:0.8em; transition:0.2s;">
+                <button class="copy-spy-mint-btn" data-mint="${data.mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold; font-size:0.8em; transition:0.2s;">
                     📋 Copia
                 </button>
             </div>
@@ -414,40 +496,33 @@ document.addEventListener('DOMContentLoaded', () => {
             ${contentHTML}
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                <a href="https://pump.fun/${mint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">
-                    💊 Pump.fun
-                </a>
-                <a href="https://dexscreener.com/solana/${mint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">
-                    🦅 DexScreener
-                </a>
+                <a href="https://axiom.trade/token/${data.mint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦍 Axiom</a>
+                <a href="https://dexscreener.com/solana/${data.mint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦅 DexScreener</a>
             </div>
         `;
         
-        if (feed) feed.prepend(card);
+        if (feed) {
+            if (isNew) feed.prepend(card);
+            else feed.appendChild(card);
+        }
 
-        // Aggiunge la funzionalità al pulsante Copia dentro la card spia
         const copyBtn = card.querySelector('.copy-spy-mint-btn');
         if (copyBtn) {
             copyBtn.addEventListener('click', (e) => {
-                const mintToCopy = e.target.getAttribute('data-mint');
-                navigator.clipboard.writeText(mintToCopy).then(() => {
-                    e.target.innerText = "✅ Copiato";
-                    e.target.style.background = "#00e676";
-                    setTimeout(() => {
-                        e.target.innerText = "📋 Copia";
-                        e.target.style.background = "#2a2d3d";
-                    }, 2000);
+                navigator.clipboard.writeText(e.target.getAttribute('data-mint')).then(() => {
+                    e.target.innerText = "✅ Copiato"; e.target.style.background = "#00e676";
+                    setTimeout(() => { e.target.innerText = "📋 Copia"; e.target.style.background = "#2a2d3d"; }, 2000);
                 });
             });
         }
 
-        const tabSpy = document.getElementById('tab-spy');
-        if(tabSpy && tabSpy.style.color !== 'rgb(255, 0, 127)') {
-            tabSpy.classList.add('spy-alert-active');
+        if (isNew) {
+            const tabSpy = document.getElementById('tab-spy');
+            if(tabSpy && tabSpy.style.color !== 'rgb(255, 0, 127)') tabSpy.classList.add('spy-alert-active');
         }
     }
     
-    // 🔥 VELOCITÀ AL MASSIMO: Controlla le mosse della balena ogni 5 secondi 🔥
+    // Ritmo bilanciato: 10 Secondi per evitare blocchi RPC
     checkSpyWallets();
-    setInterval(checkSpyWallets, 5000);
+    setInterval(checkSpyWallets, 10000);
 });
