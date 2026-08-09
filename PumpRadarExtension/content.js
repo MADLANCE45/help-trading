@@ -166,13 +166,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         <!-- NUOVA DASHBOARD TATTICA -->
                         <div class="radar-dashboard" style="background: #12151f; padding: 12px; border-radius: 8px; border: 1px solid #2d3142; font-size: 0.85em; margin-bottom: 15px;">
-                            <div style="margin-bottom: 10px; border-left: 3px solid #ffaa00; padding-left: 8px;">
+                            <div style="margin-bottom: 10px; border-left: 3px solid ${advice.devStatus.includes('SERIAL') ? '#ff4d4d' : (advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00e676')}; padding-left: 8px;">
                                 <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Terminale Dev (${devWallet.substring(0,6)}...):</span>
                                 <span style="color: white; font-weight: bold;">${advice.devStatus}</span>
                             </div>
                             <div style="margin-bottom: 10px; border-left: 3px solid #00ffcc; padding-left: 8px;">
                                 <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Analisi Volume (UBI):</span>
                                 <span style="color: white; font-weight: bold;">${advice.volumeStatus}</span>
+                            </div>
+                            <!-- 🧠 NEW: IL GRAFO SYBIL -->
+                            <div style="margin-bottom: 10px; border-left: 3px solid #b366ff; padding-left: 8px;">
+                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Grafo Finanziamenti (Sybil Tree):</span>
+                                <span style="color: white; font-weight: bold;">${advice.sybilStatus || "Calcolo in corso..."}</span>
                             </div>
                             <div style="margin-bottom: 10px; border-left: 3px solid #ff4d4d; padding-left: 8px;">
                                 <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Scudo Sanguisuga (Bundle):</span>
@@ -491,19 +496,17 @@ document.addEventListener('DOMContentLoaded', () => {
         let contentHTML = "";
         let statsHTML = "";
 
-        // 🧠 INIEZIONE INTELLIGENZA NELLA GRAFICA (Badge Bot/Umano e WinRate)
+        // 🧠 INIEZIONE INTELLIGENZA NELLA GRAFICA (Solo dati reali)
         if (data.stats) {
-            const wrColor = parseFloat(data.stats.winRate) >= 50 ? '#00e676' : '#ffaa00';
             statsHTML = `
                 <div style="display:flex; gap:8px; margin-bottom: 10px; font-size: 0.8em; margin-top: 6px;">
-                    <span style="background:#2a2d3d; padding:4px 8px; border-radius:4px; border:1px solid #444; color:#fff;">${data.stats.classificazione || 'Trader'}</span>
-                    <span style="background:rgba(0, 230, 118, 0.1); padding:4px 8px; border-radius:4px; border:1px solid ${wrColor}; color:${wrColor}; font-weight:bold;">🎯 WR: ${data.stats.winRate || '0'}%</span>
+                    <span style="background:#2a2d3d; padding:4px 8px; border-radius:4px; border:1px solid #444; color:#fff;">${data.stats.classificazione || 'Analisi in corso...'}</span>
+                    <span style="background:rgba(0, 170, 255, 0.1); padding:4px 8px; border-radius:4px; border:1px solid #00aaff; color:#00aaff; font-weight:bold;">⚡ Live Sync</span>
                 </div>
             `;
         }
 
         if (isBuy && data.strategy) {
-            // 🔥 FIX BUG 0.00 SOL: Se nasconde la size col Router, non mostriamo "0.00"
             const solText = data.solSpent > 0.01 ? `${data.solSpent.toFixed(2)} SOL` : `Importo Nascosto (Routing DEX)`;
             
             contentHTML = `
@@ -575,7 +578,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Errore nel loop spy:", error);
         } finally {
-            setTimeout(startSpyLoop, 10000); 
+            // 🔥 SPINTI AL LIMITE: Aggiornamento ogni 3 secondi per avvicinarci al "Tempo Reale"
+            setTimeout(startSpyLoop, 3000); 
         }
     }
 

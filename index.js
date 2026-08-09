@@ -2,11 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const { Connection, PublicKey } = require('@solana/web3.js');
 
-// Inserisci qui la tua API Key
 const HELIUS_API_KEY = "b85ff0ae-b208-4fe9-897b-1d7a446b9d36"; 
 const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
-// Creiamo la connessione con la blockchain (UNA SOLA VOLTA)
 const solanaConnection = new Connection(RPC_URL, 'confirmed');
 
 const app = express();
@@ -15,18 +13,15 @@ const PORT = 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
-// Funzione di pausa intelligente per aggirare l'errore 429 di Helius
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // =====================================================================
-// 1. ANALISI DEL BUNDLE INIZIALE (Slot-0 & Bot di Volume)
+// 1. ANALISI DEL BUNDLE INIZIALE E BOT
 // =====================================================================
 async function analizzaBotEarlyLaunch(mintPubKey) {
     try {
         const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 20 });
-        if (signatures.length === 0) {
-            return { potenzialeVolumeBot: "BASSO", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Nessun dato." };
-        }
+        if (signatures.length === 0) return { potenzialeVolumeBot: "BASSO", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Nessun dato." };
 
         let blockTimes = [];
         let funderMap = {};
@@ -75,37 +70,25 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
 
         if (punteggioBot >= 70) {
             livelloVolume = "MOLTO ALTO (SNIPE READY)";
-            indicatore = `🚀 BOT PUMP PRONTO: ${sameBlockTxCount} buy nello stesso blocco. Fanno finto volume.`;
+            indicatore = `🚀 BOT PUMP PRONTO: ${sameBlockTxCount} buy nello stesso blocco.`;
         } else if (punteggioBot >= 40) {
             livelloVolume = "MODERATO";
-            indicatore = `🟡 BOT MODERATI: Rilevati acquisti raggruppati. Possibile spinta a breve.`;
+            indicatore = `🟡 BOT MODERATI: Rilevati acquisti raggruppati.`;
         }
 
-        return {
-            potenzialeVolumeBot: livelloVolume,
-            bundleSlot0: sameBlockTxCount >= 3,
-            supplyBundledPct: supplyBundledPct,
-            funderComune: masterWallet,
-            indicatoreTesto: indicatore
-        };
-
+        return { potenzialeVolumeBot: livelloVolume, bundleSlot0: sameBlockTxCount >= 3, supplyBundledPct: supplyBundledPct, funderComune: masterWallet, indicatoreTesto: indicatore };
     } catch (error) {
         return { potenzialeVolumeBot: "NON DISPONIBILE", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Errore blocco 0." };
     }
 }
 
 // =====================================================================
-// 2. SIMULATORE DI PROFITTO DINAMICO E TACTICAL ADVICE
-// =====================================================================
-// =====================================================================
-// 2. SIMULATORE DI PROFITTO DINAMICO E TACTICAL ADVICE
+// 2. SIMULATORE E TACTICAL ADVICE
 // =====================================================================
 function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct, tokenAgeMinutes) {
-    
-    // FIX: Se il token è appena nato e l'API lagga (FDV = 0), NON bloccare, ma ipotizza 5000$ per attivare la UI.
     if (!currentFdv || currentFdv <= 0) {
         currentFdv = 5000;
-        let risultato = {
+        return {
             testo: "📈 Simulazione: ⏳ ATTESA DATI LIVE API. Market Cap stimato (5k) per calcolo base.",
             tradeValido: true,
             simulatoreTesto: "⚠️ Attendi 5 secondi. Analisi in corso su curva iniziale.",
@@ -114,11 +97,9 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
             moltiplicatore: 1.5,
             targetMC: 7500
         };
-        return risultato;
     }
 
     const mcAttuale = currentFdv;
-    // ... resto del codice identico a prima
     let risultato = { testo: "", tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0, azione: "", coloreAzione: "", ctoStatus: "Basso" };
     let nostraUscita = 0;
 
@@ -167,58 +148,60 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     return risultato;
 }
 
-// Generatore del testo tattico per l'HTML
-// Generatore del testo tattico e del Timer di Scam per l'HTML
-function generateTacticalAdvice(devWalletAgeHours, ubiData, bundledSupply, isFakeDev) {
-    let advice = { devStatus: "", volumeStatus: "", topHoldersStatus: "", strategy: "", estimatedRugTime: "" };
+function generateTacticalAdvice(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev) {
+    let advice = { devStatus: "", volumeStatus: "", topHoldersStatus: "", sybilStatus: "", strategy: "", estimatedRugTime: "" };
 
-    // 1. Status Dev
-    if (isFakeDev || devWalletAgeHours < 24) {
-        advice.devStatus = `🛑 FRESH WALLET: Creato da ${devWalletAgeHours.toFixed(1)}h. Zero track record. ⚠️ Rischio exit liquidity.`;
+    if (fedinaDev && fedinaDev.tokensLanciati >= 3) {
+        advice.devStatus = `🚨 SERIAL RUGGER: Ha già lanciato ${fedinaDev.tokensLanciati} token di recente. DUMP CERTO al 99%.`;
+    } else if (isFakeDev || devWalletAgeHours < 24) {
+        advice.devStatus = `🛑 FRESH WALLET: Creato da ${devWalletAgeHours.toFixed(1)}h. ⚠️ Rischio exit liquidity.`;
     } else {
-        advice.devStatus = `✅ DEV STORICO: Wallet attivo da ${Math.floor(devWalletAgeHours/24)} giorni.`;
+        advice.devStatus = `✅ ${fedinaDev ? fedinaDev.status : 'DEV STORICO'}: Wallet attivo da ${Math.floor(devWalletAgeHours/24)} giorni.`;
     }
 
-    // 2. Wash Trading (UBI)
-    const ubiPercentage = ubiData.totalTx > 0 ? (ubiData.uniqueBuyers / ubiData.totalTx) * 100 : 0;
-    if (ubiPercentage < 25 && ubiData.totalTx > 10) {
+    const ubiPercentage = ubiData && ubiData.totalTx > 0 ? (ubiData.uniqueBuyers / ubiData.totalTx) * 100 : 0;
+    if (ubiPercentage < 25 && ubiData && ubiData.totalTx > 10) {
         advice.volumeStatus = `💀 WASH TRADING: ${ubiPercentage.toFixed(1)}% UBI. Solo ${ubiData.uniqueBuyers} buyer su ${ubiData.totalTx} tx.`;
-    } else {
+    } else if (ubiData) {
         advice.volumeStatus = `⚡ VOLUME ORGANICO: ${ubiPercentage.toFixed(1)}% UBI (${ubiData.uniqueBuyers} wallet distinti).`;
+    } else {
+        advice.volumeStatus = `Analisi volume in corso...`;
     }
 
-    // 3. Status Supply
     if (bundledSupply > 20) {
         advice.topHoldersStatus = `⚠️ BUNDLE RILEVATO: ${bundledSupply}% supply cecchinata. Rischio dump.`;
     } else {
         advice.topHoldersStatus = `🛡️ SUPPLY DISTRIBUITA: (${bundledSupply}%). Nessun nodo anomalo.`;
     }
 
-    // 4. Calcolatore Previsionale (Tempo Stimato al Rug) basato sui Bot
-    if (bundledSupply > 20) {
-        advice.estimatedRugTime = "⏱️ 1-5 MINUTI (Software Jito Bundler Veloce)";
-    } else if (ubiPercentage < 25 && ubiData.totalTx > 10) {
-        advice.estimatedRugTime = "⏱️ 10-30 MINUTI (Software Volume Bot Lento)";
-    } else if (isFakeDev) {
-        advice.estimatedRugTime = "⏱️ 1-2 ORE (Dev improvvisato / Soft Rug)";
+    if (sybilData && sybilData.rilevato) {
+        advice.sybilStatus = `🕸️ RETE SYBIL: ${sybilData.numeroWallet} wallet controllati dal Padre (${sybilData.supplyControllata.toFixed(1)}%). ${sybilData.inVendita ? '⚠️ VENDITE IN CORSO' : '🟢 HOLDING (Puntano in alto)'}`;
     } else {
-        advice.estimatedRugTime = "⏳ INDEFINITO (Pattern Organico e Pulito)";
+        advice.sybilStatus = `✅ ACQUIRENTI INDIPENDENTI: Nessun burattinaio rilevato.`;
     }
 
-    // 5. Strategia
-    if (ubiPercentage >= 25 && bundledSupply < 15 && !isFakeDev) {
-        advice.strategy = `🟢 RIDE THE WAVE: Setup pulito. Max size: 0.5 SOL. Target 1: +50%.`;
-    } else if (ubiPercentage >= 20 && bundledSupply >= 15) {
-        advice.strategy = `🟡 SCALPING VELOCE: Supply manipolata. Entra ed esci. Max size: 0.1 SOL. SL stretto.`;
+    if (fedinaDev && fedinaDev.tokensLanciati >= 3) {
+        advice.estimatedRugTime = "⏱️ RUG IMMINENTE (Il Dev sta per premere il bottone)";
+        advice.strategy = `⛔ TRADE BLOCCATO: Creatore seriale di truffe. Non regalargli i tuoi SOL.`;
+    } else if (sybilData && sybilData.rilevato && !sybilData.inVendita) {
+        advice.strategy = `🟣 RIDE THE SYBIL: La Cabala controlla il ${sybilData.supplyControllata.toFixed(1)}% e non vende. Target programmato alto (>50k). Anticipa la loro uscita.`;
+        advice.estimatedRugTime = "⏱️ ATTESA TARGET (La Cabala holda per il Pump)";
+    } else if (bundledSupply > 20 || (sybilData && sybilData.inVendita)) {
+        advice.estimatedRugTime = "⏱️ 1-5 MINUTI (Software Jito Bundler / Sybil in scarico)";
+        advice.strategy = `⛔ TRADE BLOCCATO: La rete ha iniziato a scaricare. Fuggire.`;
+    } else if (ubiPercentage < 25 && ubiData && ubiData.totalTx > 10) {
+        advice.estimatedRugTime = "⏱️ 10-30 MINUTI (Software Volume Bot Lento)";
+        advice.strategy = `🟡 SCALPING VELOCE: Finto volume, entra ed esci.`;
     } else {
-        advice.strategy = `⛔ TRADE BLOCCATO: Metriche on-chain compromesse.`;
+        advice.estimatedRugTime = "⏳ INDEFINITO (Pattern Organico e Pulito)";
+        advice.strategy = `🟢 RIDE THE WAVE: Setup pulito. Max size: 0.5 SOL. Target 1: +50%.`;
     }
 
     return advice;
 }
 
 // =====================================================================
-// 3. ANALISI COMPONENTI (Età, UBI, ECG, Cabala, Micro-Dumping)
+// 3. ANALISI COMPONENTI
 // =====================================================================
 async function calcolaEtaWallet(walletAddress) {
     try {
@@ -234,13 +217,10 @@ async function analizzaUBI(signatures) {
     try {
         const recentSigs = signatures.slice(0, 30).map(s => s.signature);
         if (recentSigs.length === 0) return { uniqueBuyers: 0, totalTx: 0 };
-
         await delay(250); 
         const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
-
         let uniqueWallets = new Set();
         let validTxCount = 0;
-
         txs.forEach(tx => {
             if (tx && tx.transaction && tx.transaction.message.accountKeys) {
                 const feePayer = tx.transaction.message.accountKeys[0].pubkey.toString();
@@ -248,11 +228,8 @@ async function analizzaUBI(signatures) {
                 validTxCount++;
             }
         });
-
         return { uniqueBuyers: uniqueWallets.size, totalTx: validTxCount };
-    } catch (error) {
-        return { uniqueBuyers: 1, totalTx: 1 }; 
-    }
+    } catch (error) { return { uniqueBuyers: 1, totalTx: 1 }; }
 }
 
 async function analizzaBattitoCardiaco(mintPubKey) {
@@ -295,22 +272,19 @@ async function analizzaCabalaSupply(mintPubKey) {
         for (let acc of topAccounts) {
             if (acc.uiAmount < 5000000) continue; 
             const pct = (acc.uiAmount / 1000000000) * 100;
-
             try {
-                await delay(250); 
+                await delay(200); 
                 const accountInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
                 if (!accountInfo.value || !accountInfo.value.data.parsed) continue;
-                
                 const ownerWallet = accountInfo.value.data.parsed.info.owner;
                 
-                await delay(250); 
+                await delay(200); 
                 const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 50 });
                 if(sigs.length === 0) continue;
                 if (sigs.length < 5) sybilCount++;
                 
                 const oldestTx = sigs[sigs.length - 1]; 
-                
-                await delay(250); 
+                await delay(200); 
                 const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
                 
                 let funder = "Sconosciuto";
@@ -337,9 +311,8 @@ async function analizzaCabalaSupply(mintPubKey) {
             }
         }
 
-        if (sybilCount >= 3) return { pericolo: true, scoreAggiuntivo: 50, testo: `🚨 ATTACCO SYBIL: ${sybilCount} Top Holders sono portafogli fantasma. RUG IMMINENTE.` };
+        if (sybilCount >= 3) return { pericolo: true, scoreAggiuntivo: 50, testo: `🚨 ATTACCO SYBIL: ${sybilCount} Top Holders sono portafogli fantasma.` };
         if (worstCabal && worstCabal.pct >= 15) return { pericolo: true, scoreAggiuntivo: 40, testo: `🚨 SCUDO SUPPLY: ${worstCabal.count} Top Holders (${worstCabal.pct.toFixed(1)}%) manovrati dallo stesso Dev.` };
-
         return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SUPPLY: Nessun attacco Sybil o Cabala.` };
     } catch (error) { return null; }
 }
@@ -355,11 +328,11 @@ async function analizzaMicroDumping(mintPubKey) {
         for (let acc of topHolders) {
             if (acc.uiAmount < 10000000) continue;
             try {
-                await delay(250);
+                await delay(200);
                 const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
                 if (sigs.length < 3) continue; 
 
-                await delay(250);
+                await delay(200);
                 const txs = await solanaConnection.getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
                 let vendite = 0;
                 
@@ -378,24 +351,101 @@ async function analizzaMicroDumping(mintPubKey) {
                     }
                 });
 
-                if (vendite >= 3) {
-                    sanguisugheTrovate++;
-                    totaleVenditeSanguisughe += vendite;
-                }
+                if (vendite >= 3) { sanguisugheTrovate++; totaleVenditeSanguisughe += vendite; }
             } catch (e) { continue; }
         }
 
-        if (sanguisugheTrovate > 0) return { pericolo: true, scoreAggiuntivo: 35, testo: `🩸 SCUDO SANGUISUGA: Rilevato Micro-Dumping (${totaleVenditeSanguisughe} vendite recenti dai Top Holders).` };
+        if (sanguisugheTrovate > 0) return { pericolo: true, scoreAggiuntivo: 35, testo: `🩸 SCUDO SANGUISUGA: Rilevato Micro-Dumping (${totaleVenditeSanguisughe} vendite).` };
         return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SANGUISUGA: I Top Holders holdano pulito.` };
     } catch (error) { return null; }
 }
 
+async function analizzaGrafoSybil(mintPubKey) {
+    try {
+        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        if (!largestAccs.value || largestAccs.value.length < 2) return null;
+
+        const topHolders = largestAccs.value.slice(1, 21);
+        let funderMap = {}; let areSelling = false;
+
+        for (let acc of topHolders) {
+            if (acc.uiAmount < 1000000) continue; 
+            const pct = (acc.uiAmount / 1000000000) * 100;
+            try {
+                await delay(150);
+                const accInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
+                if (!accInfo.value) continue;
+                const owner = accInfo.value.data.parsed.info.owner;
+
+                await delay(150);
+                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(owner), { limit: 15 });
+                if (sigs.length === 0 || sigs.length >= 15) continue; 
+
+                const oldestTx = sigs[sigs.length - 1];
+                await delay(150);
+                const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
+                
+                let funder = "Sconosciuto";
+                if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
+                    funder = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                    if (funder === owner || txDetails.transaction.message.accountKeys.length > 5) funder = "CEX_Mixer";
+                }
+
+                if (funder !== "Sconosciuto" && funder !== "CEX_Mixer") {
+                    if (!funderMap[funder]) funderMap[funder] = { count: 0, pct: 0 };
+                    funderMap[funder].count++; funderMap[funder].pct += pct;
+                }
+                if (sigs.length > 4) areSelling = true;
+            } catch (e) { continue; }
+        }
+
+        let maxSybilNode = null;
+        for (const [funder, data] of Object.entries(funderMap)) {
+            if (data.count >= 3) {
+                if (!maxSybilNode || data.count > maxSybilNode.count) maxSybilNode = { funder, ...data };
+            }
+        }
+
+        if (maxSybilNode) return { rilevato: true, funderMadre: maxSybilNode.funder, numeroWallet: maxSybilNode.count, supplyControllata: maxSybilNode.pct, inVendita: areSelling, testo: `🌳 SYBIL TREE: ${maxSybilNode.count} Top Holders (${maxSybilNode.pct.toFixed(1)}%) finanziati dallo stesso wallet padre. ${areSelling ? 'Iniziano a vendere! 🩸' : 'Stanno holdando 💎'}` };
+        return { rilevato: false, testo: "🌳 SYBIL TREE: I Top 20 Holders sembrano indipendenti." };
+    } catch (error) { return null; }
+}
+
+async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
+    try {
+        const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(devWalletAddress), { limit: 60 });
+        if (sigs.length < 5) return { tokensLanciati: 0, status: "PULITO (Wallet Nuovo)", punteggioRischio: 0 };
+
+        let pumpFunInteractions = 0; let altriTokenTrovati = new Set();
+        const recentSigs = sigs.slice(0, 15).map(s => s.signature);
+        await delay(200);
+        const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+
+        txs.forEach(tx => {
+            if (!tx || !tx.transaction || !tx.transaction.message) return;
+            const accounts = tx.transaction.message.accountKeys.map(k => k.pubkey.toString());
+            if (accounts.includes("6EF8rrecthR5Dkzon8Nwu78hRvfX91R3KzXFzH9g5cWg")) {
+                pumpFunInteractions++;
+                if (tx.meta && tx.meta.postTokenBalances) {
+                    tx.meta.postTokenBalances.forEach(b => {
+                        if (b.mint !== "So11111111111111111111111111111111111111112" && b.mint !== currentTokenMint) altriTokenTrovati.add(b.mint);
+                    });
+                }
+            }
+        });
+
+        const numTokenPassati = altriTokenTrovati.size;
+        if (numTokenPassati === 0) return { tokensLanciati: 0, status: "PULITO (Primo Progetto)", punteggioRischio: 0 };
+        else if (numTokenPassati >= 3) return { tokensLanciati: numTokenPassati, status: "🚨 SERIAL RUGGER", punteggioRischio: 60 };
+        else return { tokensLanciati: numTokenPassati, status: "🔄 DEV RICORRENTE", punteggioRischio: 20 };
+    } catch (error) { return { tokensLanciati: 0, status: "SCONOSCIUTO", punteggioRischio: 0 }; }
+}
+
 // =====================================================================
-// 4. ROTTA PRINCIPALE API (Scansione Estensione)
+// 4. API SCAN
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
-
     try {
         console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
         const mintPubKey = new PublicKey(tokenMint);
@@ -411,7 +461,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
 
         const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
-        await delay(300); 
+        await delay(200); 
         
         let currentFdv = 0; let pairCreatedAt = null; 
         try {
@@ -436,15 +486,17 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
 
         const cabalaData = await analizzaCabalaSupply(mintPubKey);
-        await delay(300);
+        await delay(200);
         const microDumpData = await analizzaMicroDumping(mintPubKey);
+        await delay(200);
 
         const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 });
         let walletAgeDays = null;
         let walletAgeHours = 0;
         let isFakeDev = false;
         let logAnalisi = [];
-        let devWallet = "Sconosciuto"; // 🔥 FIX: Ora è dichiarata FUORI dallo scope dell'if
+        let devWallet = "Sconosciuto";
+        let fedinaDev = null;
 
         let tokenAgeMinutes = 0;
         if (pairCreatedAt) {
@@ -458,7 +510,9 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             const launchTx = signatures[signatures.length - 1];
             const txDetails = await solanaConnection.getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
             if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
-                devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString(); // 🔥 Usa la variabile globale
+                devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                
+                fedinaDev = await analizzaFedinaPenaleDev(devWallet, tokenMint);
                 walletAgeDays = await calcolaEtaWallet(devWallet);
                 if (walletAgeDays !== null) {
                     walletAgeHours = walletAgeDays * 24;
@@ -470,14 +524,15 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
         }
 
-        // 🔥 Calcolo UBI e Tattiche
         const ubiData = await analizzaUBI(signatures);
-        const tacticalAdvice = generateTacticalAdvice(walletAgeHours, ubiData, earlyBotData.supplyBundledPct, isFakeDev);
+        const sybilData = await analizzaGrafoSybil(mintPubKey);
+        const tacticalAdvice = generateTacticalAdvice(walletAgeHours, ubiData, earlyBotData.supplyBundledPct, isFakeDev, sybilData, fedinaDev);
 
         logAnalisi.push(earlyBotData.indicatoreTesto);
         logAnalisi.push(`✅ Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
         if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
         if (microDumpData && microDumpData.testo) logAnalisi.push(microDumpData.testo);
+        if (sybilData && sybilData.testo) logAnalisi.push(sybilData.testo);
 
         const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
         let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes);
@@ -515,6 +570,8 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
         if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
         if (earlyBotData.supplyBundledPct >= 20) finalScore = 100; 
+        if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
+
         let rischioStatus = finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO");
 
         res.json({
@@ -523,8 +580,8 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             dettagli: logAnalisi,
             graficoAttivo: false,
             datiGrafico: null,
-            devWallet: devWallet, // 🔥 Inviato correttamente
-            advice: tacticalAdvice, // 🔥 Invio l'oggetto calcolato al front-end
+            devWallet: devWallet,
+            advice: tacticalAdvice,
             earlyRadar: {
                 potenzialeVolume: earlyBotData.potenzialeVolumeBot,
                 bundleSlot0: earlyBotData.bundleSlot0,
@@ -543,12 +600,14 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             targetMC: simulazione.targetMC,
             prezzoSol: parseFloat(solPriceUsd)
         });
-
-    } catch (error) { res.status(500).json({ error: "Errore API" }); }
+    } catch (error) { 
+        console.error("Errore Dettagliato API Scan:", error);
+        res.status(500).json({ error: "Errore API" }); 
+    }
 });
 
 // =====================================================================
-// 5. LIVE SPY RADAR (Con Profilazione Intelligente Bot/Umano)
+// 5. LIVE SPY RADAR
 // =====================================================================
 app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
     try {
@@ -558,7 +617,6 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
         const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 15 });
         if (sigs.length === 0) return res.json({ actions: [] });
 
-        // 🧠 INIEZIONE INTELLIGENZA: Calcolo se è un Bot o un Umano
         let classificazione = "Trader Umano 🧑‍💻";
         let timeDiffs = [];
         for (let i = 0; i < sigs.length - 1; i++) {
@@ -566,15 +624,13 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
                 timeDiffs.push(Math.abs(sigs[i].blockTime - sigs[i+1].blockTime));
             }
         }
+        
         if (timeDiffs.length > 0) {
             const avgTime = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
-            if (avgTime < 5) classificazione = "Sniper Bot 🤖";
-            else if (avgTime < 30) classificazione = "Algo Trader ⚡";
+            if (avgTime < 3) classificazione = "Sniper Bot 🤖";
+            else if (avgTime < 15) classificazione = "Algo Trader ⚡";
         }
-        const isBot = classificazione.includes("Bot");
-        const winRate = isBot ? (Math.random() * (85 - 65) + 65).toFixed(1) : (Math.random() * (60 - 30) + 30).toFixed(1);
 
-        // Analisi delle transazioni
         const sigStrings = sigs.slice(0, 10).map(s => s.signature);
         const txs = await solanaConnection.getParsedTransactions(sigStrings, { maxSupportedTransactionVersion: 0 });
 
@@ -648,10 +704,7 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
             return act;
         });
 
-        res.json({ 
-            walletStats: { classificazione, winRate }, // Invio le metriche intelligenti
-            actions: actions.slice(0, 3) 
-        });
+        res.json({ walletStats: { classificazione: classificazione }, actions: actions.slice(0, 3) });
     } catch (error) { res.json({ actions: [], error: error.message }); }
 });
 
