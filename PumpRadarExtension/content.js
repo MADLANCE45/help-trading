@@ -54,19 +54,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const rischio = data.rischio || "N/A";
         const colorClass = score >= 80 ? '#ff4d4d' : (score >= 60 ? '#ffaa00' : '#00e676');
 
+        const devWallet = data.devWallet || "Sconosciuto";
+        const advice = data.advice || {
+            devStatus: "In attesa di dati...",
+            volumeStatus: "In attesa di dati...",
+            topHoldersStatus: "In attesa di dati...",
+            strategy: "In attesa di dati..."
+        };
+
+        // --- GRAFICA RILEVAMENTO BOT E TEMPO AL RUG ---
         let earlySectionHTML = "";
         if (data.earlyRadar) {
             const er = data.earlyRadar;
             const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff4d4d' : '#00ffcc';
             earlySectionHTML = `
-                <div style="background: #12151f; border: 1px solid ${badgeColor}; padding: 10px; border-radius: 6px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 0.75em; font-weight: bold; color: ${badgeColor}; text-transform: uppercase;">⚡ Bot Volume</span>
+                <div style="background: #12151f; border: 1px solid ${badgeColor}; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 0.85em; font-weight: bold; color: ${badgeColor}; text-transform: uppercase;">🤖 Rilevamento Software Bot</span>
                         <span style="background: ${badgeColor}; color: #000; padding: 2px 6px; font-size: 0.65em; font-weight: bold; border-radius: 3px;">${er.potenzialeVolume}</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.75em; color: #ccc;">
-                        <div>Slot-0 Bundle: <b style="color:${er.bundleSlot0 ? '#ff4d4d' : '#00e676'};">${er.bundleSlot0 ? 'Rilevato' : 'No'}</b></div>
-                        <div>Supply Bot: <b style="color:${er.supplyBot >= 20 ? '#ff4d4d' : '#00e676'}">${er.supplyBot}%</b></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8em; text-align: center;">
+                        <div style="background: #1a1c29; padding: 8px; border-radius: 4px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px;">Acquisto Bot Istantaneo</span>
+                            <b style="color:${er.bundleSlot0 ? '#ff4d4d' : '#00e676'}; font-size:1.1em;">${er.bundleSlot0 ? '⚠️ RILEVATO' : '✅ PULITO'}</b>
+                        </div>
+                        <div style="background: #1a1c29; padding: 8px; border-radius: 4px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px;">Supply ai Bot</span>
+                            <b style="color:${er.supplyBot >= 20 ? '#ff4d4d' : '#00e676'}; font-size:1.1em;">${er.supplyBot}%</b>
+                        </div>
+                        <div style="grid-column: span 2; background: #1a1c29; padding: 8px; border-radius: 4px; border-left: 3px solid ${badgeColor}; text-align: left;">
+                            <span style="color:#888; font-size:0.9em;">Tempo Stimato alla Truffa (Rug):</span><br>
+                            <b style="color: ${badgeColor}; font-size:1.1em;">${advice.estimatedRugTime ? advice.estimatedRugTime : "Calcolo in corso..."}</b>
+                        </div>
                     </div>
                 </div>`;
         }
@@ -80,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       }).join("") + "</div>";
         }
 
+        // --- GRAFICA CALCOLATORE E TRADE BLOCCATO ---
         let simulatoreHTML = "";
         if (data.tradeValido) {
             const targetK = data.targetMC ? (data.targetMC / 1000).toFixed(1) : "??";
@@ -101,13 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>`;
         } else {
+            // Interfaccia aggressiva per il trade bloccato (invece del "calcolatore in pausa")
             simulatoreHTML = `
-                <div style="background: #1a1515; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #ff4d4d; text-align: center; font-size: 0.85em;">
-                    <div style="color: #ff4d4d; margin-bottom: 6px; font-weight: bold;">⛔ TRADE BLOCCATO</div>
-                    <div style="color: #ccc;">${data.simulatoreTesto}</div>
+                <div style="background: #1a0f0f; padding: 15px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #ff4d4d; text-align: center;">
+                    <div style="color: #ff4d4d; font-size: 1.2em; margin-bottom: 8px; font-weight: 900; letter-spacing: 1px;">⛔ SCAM RILEVATO ⛔</div>
+                    <div style="color: #ffaa00; font-size: 0.85em; background: rgba(255, 77, 77, 0.1); padding: 8px; border-radius: 4px;">
+                        ${data.simulatoreTesto ? data.simulatoreTesto : "I bot stanno manovrando questo token. Non investire il tuo capitale."}
+                    </div>
                 </div>`;
         }
-
         contentDiv.innerHTML = `
             <style>
                 @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
@@ -141,10 +163,34 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="text-align:right;"><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px;">Rischio</div><div style="font-size:1.6em; font-weight: 900; color:${colorClass};">${score}<span style="font-size: 0.5em; color: #777;">/100</span></div></div>
                             </div>
                         </div>
+                        
+                        <!-- NUOVA DASHBOARD TATTICA -->
+                        <div class="radar-dashboard" style="background: #12151f; padding: 12px; border-radius: 8px; border: 1px solid #2d3142; font-size: 0.85em; margin-bottom: 15px;">
+                            <div style="margin-bottom: 10px; border-left: 3px solid #ffaa00; padding-left: 8px;">
+                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Terminale Dev (${devWallet.substring(0,6)}...):</span>
+                                <span style="color: white; font-weight: bold;">${advice.devStatus}</span>
+                            </div>
+                            <div style="margin-bottom: 10px; border-left: 3px solid #00ffcc; padding-left: 8px;">
+                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Analisi Volume (UBI):</span>
+                                <span style="color: white; font-weight: bold;">${advice.volumeStatus}</span>
+                            </div>
+                            <div style="margin-bottom: 10px; border-left: 3px solid #ff4d4d; padding-left: 8px;">
+                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Scudo Sanguisuga (Bundle):</span>
+                                <span style="color: white; font-weight: bold;">${advice.topHoldersStatus}</span>
+                            </div>
+                        </div>
+
+                        <!-- SIMULATORE ISTITUZIONALE -->
+                        <div class="strategy-box" style="margin-bottom: 15px; background: #0a0c10; padding: 12px; border: 1px solid #00ffcc; border-radius: 8px;">
+                            <h4 style="margin: 0 0 8px 0; color: #00ffcc; text-transform: uppercase; font-size: 0.9em;">🤖 Simulatore Istituzionale</h4>
+                            <p style="margin: 0; font-family: monospace; font-size: 0.95em; color: #fff;">${advice.strategy}</p>
+                        </div>
+
                         ${earlySectionHTML}
                         ${simulatoreHTML}
+                        
                         <div style="background:#12151f; padding:12px; border-radius: 8px; border:1px solid #2d3142;">
-                            <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px;">Terminale di Analisi</div>
+                            <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px;">Log Eventi Grezzi</div>
                             ${logHTML}
                         </div>
                         ` : ''}
@@ -205,7 +251,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
-        document.getElementById('btn-ricarica').addEventListener('click', avviaRadar);
+        
+        // Assegniamo l'evento in modo sicuro
+        const btnRicarica = document.getElementById('btn-ricarica');
+        if (btnRicarica) {
+            btnRicarica.addEventListener('click', avviaRadar);
+        }
 
         if (data && data.tradeValido) {
             const inputEl = document.getElementById('sim-input');
@@ -231,7 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // ... (sopra c'è la gestione degli input del simulatore)
+        
         inizializzaTracker();
+        caricaStoricoSpyNelDOM(); // 🔥 FIX: Ricarica lo storico ogni volta che apri un token
     }
 
     avviaRadar();
@@ -259,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         document.getElementById('content').addEventListener('click', (e) => {
-            // Elimina Wallet
             if (e.target.classList.contains('delete-wallet-btn')) {
                 const wallet = e.target.getAttribute('data-wallet');
                 if(confirm("Smettere di tracciare questo wallet?")) {
@@ -276,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-            // Rinomina Wallet
             if (e.target.classList.contains('edit-name-btn')) {
                 const wallet = e.target.getAttribute('data-wallet');
                 const nuovoNome = prompt("Inserisci un nome breve per ricordarlo (es. Balena 1):");
@@ -288,15 +340,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
-            // ATTIVA/DISATTIVA NOTIFICHE SPIA (Nuovo!)
             if (e.target.classList.contains('toggle-spy-btn')) {
                 const wallet = e.target.getAttribute('data-wallet');
                 chrome.storage.local.get(['spiedWallets'], (res) => {
                     let spied = res.spiedWallets || [];
                     if (spied.includes(wallet)) {
-                        spied = spied.filter(w => w !== wallet); // Disattiva spia
+                        spied = spied.filter(w => w !== wallet); 
                     } else {
-                        spied.push(wallet); // Attiva spia
+                        spied.push(wallet); 
                     }
                     chrome.storage.local.set({ spiedWallets: spied }, () => loadSavedWallets());
                 });
@@ -319,7 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displayName = walletNames[wallet] || `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
                 const isSpied = spiedWallets.includes(wallet);
                 
-                // Colori dinamici per il bottone spia
                 const spyBtnBg = isSpied ? '#ff007f' : '#242736';
                 const spyBtnText = isSpied ? '🔔 Spia ON' : '🔕 OFF';
                 const spyBtnColor = isSpied ? '#fff' : '#888';
@@ -341,97 +391,92 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 🔥 MOTORE LIVE SPY (Controlla SOLO i wallet con Spia ON) 🔥
-    // 🔥 MOTORE LIVE SPY (Con Filtro Anti-Intasamento) 🔥
+    // =========================================================
+    // MOTORE LIVE SPY (Sbloccato e Intelligente)
+    // =========================================================
     let processedSigs = new Set();
-    let lastNotificationTime = {}; // Memoria per non spammare notifiche
-    let isFirstSpyRun = true;
 
-    chrome.storage.local.get(['spyHistory'], (res) => {
-        const history = res.spyHistory || [];
-        history.forEach(item => aggiungiSpyCardHTML(item, false));
-    });
-
-    async function checkSpyWallets() {
-        chrome.storage.local.get(['spiedWallets', 'walletNames'], async (res) => {
-            const spiedWallets = res.spiedWallets || []; 
-            const names = res.walletNames || {};
+    // =========================================================
+    // MOTORE LIVE SPY (Intelligente & Memoria Anti-Doppioni)
+    // =========================================================
+    
+    function caricaStoricoSpyNelDOM() {
+        chrome.storage.local.get(['spyHistory'], (res) => {
+            const history = res.spyHistory || [];
+            const feed = document.getElementById('spy-feed-list');
+            if (!feed) return;
             
-            for(const w of spiedWallets) {
-                try {
-                    const r = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/spy-wallet/${w}`, { headers: {"ngrok-skip-browser-warning": "true"} });
-                    const d = await r.json();
-                    
-                    if (d.actions && d.actions.length > 0) {
-                        const actions = d.actions.reverse();
-                        
-                        for (let action of actions) {
-                            if (isFirstSpyRun) {
-                                processedSigs.add(action.signature);
-                            } else if (!processedSigs.has(action.signature)) {
-                                processedSigs.add(action.signature);
-                                
-                                const walletName = names[w] || `${w.substring(0,4)}...`;
-                                const now = Date.now();
-                                const lastAlert = lastNotificationTime[w] || 0;
-                                // 🛡️ FILTRO ANTI-SPAM: Massimo 1 notifica al minuto per wallet
-                                const canNotify = (now - lastAlert) > 60000;
-
-                                if (action.type === "BUY") {
-                                    const scanR = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${action.mint}`, { headers: {"ngrok-skip-browser-warning": "true"} });
-                                    const scanD = await scanR.json();
-                                    
-                                    const alertData = { walletName, mint: action.mint, scanData: scanD, type: "BUY", strategy: action.strategy };
-                                    
-                                    if (canNotify) {
-                                        try {
-                                            chrome.notifications.create({
-                                                type: 'basic',
-                                                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 
-                                                title: `🚨 ${walletName} ha Comprato!`,
-                                                message: `Strategia: ${action.strategy.conviction}.`
-                                            });
-                                            lastNotificationTime[w] = now;
-                                        } catch(e) {}
-                                    }
-
-                                    salvaStoricoSpy(alertData);
-                                    aggiungiSpyCardHTML(alertData, true);
-                                } else {
-                                    const alertData = { walletName, mint: action.mint, type: "SELL" };
-                                    
-                                    if (canNotify) {
-                                        try {
-                                            chrome.notifications.create({
-                                                type: 'basic',
-                                                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 
-                                                title: `🔴 ${walletName} sta VENDENDO!`,
-                                                message: `Attenzione allo scarico.`
-                                            });
-                                            lastNotificationTime[w] = now;
-                                        } catch(e) {}
-                                    }
-
-                                    salvaStoricoSpy(alertData);
-                                    aggiungiSpyCardHTML(alertData, true);
-                                }
-                            }
-                        }
-                    }
-                } catch(e){
-                    console.log("Errore connessione con Spia:", e);
-                }
+            if (history.length > 0) {
+                feed.innerHTML = ''; 
+                history.forEach(item => aggiungiSpyCardHTML(item, false));
+            } else {
+                feed.innerHTML = `<div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai tuoi wallet con l'allarme attivo (🔔)...</div>`;
             }
-            isFirstSpyRun = false;
         });
     }
 
+    // 🔥 FIX: Ora restituisce una Promise per capire se la transazione è un doppione
     function salvaStoricoSpy(alertData) {
-        chrome.storage.local.get(['spyHistory'], (res) => {
-            let history = res.spyHistory || [];
-            history.unshift(alertData); 
-            if (history.length > 20) history.pop(); 
-            chrome.storage.local.set({ spyHistory: history });
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['spyHistory'], (res) => {
+                let history = res.spyHistory || [];
+                
+                // CONTROLLO ANTI-VECCHIUME: Se la firma della transazione esiste già, scartala!
+                const isDuplicate = history.some(h => h.signature === alertData.signature);
+                if (isDuplicate) {
+                    resolve(false); 
+                    return;
+                }
+
+                history.unshift(alertData); 
+                if (history.length > 20) history.pop(); 
+                chrome.storage.local.set({ spyHistory: history }, () => {
+                    resolve(true); // Salvataggio andato a buon fine (è una VERA nuova transazione)
+                });
+            });
+        });
+    }
+
+    async function checkSpyWallets() {
+        chrome.storage.local.get(['spiedWallets', 'walletNames'], async (res) => {
+            const spied = res.spiedWallets || [];
+            const names = res.walletNames || {};
+            
+            if (spied.length === 0) return;
+
+            for (const wallet of spied) {
+                try {
+                    const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/spy-wallet/${wallet}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    
+                    if (data.actions && data.actions.length > 0) {
+                        for (const action of data.actions.reverse()) {
+                            
+                            const alertData = {
+                                type: action.type,
+                                mint: action.mint,
+                                signature: action.signature,
+                                walletAddress: wallet,
+                                walletName: names[wallet] || `${wallet.substring(0,4)}...`,
+                                solSpent: action.solSpent,
+                                strategy: action.strategy,
+                                stats: data.walletStats // 🧠 Riceve dal server WinRate e Profilo (Bot/Umano)
+                            };
+                            
+                            // Se la funzione ci dice che NON è un doppione, la aggiungiamo alla grafica
+                            const isNew = await salvaStoricoSpy(alertData);
+                            if (isNew) {
+                                aggiungiSpyCardHTML(alertData, true);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log("Errore connessione Spy:", e);
+                }
+            }
         });
     }
 
@@ -444,35 +489,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleText = isBuy ? '🟢 HA COMPRATO' : '🔴 HA VENDUTO';
         
         let contentHTML = "";
+        let statsHTML = "";
 
-        if (isBuy && data.scanData) {
-            const score = data.scanData.score || 0;
-            const scoreColor = score >= 80 ? '#ff4d4d' : (score >= 60 ? '#ffaa00' : '#00e676');
-            const azione = data.scanData.tradeValido ? '✅ ' + data.scanData.azione : '⛔ ' + data.scanData.azione;
-            
-            let stratHTML = "";
-            if (data.strategy) {
-                stratHTML = `
-                <div style="background:#11121a; border-left: 3px solid ${data.strategy.color}; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.8em;">
-                    <strong style="color:${data.strategy.color};">${data.strategy.conviction}</strong><br>
-                    <span style="color:#aaa;">${data.strategy.reason}</span>
-                </div>`;
-            }
-
-            contentHTML = `
-                ${stratHTML}
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div style="font-size:0.85em;">Rischio On-Chain: <b style="color:${scoreColor}; font-size:1.2em;">${score}/100</b></div>
-                </div>
-                <div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; margin-bottom:12px; font-size:0.85em; border-left: 2px solid ${scoreColor};">
-                    ${azione}<br>
-                    <span style="color:#aaa; font-size:0.9em; display:block; margin-top:4px;">${data.scanData.simulatoreTesto ? data.scanData.simulatoreTesto.replace('Entri ora ➔ ', '') : ''}</span>
+        // 🧠 INIEZIONE INTELLIGENZA NELLA GRAFICA (Badge Bot/Umano e WinRate)
+        if (data.stats) {
+            const wrColor = parseFloat(data.stats.winRate) >= 50 ? '#00e676' : '#ffaa00';
+            statsHTML = `
+                <div style="display:flex; gap:8px; margin-bottom: 10px; font-size: 0.8em; margin-top: 6px;">
+                    <span style="background:#2a2d3d; padding:4px 8px; border-radius:4px; border:1px solid #444; color:#fff;">${data.stats.classificazione || 'Trader'}</span>
+                    <span style="background:rgba(0, 230, 118, 0.1); padding:4px 8px; border-radius:4px; border:1px solid ${wrColor}; color:${wrColor}; font-weight:bold;">🎯 WR: ${data.stats.winRate || '0'}%</span>
                 </div>
             `;
-        } else {
+        }
+
+        if (isBuy && data.strategy) {
+            // 🔥 FIX BUG 0.00 SOL: Se nasconde la size col Router, non mostriamo "0.00"
+            const solText = data.solSpent > 0.01 ? `${data.solSpent.toFixed(2)} SOL` : `Importo Nascosto (Routing DEX)`;
+            
+            contentHTML = `
+                <div style="background:#11121a; border-left: 3px solid ${data.strategy.color}; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.85em;">
+                    <strong style="color:${data.strategy.color};">${data.strategy.conviction}</strong><br>
+                    <span style="color:#aaa;">Investimento: <b style="color:#fff;">${solText}</b></span>
+                </div>
+            `;
+        } else if (!isBuy) {
             contentHTML = `
                 <div style="background:rgba(255, 77, 77, 0.1); padding:8px; border-radius:4px; margin-bottom:12px; font-size:0.85em; color:#ff4d4d; border: 1px solid #ff4d4d;">
-                    ⚠️ ATTENZIONE: La balena sta scaricando i suoi token!
+                    📉 Liquidazione / Uscita dalla posizione
                 </div>
             `;
         }
@@ -480,9 +523,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('div');
         card.style.cssText = `background:#161821; border-top: 3px solid ${themeColor}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
         card.innerHTML = `
-            <div style="color:${themeColor}; font-size:0.85em; margin-bottom:6px; font-weight:bold;">
+            <div style="color:${themeColor}; font-size:0.85em; margin-bottom:2px; font-weight:bold;">
                 ${titleText}: <span style="color:#aaa; font-weight:normal;">${data.walletName}</span>
             </div>
+            
+            ${statsHTML}
             
             <div style="display:flex; justify-content:space-between; align-items:center; background:#0a0c10; padding:6px; border-radius:4px; margin-bottom:10px; border: 1px solid #2d3142;">
                 <div style="font-family:monospace; font-size:0.95em; color:#fff;">
@@ -521,8 +566,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if(tabSpy && tabSpy.style.color !== 'rgb(255, 0, 127)') tabSpy.classList.add('spy-alert-active');
         }
     }
-    
-    // Ritmo bilanciato: 10 Secondi per evitare blocchi RPC
-    checkSpyWallets();
-    setInterval(checkSpyWallets, 10000);
+
+    async function startSpyLoop() {
+        try {
+            if (typeof checkSpyWallets === 'function') {
+                await checkSpyWallets(); 
+            }
+        } catch (error) {
+            console.error("Errore nel loop spy:", error);
+        } finally {
+            setTimeout(startSpyLoop, 10000); 
+        }
+    }
+
+    startSpyLoop();
 });
