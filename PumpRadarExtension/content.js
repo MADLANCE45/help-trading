@@ -1,7 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
 
+    // 🔥 1. CREA LA CONNESSIONE WEBSOCKET
+    const socket = io("https://tricking-judiciary-footwear.ngrok-free.dev", {
+        extraHeaders: { "ngrok-skip-browser-warning": "true" }
+    });
+    socket.on("connect", () => {
+        console.log("🟢 Connesso al Radar Quantitativo WSS");
+    });
+
     function avviaRadar() {
+// ... IL RESTO RIMANE UGUALE ... {
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             if (!tabs || tabs.length === 0) {
                 contentDiv.innerHTML = '<div style="padding: 10px;">❌ Errore lettura scheda.</div>';
@@ -54,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const rischio = data.rischio || "N/A";
         const colorClass = score >= 80 ? '#ff3366' : (score >= 60 ? '#ffaa00' : '#00ffcc');
         const glowEffect = `box-shadow: 0 0 15px ${colorClass}40;`;
+
+        const apiLeft = data.apiRimanenti !== undefined ? data.apiRimanenti : 15;
+        const apiColor = apiLeft > 5 ? '#00e676' : (apiLeft > 0 ? '#ffaa00' : '#ff4d4d');
 
         const devWallet = data.devWallet || "Sconosciuto";
         const advice = data.advice || {
@@ -121,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ⚙️ ORACOLO FEE: Creazione del blocco visivo
+        // ⚙️ ORACOLO FEE: Creazione del blocco visivo
         let feeHTML = "";
         if (data.tradingFees) {
             let feeColor = data.tradingFees.text.includes('🔥') ? '#ff3366' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00ffcc');
@@ -140,6 +153,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
+        // 🔥 CREA L'HTML DEL VELOCIMETRO ORDER FLOW
+        const orderFlowHTML = `
+            <div style="background: rgba(10, 12, 16, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">⏱️ 10s Order Flow</span>
+                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">50% BUY</span>
+                </div>
+                <!-- Barra di sfondo (Rossa per i Sell) -->
+                <div style="width: 100%; height: 10px; background: #ff4d4d; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);">
+                    <!-- Barra interna (Verde per i Buy) -->
+                    <div id="flow-bar-green" style="width: 50%; height: 100%; background: #00e676; transition: width 0.3s ease-out; box-shadow: 0 0 10px rgba(0,230,118,0.5);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: monospace; font-size: 0.75em; color: #aaa;">
+                    <span id="flow-vol-buy">0.00 SOL</span>
+                    <span id="flow-vol-sell">0.00 SOL</span>
+                </div>
+            </div>
+        `;
+        // ... (orderFlowHTML esistente) ...
+
+        // 🔥 1. CREA L'HTML DEL COPILOTA TATTICO
+        const copilotHTML = `
+            <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">🧠 Copilota AI (Groq)</span>
+                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 0 8px rgba(179,102,255,0.4);">Richiedi Analisi</button>
+                </div>
+                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;">
+                    <!-- I risultati del copilota appariranno qui -->
+                </div>
+            </div>
+        `;
+        // 🔥 CREA L'HTML DEL LIVE TAPE
+        const liveTapeHTML = `
+            <div style="background: rgba(10, 12, 16, 0.9); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
+                <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between;">
+                    <span>🔴 Live Tape</span>
+                    <span style="color: #00ffcc; font-size: 0.8em;">WSS Sync</span>
+                </div>
+                <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 6px; height: 180px; overflow-y: auto; padding-right: 4px;">
+                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">In ascolto dei blocchi Solana...</div>
+                </div>
+            </div>
+        `;
+
+        // 🟢 ORA INIETTIAMO TUTTO NEL CONTENITORE
         contentDiv.innerHTML = `
             <style>
                 @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.4); box-shadow: 0 0 10px rgba(255,0,127,0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
@@ -149,6 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
                 ::-webkit-scrollbar-thumb:hover { background: #444a66; }
             </style>
+                
+           
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; position: relative; margin: -8px;">
                 
                 <div style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid ${data.hud.color}; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: 0 2px 15px ${data.hud.color}20; z-index: 10;">
@@ -168,8 +229,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; box-shadow: inset 0 0 5px rgba(0,255,204,0.1);">🎯 ${tokenMint ? tokenMint.substring(0,14)+'...' : 'Nessun Token'}</div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s;">🔄 Aggiorna</button>
+                            
+                            <!-- 🔥 NUOVO BADGE API -->
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <div style="font-family: monospace; font-size: 0.75em; font-weight: bold; background: #161821; border: 1px solid ${apiColor}; color: ${apiColor}; padding: 6px 8px; border-radius: 6px; box-shadow: 0 0 8px ${apiColor}40;" title="Richieste AI rimaste in questo minuto">
+                                    ⚡ API: ${apiLeft}/15
+                                </div>
+                                <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s;">🔄</button>
+                            </div>
                         </div>
+                        
                         ${tokenMint ? `
                         <div style="background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%); padding: 15px; border-radius: 8px; border: 1px solid #2d3142; border-left: 5px solid ${colorClass}; margin-bottom: 15px; ${glowEffect}">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -208,7 +277,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${earlySectionHTML}
                         ${simulatoreHTML}
                         ${feeHTML}
-                        
+                        ${orderFlowHTML}
+                        ${copilotHTML}
+                        ${liveTapeHTML}                        
                         ` : ''}
                     </div>
 
@@ -268,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
         
+        // 🔄 LOGICA PULSANTE RICARICA
         const btnRicarica = document.getElementById('btn-ricarica');
         if (btnRicarica) {
             btnRicarica.addEventListener('mouseenter', () => btnRicarica.style.background = '#1a1c29');
@@ -275,6 +347,60 @@ document.addEventListener('DOMContentLoaded', () => {
             btnRicarica.addEventListener('click', avviaRadar);
         }
 
+        // 🧠 LOGICA DEL PULSANTE COPILOTA
+        const btnCopilot = document.getElementById('btn-copilot');
+        const copilotResult = document.getElementById('copilot-result');
+        
+        if (btnCopilot && tokenMint) {
+            btnCopilot.addEventListener('mouseenter', () => btnCopilot.style.background = '#d9b3ff');
+            btnCopilot.addEventListener('mouseleave', () => btnCopilot.style.background = '#b366ff');
+            
+            btnCopilot.addEventListener('click', async () => {
+                // UI: Stato di caricamento
+                btnCopilot.innerText = "⏳ Analisi in corso...";
+                btnCopilot.style.background = "#555";
+                btnCopilot.style.pointerEvents = "none";
+                copilotResult.style.display = "block";
+                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>Lettura della Scatola Nera...</span>";
+                
+                try {
+                    const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    });
+                    
+                    if (!resp.ok) throw new Error("Errore di rete con Ngrok/Backend");
+                    const dataResp = await resp.json();
+                    
+                    if(dataResp.errore) throw new Error(dataResp.messaggio);
+                    
+                    // Gestione Colore Azione Consigliata
+                    const azione = dataResp.azione || "ATTESA";
+                    let actionColor = azione.includes("FUGG") || azione.includes("PANIC") ? "#ff4d4d" : (azione.includes("COMPR") ? "#00e676" : "#ffaa00");
+                    
+                    copilotResult.innerHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color:#b366ff; font-size: 0.9em; text-transform: uppercase;">1. Tattica Rilevata:</strong><br>
+                            <span style="color:#e0e0e0;">${dataResp.tattica}</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong style="color:#ffaa00; font-size: 0.9em; text-transform: uppercase;">2. Punto di Rottura:</strong><br>
+                            <span style="color:#e0e0e0;">${dataResp.puntoRottura}</span>
+                        </div>
+                        <div style="text-align: center; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px; font-size: 1.1em; text-shadow: 0 0 5px ${actionColor}60;">
+                            Azione: ${azione}
+                        </div>
+                    `;
+                } catch(e) {
+                    copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Errore Copilota: ${e.message}</div>`;
+                } finally {
+                    btnCopilot.innerText = "🔄 Ri-analizza Tattica";
+                    btnCopilot.style.background = "#b366ff";
+                    btnCopilot.style.pointerEvents = "auto";
+                }
+            });
+        }
+
+        // 💸 LOGICA SIMULATORE
         if (data && data.tradeValido) {
             const inputEl = document.getElementById('sim-input');
             const costUsdEl = document.getElementById('sim-usd-cost');
@@ -299,9 +425,100 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // ... (inputEl.dispatchEvent(new Event('input'));, ecc.) ...
+        
         inizializzaTracker();
         caricaStoricoSpyNelDOM();
-    }
+
+        // 🔥 MEMORIA A BREVE TERMINE PER IL VELOCIMETRO
+        let orderFlowWindow = [];
+
+        // 🔥 4. MOTORE CHE RICEVE I DATI, ANIMA IL TAPE E AGGIORNA IL VELOCIMETRO
+        socket.off('nuovo_trade_live'); // Rimuove listener vecchi se si ricarica
+        socket.on('nuovo_trade_live', (trade) => {
+            
+            // --- 1. AGGIORNAMENTO DEL TAPE VISIVO ---
+            const tapeList = document.getElementById('live-tape-list');
+            if (tapeList) {
+                // Pulisce il messaggio di attesa iniziale
+                if (tapeList.innerHTML.includes('In ascolto')) tapeList.innerHTML = '';
+
+                const isBuy = trade.tipo.includes("BUY");
+                const color = isBuy ? "#00e676" : "#ff4d4d";
+                
+                const el = document.createElement('div');
+                el.style.cssText = `
+                    font-family: monospace; font-size: 0.85em; color: ${color}; 
+                    display: flex; justify-content: space-between; background: #161821; 
+                    padding: 6px; border-radius: 4px; border-left: 3px solid ${color};
+                    animation: flashIn 0.3s ease-out;
+                `;
+                
+                el.innerHTML = `
+                    <div style="display: flex; flex-direction: column; width: 100%;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-weight: bold; font-size: 1.1em;">${trade.tipo} ${trade.sol} SOL</span>
+                            <span style="font-size: 1.2em;" title="${trade.zooTag}">${trade.zooIcon}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
+                            <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
+                            <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none; border: 1px solid #4da6ff; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;">🔍 Solscan</a>
+                        </div>
+                    </div>
+                `;
+                
+                // Inserisce in cima
+                tapeList.prepend(el);
+
+                // Mantiene solo le ultime 10 righe per non appesantire Firefox
+                if (tapeList.children.length > 10) {
+                    tapeList.removeChild(tapeList.lastChild);
+                }
+            }
+
+            // --- 2. CALCOLO E AGGIORNAMENTO DEL VELOCIMETRO ---
+            orderFlowWindow.push(trade);
+            const tenSecondsAgo = Date.now() - 10000;
+            
+            // Elimina i trade più vecchi di 10 secondi
+            orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
+
+            let buyVol = 0; let sellVol = 0;
+            orderFlowWindow.forEach(t => {
+                if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol);
+                else sellVol += parseFloat(t.sol);
+            });
+
+            const totalVol = buyVol + sellVol;
+            let buyPressure = 50;
+            if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
+
+            // Aggiorna il DOM
+            const barGreen = document.getElementById('flow-bar-green');
+            const pctText = document.getElementById('flow-percentage');
+            const volBuyText = document.getElementById('flow-vol-buy');
+            const volSellText = document.getElementById('flow-vol-sell');
+
+            if (barGreen && pctText) {
+                barGreen.style.width = `${buyPressure}%`;
+                pctText.innerText = `${buyPressure.toFixed(1)}% BUY`;
+                pctText.style.color = buyPressure >= 50 ? "#00e676" : "#ff4d4d";
+                
+                if (volBuyText) volBuyText.innerText = `${buyVol.toFixed(1)} SOL`;
+                if (volSellText) volSellText.innerText = `${sellVol.toFixed(1)} SOL`;
+            }
+        });
+
+        // Aggiunge la classe CSS per il lampeggio (se non esiste già)
+        if (!document.getElementById('tape-style')) {
+            const style = document.createElement('style');
+            style.id = 'tape-style';
+            style.innerHTML = `@keyframes flashIn { 0% { background: #fff; } 100% { background: #161821; } }`;
+            document.head.appendChild(style);
+        }
+
+    } // <--- QUESTA È LA GRAFFA DI CHIUSURA DI: function costruisciInterfacciaBase(tokenMint, data)
+   
 
     avviaRadar();
 
