@@ -995,49 +995,86 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
     }
 });
 // =====================================================================
-// 🧠 API COPILOTA: REVISORE DI PATTERN LIVE (Groq LLaMA 3)
+// 🧠 API COPILOTA: REVISORE TATTICO "GOD MODE" (Groq)
 // =====================================================================
 app.get('/api/copilot/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     const eventi = blackBoxEventi.get(tokenMint) || [];
 
-    // Ora l'IA si attiva appena c'è anche solo 1 evento rilevante!
+    // 1. IL CERVELLO: RECUPERA IL CONTESTO ON-CHAIN INIZIALE DALLA CACHE
+    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
+    let contestoIniziale = "Dati on-chain non in cache. Basati solo sul flusso live.";
+    
+    if (datiIniziali) {
+        contestoIniziale = `
+        - Rischio Base Contratto: ${datiIniziali.score}/100 (${datiIniziali.rischio})
+        - Supply bloccata dai Bot iniziali: ${datiIniziali.earlyRadar?.supplyBot || 0}%
+        - Punteggio Pericolo Bundle: ${datiIniziali.advice?.topHoldersStatus || "Sconosciuto"}
+        `;
+    }
+
+    // 2. LA MATEMATICA: CALCOLA STATISTICHE LIVE SUL VOLO
+    let fomoCount = 0; let dumpCount = 0; let whaleCount = 0;
+    eventi.forEach(e => {
+        if (e.includes('FOMO')) fomoCount++;
+        if (e.includes('DUMPING')) dumpCount++;
+        if (e.includes('SMART MONEY') || e.includes('WHALE')) whaleCount++;
+    });
+
     if (eventi.length === 0) {
         return res.json({ 
-            tattica: "Nessun movimento rilevante (Whale/Dump) intercettato dall'apertura.", 
-            puntoRottura: "Attendi l'entrata di volumi direzionali.", 
+            tattica: "Nessun volume rilevante intercettato.", 
+            puntoRottura: "In attesa dell'entrata di market maker o flussi retail.", 
             azione: "OSSERVARE" 
         });
     }
 
+    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
     const logTestuale = eventi.join("\n");
     const promptCopilota = `
-    Sei un Analista Quantitativo specializzato in Memecoin su Solana.
-    Ecco la sequenza temporale degli ultimi movimenti chiave (Smart Money, Bot, Micro-Dump e FOMO):
-    
+    Sei il Chief Risk Officer (HFT) di un Hedge Fund specializzato in Memecoin su Solana.
+    Devi unire l'analisi statica del contratto ai flussi di volume in tempo reale.
+
+    📊 CONTESTO ON-CHAIN (Analisi del Bundle e Contratto):
+    ${contestoIniziale}
+
+    📈 STATISTICHE LIVE (Ultimi ${eventi.length} eventi rilevanti):
+    - Acquisti FOMO (Retail): ${fomoCount}
+    - Micro-Dumping (Distribuzione occulta): ${dumpCount}
+    - Interventi Smart Money (Whales): ${whaleCount}
+
+    ⏱️ TAPE READING GREZZO:
     ${logTestuale}
     
-    Usa queste logiche per l'analisi:
-    - Se vedi molti "DUMPING LENTO" continui, è una distribuzione controllata per rubare liquidità ai retail (Tattica: Bleeding/Distribuzione).
-    - Se vedi "SMART MONEY -> BUY" seguito da "FOMO", le balene stanno accumulando (Tattica: Accumulo/Pump).
-    - Se vedi bot e whale vendere contemporaneamente, il crollo è imminente.
-    
-    Rispondi ESCLUSIVAMENTE con un JSON puro con queste 3 chiavi, senza altri testi:
+    LA TUA LOGICA:
+    - Se "Rischio Base" è alto (>70) E vedi "Micro-Dumping", è un RUG imminente in corso di distribuzione.
+    - Se "Rischio Base" è basso E vedi "Smart Money -> BUY", è un vero mark-up. Unisciti a loro.
+    - Se vedi tanta "FOMO" ma nessuna "Balena" che compra, è il top locale (Retail trap).
+
+    Rispondi ESCLUSIVAMENTE con un JSON puro (senza usare backtick \`\`\` o markdown) con queste 3 chiavi precise:
     {
-      "tattica": "descrizione sintetica e spietata di cosa stanno facendo",
-      "puntoRottura": "previsione di cosa succederà a brevissimo",
-      "azione": "FUGGIRE / HOLD / COMPRARE / OSSERVARE"
+      "tattica": "Analisi profonda e cinica della manipolazione attuale",
+      "puntoRottura": "Proiezione esatta di cosa accadrà nel brevissimo termine",
+      "azione": "FUGGIRE / HOLD / COMPRARE / SCALPING FAST"
     }
     `;
 
-    console.log("🧠 Interrogazione Copilota Groq in corso con " + eventi.length + " eventi...");
+    console.log(`🧠 Interrogazione Copilota God Mode in corso... [Eventi analizzati: ${eventi.length}]`);
     
     try {
-        const analisiTattica = await interrogaAgente("Copilot", promptCopilota);
-        res.json(analisiTattica);
+        const rispostaGrezza = await interrogaAgente("Copilot", promptCopilota);
+        
+        // 🛡️ PROTEZIONE: Pulizia del JSON. Spesso Groq risponde con i tag markdown ```json ... ```
+        let jsonPulito = rispostaGrezza;
+        if (typeof rispostaGrezza === 'string') {
+            jsonPulito = rispostaGrezza.replace(/```json/gi, '').replace(/```/g, '').trim();
+            jsonPulito = JSON.parse(jsonPulito);
+        }
+        
+        res.json(jsonPulito);
     } catch (error) {
-        console.error("Errore IA Copilota:", error);
-        res.json({ tattica: "Errore di connessione Groq", puntoRottura: "Sconosciuto", azione: "ATTESA" });
+        console.error("Errore IA Copilota o Parsing JSON:", error);
+        res.json({ tattica: "Errore di elaborazione cognitiva (Groq overload).", puntoRottura: "Dati corrotti.", azione: "ATTESA" });
     }
 });
 // =====================================================================
