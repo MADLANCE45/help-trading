@@ -1,10 +1,11 @@
+require('dotenv').config(); // 🔥 FONDAMENTALE: Legge la tua chiave API dal file .env
 const express = require('express');
 const cors = require('cors');
 const { Connection, PublicKey } = require('@solana/web3.js');
 
-const HELIUS_API_KEY = "b85ff0ae-b208-4fe9-897b-1d7a446b9d36"; 
-const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
+const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const solanaConnection = new Connection(RPC_URL, 'confirmed');
 
 const app = express();
@@ -12,8 +13,11 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
-
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius
+const scanCache = new Map();
+const CACHE_TTL_MS = 15000; // 15 secondi di validità dei dati
+// 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 600ms
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 600)));
 
 // =====================================================================
 // 1. ANALISI DEL BUNDLE INIZIALE E BOT
@@ -83,19 +87,16 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
 }
 
 // =====================================================================
-// 2. SIMULATORE E TACTICAL ADVICE
+// 2. SIMULATORE AVANZATO (Con Graduation Alert)
 // =====================================================================
-function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct, tokenAgeMinutes) {
+function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct, tokenAgeMinutes, txMinuto) {
     if (!currentFdv || currentFdv <= 0) {
-        currentFdv = 5000;
         return {
-            testo: "📈 Simulazione: ⏳ ATTESA DATI LIVE API. Market Cap stimato (5k) per calcolo base.",
+            testo: "📈 Simulazione: ⏳ ATTESA DATI LIVE API.",
             tradeValido: true,
             simulatoreTesto: "⚠️ Attendi 5 secondi. Analisi in corso su curva iniziale.",
-            azione: "ATTESA DATI",
-            coloreAzione: "#ffaa00",
-            moltiplicatore: 1.5,
-            targetMC: 7500
+            azione: "ATTESA DATI", coloreAzione: "#ffaa00", moltiplicatore: 1.5, targetMC: 7500,
+            raccomandazioneFees: { slippage: "3%", fee: "0.0005 SOL", text: "Standard" }
         };
     }
 
@@ -103,36 +104,57 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     let risultato = { testo: "", tradeValido: true, simulatoreTesto: "", moltiplicatore: 0, targetMC: 0, azione: "", coloreAzione: "", ctoStatus: "Basso" };
     let nostraUscita = 0;
 
-    if (mcAttuale >= 70000 && (bundleSupplyPct >= 10 || clusterRisk > 0)) {
-        nostraUscita = Math.floor(mcAttuale * 1.25); 
-        risultato.azione = "RIDE THE WAVE (Cabala)"; risultato.coloreAzione = "#ff007f"; risultato.tradeValido = true;
-        risultato.testo = `📈 Simulazione: 🦍 CABALA IN TRENDING ($${(mcAttuale/1000).toFixed(1)}k). Target: $${nostraUscita.toLocaleString()} MC.`;
-    } else if (bundleSupplyPct >= 20 && mcAttuale < 70000) {
-        risultato.azione = "DUMP NUCLEARE IN CORSO"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
-        risultato.testo = `📈 Simulazione: 🚨 BUNDLE MORTALE (${bundleSupplyPct}%). Azzeramento imminente.`;
-        risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: I bot ti prosciugheranno.`;
-        return risultato; 
-    } else if (clusterRisk > 0 && bundleSupplyPct < 5) {
-        risultato.azione = "WASH TRADING (Finti Volumi)"; risultato.coloreAzione = "#ffaa00"; risultato.tradeValido = false;
-        risultato.testo = `📈 Simulazione: ⚠️ TRAPPOLA DEI VOLUMI ($${(mcAttuale/1000).toFixed(1)}k). ⛔ NON ENTRARE.`;
-        risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Volumi artificiali, rischio incastro al 99%.`;
-        return risultato;
-    } else if (clusterRisk > 0 || bundleSupplyPct >= 5) {
-        let targetDumpMC = mcAttuale + (bundleSupplyPct * 500); 
-        if (targetDumpMC < mcAttuale * 1.10) targetDumpMC = mcAttuale * 1.20; 
-        nostraUscita = Math.floor(Math.floor(targetDumpMC) * 0.85); 
-        risultato.azione = "FASE PUMP BOT (Scalp)"; risultato.coloreAzione = "#00ffcc";
-        risultato.testo = `📈 Simulazione: 🟢 MICRO-SCALPING. Esci prima dei bot a: $${nostraUscita.toLocaleString()} MC.`;
-    } else if (isFakeDev) {
-        let maxTarget = mcAttuale > 25000 ? mcAttuale * 1.20 : 25000; 
-        nostraUscita = Math.floor(mcAttuale * 1.25); 
-        if (nostraUscita > maxTarget) nostraUscita = Math.floor(maxTarget);
-        risultato.azione = "VOLATILITÀ FAKE DEV"; risultato.coloreAzione = "#ffaa00";
-        risultato.testo = `📈 Simulazione: 🛑 FAKE DEV. 🟢 SCALPING ESTREMO. Target: $${nostraUscita.toLocaleString()} MC.`;
+    // 🔥 ORACOLO FEES: Calcolo dinamico in base alla congestione
+    if (txMinuto > 45) {
+        risultato.raccomandazioneFees = { slippage: "15%", fee: "0.005 SOL", text: "🔥 MASSIMA (Rischio Fallimento Tx)" };
+    } else if (txMinuto > 15) {
+        risultato.raccomandazioneFees = { slippage: "5%", fee: "0.002 SOL", text: "⚡ ALTA CONGESTIONE" };
     } else {
-        nostraUscita = Math.floor(mcAttuale * 1.35); 
-        risultato.azione = "TREND ORGANICO PULITO"; risultato.coloreAzione = "#00ffcc";
-        risultato.testo = `📈 Simulazione: ✅ ORGANICO LEGITTIMO. Target Trailing: $${nostraUscita.toLocaleString()} MC.`;
+        risultato.raccomandazioneFees = { slippage: "1%", fee: "0.0001 SOL", text: "🟢 RETE FLUIDA" };
+    }
+
+    // 🔥 GRADUATION ALERT: Zona critica pre-Raydium (45k - 69k)
+    if (mcAttuale >= 45000 && mcAttuale <= 69000) {
+        if (bundleSupplyPct >= 10 || clusterRisk > 0 || isFakeDev) {
+            risultato.azione = "🚨 DUMP PRE-RAYDIUM"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
+            risultato.testo = `📈 Simulazione: ☠️ ZONA GRADUATION CRITICA. I bot detengono il ${bundleSupplyPct}%. Dumperanno tutto a $60k per non perdere il controllo su Raydium.`;
+            risultato.simulatoreTesto = `⛔ NON ENTRARE: Dump matematico imminente prima della migrazione.`;
+            return risultato;
+        } else {
+            nostraUscita = 69000; // Il target è esattamente la migrazione
+            risultato.azione = "🟢 PUSH TO RAYDIUM"; risultato.coloreAzione = "#00e676";
+            risultato.testo = `📈 Simulazione: 🚀 GRADUATION PULITA. Pressione d'acquisto organica. Target migrazione a $69k.`;
+        }
+    } 
+    // FASE RAYDIUM (Post-Graduation)
+    else if (mcAttuale > 69000) {
+        if (bundleSupplyPct >= 10 || clusterRisk > 0) {
+            nostraUscita = Math.floor(mcAttuale * 1.20); 
+            risultato.azione = "RIDE THE WAVE (Cabala)"; risultato.coloreAzione = "#ff007f";
+            risultato.testo = `📈 Simulazione: 🦍 CABALA IN TRENDING SU RAYDIUM. Mordi e fuggi. Target: $${nostraUscita.toLocaleString()} MC.`;
+        } else {
+            nostraUscita = Math.floor(mcAttuale * 1.30); 
+            risultato.azione = "TREND ORGANICO PULITO"; risultato.coloreAzione = "#00ffcc";
+            risultato.testo = `📈 Simulazione: ✅ ORGANICO LEGITTIMO POST-RAYDIUM. Target Trailing: $${nostraUscita.toLocaleString()} MC.`;
+        }
+    }
+    // FASE INIZIALE (0 - 45k)
+    else {
+        if (bundleSupplyPct >= 20) {
+            risultato.azione = "DUMP NUCLEARE IN CORSO"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
+            risultato.testo = `📈 Simulazione: 🚨 BUNDLE MORTALE (${bundleSupplyPct}%). Azzeramento imminente.`;
+            risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: I bot ti prosciugheranno.`;
+            return risultato; 
+        } else if (clusterRisk > 0 || isFakeDev) {
+            let maxTarget = mcAttuale > 25000 ? mcAttuale * 1.15 : 25000; 
+            nostraUscita = Math.floor(Math.min(mcAttuale * 1.25, maxTarget)); 
+            risultato.azione = "FASE PUMP BOT (Scalp)"; risultato.coloreAzione = "#ffaa00";
+            risultato.testo = `📈 Simulazione: ⚠️ TRAPPOLA IN FORMAZIONE. 🟢 MICRO-SCALPING. Esci a: $${nostraUscita.toLocaleString()} MC.`;
+        } else {
+            nostraUscita = Math.floor(mcAttuale * 1.35); 
+            risultato.azione = "EARLY GEM (Basso Rischio)"; risultato.coloreAzione = "#00e676";
+            risultato.testo = `📈 Simulazione: 💎 PARTENZA PULITA. Target Trailing: $${nostraUscita.toLocaleString()} MC.`;
+        }
     }
 
     risultato.targetMC = nostraUscita;
@@ -141,63 +163,83 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     if (risultato.tradeValido) {
         const ritornoSol = risultato.moltiplicatore.toFixed(2);
         const nettoSol = (ritornoSol - 1).toFixed(2);
-        risultato.simulatoreTesto = `Entri a ${(mcAttuale/1000).toFixed(1)}k ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k ➔ Incassi ${ritornoSol} SOL (+${nettoSol} netti)`;
-    } else if (!risultato.simulatoreTesto) {
-        risultato.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Rischio matematico troppo elevato.`;
+        risultato.simulatoreTesto = `Entri a ${(mcAttuale/1000).toFixed(1)}k ➔ Esci a ${(nostraUscita/1000).toFixed(1)}k ➔ Incassi x${ritornoSol} (+${(nettoSol*100).toFixed(0)}% Netto)`;
     }
     return risultato;
 }
 
-function generateTacticalAdvice(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev) {
-    let advice = { devStatus: "", volumeStatus: "", topHoldersStatus: "", sybilStatus: "", strategy: "", estimatedRugTime: "" };
+// =====================================================================
+// 2. TACTICAL ADVICE (Gestito da Gemini 1.5 Flash)
+// =====================================================================
+// =====================================================================
+// =====================================================================
+// 2. TACTICAL ADVICE (Bypass Diretto REST API Gemini 1.5 Flash su v1beta)
+// =====================================================================
+async function generateTacticalAdviceAI(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev) {
+    const ubiPct = (ubiData && ubiData.totalTx > 0) ? ((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1) : 0;
+    const sybilStr = sybilData ? JSON.stringify(sybilData) : "Nessun dato";
+    const fedinaStr = fedinaDev ? JSON.stringify(fedinaDev) : "Nessun dato";
 
-    if (fedinaDev && fedinaDev.tokensLanciati >= 3) {
-        advice.devStatus = `🚨 SERIAL RUGGER: Ha già lanciato ${fedinaDev.tokensLanciati} token di recente. DUMP CERTO al 99%.`;
-    } else if (isFakeDev || devWalletAgeHours < 24) {
-        advice.devStatus = `🛑 FRESH WALLET: Creato da ${devWalletAgeHours.toFixed(1)}h. ⚠️ Rischio exit liquidity.`;
-    } else {
-        advice.devStatus = `✅ ${fedinaDev ? fedinaDev.status : 'DEV STORICO'}: Wallet attivo da ${Math.floor(devWalletAgeHours/24)} giorni.`;
+    const prompt = `
+Sei il "Giudice", un'intelligenza artificiale addestrata per analizzare il rischio dei memecoin su Solana in tempo reale.
+Devi analizzare i seguenti dati on-chain estratti al blocco 0 e determinare il livello di rischio di un "Rug Pull" o di "Exit Liquidity".
+
+DATI ON-CHAIN:
+- Età Wallet Creatore: ${devWalletAgeHours.toFixed(1)} ore (Fake Dev: ${isFakeDev})
+- Storico Dev (Fedina Penale): ${fedinaStr}
+- Volume UBI (Unique Buyers): ${ubiPct}% (Unici: ${ubiData ? ubiData.uniqueBuyers : 0}, Totali: ${ubiData ? ubiData.totalTx : 0})
+- Supply in mano ai Bot/Bundle: ${bundledSupply}%
+- Rete Sybil (Finanziamenti incrociati): ${sybilStr}
+
+REGOLE DI OUTPUT:
+Non aggiungere testo discorsivo. Restituisci ESCLUSIVAMENTE un oggetto JSON valido con le seguenti 6 chiavi esatte, usando emoji e formattazione sintetica stile terminale:
+1. "devStatus": Analisi del portafoglio sviluppatore (es. 🚨 SERIAL RUGGER... oppure ✅ DEV STORICO...)
+2. "volumeStatus": Analisi dell'organicità del volume (es. 💀 WASH TRADING... oppure ⚡ VOLUME ORGANICO...)
+3. "topHoldersStatus": Analisi di chi detiene la supply (es. ⚠️ BUNDLE RILEVATO... oppure 🛡️ SUPPLY DISTRIBUITA...)
+4. "sybilStatus": Analisi della rete di finanziamento (es. 🕸️ RETE SYBIL... oppure ✅ ACQUIRENTI INDIPENDENTI...)
+5. "estimatedRugTime": Tempo stimato prima della truffa (es. ⏱️ 1-5 MINUTI... oppure ⏳ INDEFINITO...)
+6. "strategy": La tua direttiva finale per il trader (es. ⛔ TRADE BLOCCATO... oppure 🟢 RIDE THE WAVE...)
+`;
+
+    try {
+        // Pulizia sicura della chiave
+        const rawKey = process.env.GEMINI_API_KEY || "";
+        const apiKey = rawKey.replace(/['"\s]/g, '');
+        
+        // 🔥 ENDPOINT V1BETA (Indispensabile per i modelli 1.5 sui nuovi progetti)
+        // 🔥 ENDPOINT V1BETA AGGIORNATO (Usiamo il velocissimo gemini-3.5-flash)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error("Errore Interno Google API:", JSON.stringify(data, null, 2));
+            throw new Error(`L'API ha restituito errore: ${data.error?.status || 'Sconosciuto'}`);
+        }
+
+        const text = data.candidates[0].content.parts[0].text;
+        const cleanJson = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
+        return JSON.parse(cleanJson);
+        
+    } catch (error) {
+        console.error("Errore Fetch Gemini:", error.message);
+        return {
+            devStatus: "⚠️ ERRORE AI: Dati Dev non analizzati",
+            volumeStatus: "⚠️ ERRORE AI: Volume non analizzato",
+            topHoldersStatus: "⚠️ ERRORE AI: Supply non analizzata",
+            sybilStatus: "⚠️ ERRORE AI: Sybil non analizzato",
+            estimatedRugTime: "⏱️ SCONOSCIUTO",
+            strategy: "⛔ ATTENZIONE: Motore AI disconnesso. Non operare alla cieca."
+        };
     }
-
-    const ubiPercentage = ubiData && ubiData.totalTx > 0 ? (ubiData.uniqueBuyers / ubiData.totalTx) * 100 : 0;
-    if (ubiPercentage < 25 && ubiData && ubiData.totalTx > 10) {
-        advice.volumeStatus = `💀 WASH TRADING: ${ubiPercentage.toFixed(1)}% UBI. Solo ${ubiData.uniqueBuyers} buyer su ${ubiData.totalTx} tx.`;
-    } else if (ubiData) {
-        advice.volumeStatus = `⚡ VOLUME ORGANICO: ${ubiPercentage.toFixed(1)}% UBI (${ubiData.uniqueBuyers} wallet distinti).`;
-    } else {
-        advice.volumeStatus = `Analisi volume in corso...`;
-    }
-
-    if (bundledSupply > 20) {
-        advice.topHoldersStatus = `⚠️ BUNDLE RILEVATO: ${bundledSupply}% supply cecchinata. Rischio dump.`;
-    } else {
-        advice.topHoldersStatus = `🛡️ SUPPLY DISTRIBUITA: (${bundledSupply}%). Nessun nodo anomalo.`;
-    }
-
-    if (sybilData && sybilData.rilevato) {
-        advice.sybilStatus = `🕸️ RETE SYBIL: ${sybilData.numeroWallet} wallet controllati dal Padre (${sybilData.supplyControllata.toFixed(1)}%). ${sybilData.inVendita ? '⚠️ VENDITE IN CORSO' : '🟢 HOLDING (Puntano in alto)'}`;
-    } else {
-        advice.sybilStatus = `✅ ACQUIRENTI INDIPENDENTI: Nessun burattinaio rilevato.`;
-    }
-
-    if (fedinaDev && fedinaDev.tokensLanciati >= 3) {
-        advice.estimatedRugTime = "⏱️ RUG IMMINENTE (Il Dev sta per premere il bottone)";
-        advice.strategy = `⛔ TRADE BLOCCATO: Creatore seriale di truffe. Non regalargli i tuoi SOL.`;
-    } else if (sybilData && sybilData.rilevato && !sybilData.inVendita) {
-        advice.strategy = `🟣 RIDE THE SYBIL: La Cabala controlla il ${sybilData.supplyControllata.toFixed(1)}% e non vende. Target programmato alto (>50k). Anticipa la loro uscita.`;
-        advice.estimatedRugTime = "⏱️ ATTESA TARGET (La Cabala holda per il Pump)";
-    } else if (bundledSupply > 20 || (sybilData && sybilData.inVendita)) {
-        advice.estimatedRugTime = "⏱️ 1-5 MINUTI (Software Jito Bundler / Sybil in scarico)";
-        advice.strategy = `⛔ TRADE BLOCCATO: La rete ha iniziato a scaricare. Fuggire.`;
-    } else if (ubiPercentage < 25 && ubiData && ubiData.totalTx > 10) {
-        advice.estimatedRugTime = "⏱️ 10-30 MINUTI (Software Volume Bot Lento)";
-        advice.strategy = `🟡 SCALPING VELOCE: Finto volume, entra ed esci.`;
-    } else {
-        advice.estimatedRugTime = "⏳ INDEFINITO (Pattern Organico e Pulito)";
-        advice.strategy = `🟢 RIDE THE WAVE: Setup pulito. Max size: 0.5 SOL. Target 1: +50%.`;
-    }
-
-    return advice;
 }
 
 // =====================================================================
@@ -446,7 +488,19 @@ async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
+    
+    // 🧠 CONTROLLO CACHE: Se ho già analizzato questo token negli ultimi 15 secondi, restituisco il dato istantaneamente.
+    if (scanCache.has(tokenMint)) {
+        const cached = scanCache.get(tokenMint);
+        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            console.log(`⚡ CACHE HIT: Restituisco i dati di ${tokenMint} in 0ms`);
+            return res.json(cached.data);
+        }
+    }
+
     try {
+        
+        // ... (IL RESTO DEL TUO CODICE RIMANE IDENTICO) ...
         console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
         const mintPubKey = new PublicKey(tokenMint);
 
@@ -485,12 +539,21 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             } catch(e) {}
         }
 
-        const cabalaData = await analizzaCabalaSupply(mintPubKey);
-        await delay(200);
-        const microDumpData = await analizzaMicroDumping(mintPubKey);
-        await delay(200);
+        // 🚀 TURBO MODE: Lanciamo le analisi più pesanti tutte nello stesso istante
+        // 🚀 SMART TURBO: Evitiamo il blocco di Helius dividendo in due ondate
+        console.log("⚡ Avvio motori di analisi (Ondata 1)...");
+        const [signatures, cabalaData] = await Promise.all([
+            solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 }),
+            analizzaCabalaSupply(mintPubKey)
+        ]);
 
-        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 100 });
+        await delay(800); // 🫁 Facciamo respirare il nodo RPC
+
+        console.log("⚡ Avvio motori di analisi (Ondata 2)...");
+        const [microDumpData, sybilData] = await Promise.all([
+            analizzaMicroDumping(mintPubKey),
+            analizzaGrafoSybil(mintPubKey)
+        ]);
         let walletAgeDays = null;
         let walletAgeHours = 0;
         let isFakeDev = false;
@@ -525,8 +588,9 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
 
         const ubiData = await analizzaUBI(signatures);
-        const sybilData = await analizzaGrafoSybil(mintPubKey);
-        const tacticalAdvice = generateTacticalAdvice(walletAgeHours, ubiData, earlyBotData.supplyBundledPct, isFakeDev, sybilData, fedinaDev);
+        
+        // 🔥 L'Intelligenza Artificiale analizza il quadro generale
+        const tacticalAdvice = await generateTacticalAdviceAI(walletAgeHours, ubiData, earlyBotData.supplyBundledPct, isFakeDev, sybilData, fedinaDev);
 
         logAnalisi.push(earlyBotData.indicatoreTesto);
         logAnalisi.push(`✅ Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
@@ -535,7 +599,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         if (sybilData && sybilData.testo) logAnalisi.push(sybilData.testo);
 
         const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
-        let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes);
+        let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes, velocityData.txMinuto);
 
         if (cabalaData && cabalaData.pericolo) simulazione.tradeValido = false; 
         if (microDumpData && microDumpData.pericolo) {
@@ -574,7 +638,8 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
 
         let rischioStatus = finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO");
 
-        res.json({
+        // 1. Assegniamo l'oggetto alla variabile risultatoFinale
+        const risultatoFinale = {
             score: finalScore,
             rischio: rischioStatus,
             dettagli: logAnalisi,
@@ -598,8 +663,16 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             simulatoreTesto: simulazione.simulatoreTesto,
             moltiplicatore: simulazione.moltiplicatore,
             targetMC: simulazione.targetMC,
-            prezzoSol: parseFloat(solPriceUsd)
-        });
+            prezzoSol: parseFloat(solPriceUsd),
+            // 🔥 NUOVO: Passiamo all'estensione i settaggi per il Bot di trading
+            tradingFees: simulazione.raccomandazioneFees 
+        };
+
+        // 2. 🔥 SALVATAGGIO IN CACHE: Salviamo il risultato per 15 secondi
+        scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
+
+        // 3. Invia la risposta
+        res.json(risultatoFinale);
     } catch (error) { 
         console.error("Errore Dettagliato API Scan:", error);
         res.status(500).json({ error: "Errore API" }); 

@@ -90,15 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        let logHTML = "";
-        if (data.dettagli && data.dettagli.length > 0) {
-            logHTML = "<div style='display: flex; flex-direction: column; gap: 6px; font-size: 0.85em;'>" + 
-                      data.dettagli.map(log => {
-                          let bColor = log.includes('✅') ? '#00e676' : log.includes('🛑') || log.includes('🚨') || log.includes('🩸') ? '#ff4d4d' : '#00aaff';
-                          return `<div style="background:#161821; padding:8px; border-radius: 4px; border-left:3px solid ${bColor};">${log}</div>`;
-                      }).join("") + "</div>";
-        }
-
+        
         // --- GRAFICA CALCOLATORE E TRADE BLOCCATO ---
         let simulatoreHTML = "";
         if (data.tradeValido) {
@@ -129,6 +121,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${data.simulatoreTesto ? data.simulatoreTesto : "I bot stanno manovrando questo token. Non investire il tuo capitale."}
                     </div>
                 </div>`;
+        }
+        // ⚙️ ORACOLO FEE: Creazione del blocco visivo
+        let feeHTML = "";
+        if (data.tradingFees) {
+            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff4d4d' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00e676');
+            feeHTML = `
+                <div style="background:#12151f; padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 12px;">
+                    <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px;">⚙️ Oracolo Setup Bot</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
+                            <span style="color: #aaa;">Stato Rete:</span>
+                            <strong style="color: ${feeColor}; text-shadow: 0 0 5px ${feeColor}40;">${data.tradingFees.text}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: #0a0b10; padding: 6px; border-radius: 4px; border: 1px dashed #333;">
+                            <span style="color: #aaa;">Slippage Ottimale: <strong style="color: #fff;">${data.tradingFees.slippage}</strong></span>
+                            <span style="color: #aaa;">Priority: <strong style="color: #fff;">${data.tradingFees.fee}</strong></span>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
         contentDiv.innerHTML = `
             <style>
@@ -193,11 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         ${earlySectionHTML}
                         ${simulatoreHTML}
+                        ${feeHTML}
                         
-                        <div style="background:#12151f; padding:12px; border-radius: 8px; border:1px solid #2d3142;">
-                            <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px;">Log Eventi Grezzi</div>
-                            ${logHTML}
-                        </div>
+                       
                         ` : ''}
                     </div>
 
