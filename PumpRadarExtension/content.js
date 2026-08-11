@@ -52,195 +52,196 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const score = data.score || 0;
         const rischio = data.rischio || "N/A";
-        const colorClass = score >= 80 ? '#ff4d4d' : (score >= 60 ? '#ffaa00' : '#00e676');
+        const colorClass = score >= 80 ? '#ff3366' : (score >= 60 ? '#ffaa00' : '#00ffcc');
+        const glowEffect = `box-shadow: 0 0 15px ${colorClass}40;`;
 
         const devWallet = data.devWallet || "Sconosciuto";
         const advice = data.advice || {
-            devStatus: "In attesa di dati...",
-            volumeStatus: "In attesa di dati...",
-            topHoldersStatus: "In attesa di dati...",
-            strategy: "In attesa di dati..."
+            devStatus: "In attesa di dati...", volumeStatus: "In attesa di dati...",
+            topHoldersStatus: "In attesa di dati...", strategy: "In attesa di dati..."
         };
 
         // --- GRAFICA RILEVAMENTO BOT E TEMPO AL RUG ---
         let earlySectionHTML = "";
         if (data.earlyRadar) {
             const er = data.earlyRadar;
-            const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff4d4d' : '#00ffcc';
+            const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff3366' : '#00ffcc';
             earlySectionHTML = `
-                <div style="background: #12151f; border: 1px solid ${badgeColor}; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                <div style="background: rgba(18, 21, 31, 0.8); border: 1px solid ${badgeColor}60; padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 0.85em; font-weight: bold; color: ${badgeColor}; text-transform: uppercase;">🤖 Rilevamento Software Bot</span>
-                        <span style="background: ${badgeColor}; color: #000; padding: 2px 6px; font-size: 0.65em; font-weight: bold; border-radius: 3px;">${er.potenzialeVolume}</span>
+                        <span style="font-size: 0.8em; font-weight: 800; color: ${badgeColor}; text-transform: uppercase; letter-spacing: 1px;">🤖 Bot Detection</span>
+                        <span style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 6px; font-size: 0.65em; font-weight: bold; border-radius: 4px;">${er.potenzialeVolume}</span>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8em; text-align: center;">
-                        <div style="background: #1a1c29; padding: 8px; border-radius: 4px; border: 1px solid #2d3142;">
-                            <span style="color:#888; display:block; margin-bottom:4px;">Acquisto Bot Istantaneo</span>
-                            <b style="color:${er.bundleSlot0 ? '#ff4d4d' : '#00e676'}; font-size:1.1em;">${er.bundleSlot0 ? '⚠️ RILEVATO' : '✅ PULITO'}</b>
+                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Acquisto Bot (Slot 0)</span>
+                            <b style="color:${er.bundleSlot0 ? '#ff3366' : '#00ffcc'}; font-size:1.2em; text-shadow: 0 0 5px ${er.bundleSlot0 ? '#ff3366' : '#00ffcc'}40;">${er.bundleSlot0 ? '⚠️ RILEVATO' : '✅ PULITO'}</b>
                         </div>
-                        <div style="background: #1a1c29; padding: 8px; border-radius: 4px; border: 1px solid #2d3142;">
-                            <span style="color:#888; display:block; margin-bottom:4px;">Supply ai Bot</span>
-                            <b style="color:${er.supplyBot >= 20 ? '#ff4d4d' : '#00e676'}; font-size:1.1em;">${er.supplyBot}%</b>
+                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Supply ai Bot</span>
+                            <b style="color:${er.supplyBot >= 20 ? '#ff3366' : '#00ffcc'}; font-size:1.2em; text-shadow: 0 0 5px ${er.supplyBot >= 20 ? '#ff3366' : '#00ffcc'}40;">${er.supplyBot}%</b>
                         </div>
-                        <div style="grid-column: span 2; background: #1a1c29; padding: 8px; border-radius: 4px; border-left: 3px solid ${badgeColor}; text-align: left;">
-                            <span style="color:#888; font-size:0.9em;">Tempo Stimato alla Truffa (Rug):</span><br>
-                            <b style="color: ${badgeColor}; font-size:1.1em;">${advice.estimatedRugTime ? advice.estimatedRugTime : "Calcolo in corso..."}</b>
+                        <div style="grid-column: span 2; background: #161821; padding: 10px; border-radius: 6px; border-left: 3px solid ${badgeColor}; text-align: left; margin-top: 4px;">
+                            <span style="color:#aaa; font-size:0.85em; text-transform: uppercase;">Tempo Stimato al Rug:</span><br>
+                            <b style="color: ${badgeColor}; font-size:1.1em; text-shadow: 0 0 5px ${badgeColor}60;">${advice.estimatedRugTime ? advice.estimatedRugTime : "Calcolo in corso..."}</b>
                         </div>
                     </div>
                 </div>`;
         }
 
-        
         // --- GRAFICA CALCOLATORE E TRADE BLOCCATO ---
         let simulatoreHTML = "";
         if (data.tradeValido) {
             const targetK = data.targetMC ? (data.targetMC / 1000).toFixed(1) : "??";
             simulatoreHTML = `
-                <div style="background: #111; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #333; font-size: 0.85em;">
-                    <div style="color: #ccc; margin-bottom: 12px; font-weight: bold; text-align: center;">💸 Calcolatore Profitti (Target: ${targetK}k)</div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center; justify-content: center;">
-                        <span>Investi:</span>
-                        <input type="number" id="sim-input" value="0.1" step="0.01" style="width: 65px; padding: 4px; background: #222; border: 1px solid #00ffcc; border-radius: 4px; color: #00ffcc; text-align: center; font-weight: bold;">
-                        <span>SOL <span style="font-size:0.8em; color:#888;">($<span id="sim-usd-cost">...</span>)</span></span>
+                <div style="background: rgba(10, 12, 16, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #00ffcc40; box-shadow: 0 0 10px rgba(0, 255, 204, 0.1);">
+                    <div style="color: #00ffcc; margin-bottom: 12px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 1px;">💸 Terminale Profitti (Target: ${targetK}k)</div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: center; font-size: 0.9em;">
+                        <span style="color: #aaa;">Input:</span>
+                        <input type="number" id="sim-input" value="0.1" step="0.01" style="width: 70px; padding: 6px; background: #12151f; border: 1px solid #00ffcc; border-radius: 4px; color: #00ffcc; text-align: center; font-weight: bold; font-family: monospace; outline: none; box-shadow: inset 0 0 5px rgba(0,255,204,0.2);">
+                        <span>SOL <span style="font-size:0.85em; color:#666;">($<span id="sim-usd-cost">...</span>)</span></span>
                     </div>
-                    <div style="background: #1a1a24; padding: 8px; border-radius: 4px; border-left: 3px solid #00ffcc;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span>Ricavo Uscita:</span><b style="color: #00ffcc;"><span id="sim-gross-sol">...</span> SOL</b>
+                    <div style="background: #161821; padding: 10px; border-radius: 6px; border-left: 4px solid #00ffcc; font-family: monospace;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="color: #aaa;">Ricavo Lordo:</span><b style="color: #00ffcc; font-size: 1.1em;"><span id="sim-gross-sol">...</span> SOL</b>
                         </div>
-                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #444; padding-top: 4px;">
-                            <span>Netto:</span><b style="color: #00ff00;">+<span id="sim-net-sol">...</span> SOL (+$<span id="sim-net-usd">...</span>)</b>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #333; padding-top: 6px;">
+                            <span style="color: #aaa;">Profitto Netto:</span><b style="color: #00e676; font-size: 1.1em; text-shadow: 0 0 5px rgba(0,230,118,0.4);">+<span id="sim-net-sol">...</span> SOL (+$<span id="sim-net-usd">...</span>)</b>
                         </div>
                     </div>
                 </div>`;
         } else {
-            // Interfaccia aggressiva per il trade bloccato (invece del "calcolatore in pausa")
             simulatoreHTML = `
-                <div style="background: #1a0f0f; padding: 15px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #ff4d4d; text-align: center;">
-                    <div style="color: #ff4d4d; font-size: 1.2em; margin-bottom: 8px; font-weight: 900; letter-spacing: 1px;">⛔ SCAM RILEVATO ⛔</div>
-                    <div style="color: #ffaa00; font-size: 0.85em; background: rgba(255, 77, 77, 0.1); padding: 8px; border-radius: 4px;">
-                        ${data.simulatoreTesto ? data.simulatoreTesto : "I bot stanno manovrando questo token. Non investire il tuo capitale."}
+                <div style="background: rgba(26, 15, 15, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff3366; box-shadow: 0 0 15px rgba(255, 51, 102, 0.2); text-align: center;">
+                    <div style="color: #ff3366; font-size: 1.3em; margin-bottom: 8px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,51,102,0.6);">⛔ SCAM RILEVATO ⛔</div>
+                    <div style="color: #ffaa00; font-size: 0.85em; background: rgba(255, 51, 102, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(255, 170, 0, 0.3);">
+                        ${data.simulatoreTesto ? data.simulatoreTesto : "Operazione bloccata. I bot stanno prosciugando la liquidità."}
                     </div>
                 </div>`;
         }
+
         // ⚙️ ORACOLO FEE: Creazione del blocco visivo
         let feeHTML = "";
         if (data.tradingFees) {
-            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff4d4d' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00e676');
+            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff3366' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00ffcc');
             feeHTML = `
-                <div style="background:#12151f; padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 12px;">
-                    <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px;">⚙️ Oracolo Setup Bot</div>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
-                            <span style="color: #aaa;">Stato Rete:</span>
-                            <strong style="color: ${feeColor}; text-shadow: 0 0 5px ${feeColor}40;">${data.tradingFees.text}</strong>
+                <div style="background: rgba(18, 21, 31, 0.8); padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px;">⚙️ Oracolo Setup Bot</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; align-items: center;">
+                            <span style="color: #aaa;">Stato Network:</span>
+                            <strong style="color: ${feeColor}; text-shadow: 0 0 8px ${feeColor}60; background: ${feeColor}15; padding: 2px 8px; border-radius: 4px; border: 1px solid ${feeColor}40;">${data.tradingFees.text}</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: #0a0b10; padding: 6px; border-radius: 4px; border: 1px dashed #333;">
-                            <span style="color: #aaa;">Slippage Ottimale: <strong style="color: #fff;">${data.tradingFees.slippage}</strong></span>
-                            <span style="color: #aaa;">Priority: <strong style="color: #fff;">${data.tradingFees.fee}</strong></span>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: #0a0c10; padding: 8px; border-radius: 6px; border: 1px solid #1a1c29;">
+                            <span style="color: #aaa;">Slippage: <strong style="color: #fff; font-family: monospace; font-size: 1.1em;">${data.tradingFees.slippage}</strong></span>
+                            <span style="color: #aaa;">Priority: <strong style="color: #fff; font-family: monospace; font-size: 1.1em;">${data.tradingFees.fee}</strong></span>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
+
         contentDiv.innerHTML = `
             <style>
-                @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
-                .spy-alert-active { animation: pulseTab 1s infinite; color: #fff !important; }
+                @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.4); box-shadow: 0 0 10px rgba(255,0,127,0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
+                .spy-alert-active { animation: pulseTab 1.5s infinite; color: #fff !important; border-top: 2px solid #ff007f !important; }
+                ::-webkit-scrollbar { width: 6px; }
+                ::-webkit-scrollbar-track { background: #0a0c10; }
+                ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
+                ::-webkit-scrollbar-thumb:hover { background: #444a66; }
             </style>
-            <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #0a0c10; color: #fff; font-family: 'Segoe UI', sans-serif; position: relative; margin: -8px;">
+            <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; position: relative; margin: -8px;">
                 
-                <div style="background: linear-gradient(90deg, #12151f, #1a1c29); border-bottom: 2px solid ${data.hud.color}; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <div style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid ${data.hud.color}; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: 0 2px 15px ${data.hud.color}20; z-index: 10;">
                     <div>
-                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase;">Solana Memecoin Index</div>
-                        <div style="font-size: 1.1em; font-weight: bold; color: ${data.hud.color};">${data.hud.icon} ${data.hud.change >= 0 ? '+' : ''}${data.hud.change}% <span style="font-size: 0.6em; color: #aaa;">Vol: $${data.hud.volume}M</span></div>
+                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Solana Memecoin Index</div>
+                        <div style="font-size: 1.1em; font-weight: 900; color: ${data.hud.color}; text-shadow: 0 0 5px ${data.hud.color}60;">${data.hud.icon} ${data.hud.change >= 0 ? '+' : ''}${data.hud.change}% <span style="font-size: 0.6em; color: #aaa; text-shadow: none;">Vol: $${data.hud.volume}M</span></div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase;">Trend</div>
+                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trend</div>
                         <div style="font-size: 0.75em; font-weight: bold; color: ${data.hud.color};">${data.hud.trend}</div>
                     </div>
                 </div>
 
-                <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 12px; padding-bottom: 20px;">
+                <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 25px;">
                     
                     <!-- TAB 1: RADAR -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #12151f; padding: 4px 8px; border-radius: 4px; border: 1px solid #222;">🎯 ${tokenMint ? tokenMint.substring(0,15)+'...' : 'Nessun Token'}</div>
-                            <button id="btn-ricarica" style="background: #2a2d3d; border: 1px solid #444; color: #fff; font-weight: bold; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8em;">🔄 Aggiorna</button>
+                            <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; box-shadow: inset 0 0 5px rgba(0,255,204,0.1);">🎯 ${tokenMint ? tokenMint.substring(0,14)+'...' : 'Nessun Token'}</div>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s;">🔄 Aggiorna</button>
                         </div>
                         ${tokenMint ? `
-                        <div style="background: linear-gradient(145deg, #161821, #1e2130); padding: 15px; border-radius: 8px; border-left: 5px solid ${colorClass}; margin-bottom: 15px;">
+                        <div style="background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%); padding: 15px; border-radius: 8px; border: 1px solid #2d3142; border-left: 5px solid ${colorClass}; margin-bottom: 15px; ${glowEffect}">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px;">Stato Sicurezza</div><div style="font-weight:bold; font-size: 1.1em; color:${colorClass};">${rischio}</div></div>
-                                <div style="text-align:right;"><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px;">Rischio</div><div style="font-size:1.6em; font-weight: 900; color:${colorClass};">${score}<span style="font-size: 0.5em; color: #777;">/100</span></div></div>
+                                <div><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold; letter-spacing: 1px;">Stato Sicurezza</div><div style="font-weight:900; font-size: 1.15em; color:${colorClass}; text-shadow: 0 0 8px ${colorClass}60;">${rischio}</div></div>
+                                <div style="text-align:right;"><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold; letter-spacing: 1px;">Rischio</div><div style="font-size:1.8em; font-weight: 900; color:${colorClass}; font-family: monospace; text-shadow: 0 0 8px ${colorClass}60;">${score}<span style="font-size: 0.4em; color: #777; text-shadow: none;">/100</span></div></div>
                             </div>
                         </div>
                         
-                        <!-- NUOVA DASHBOARD TATTICA -->
-                        <div class="radar-dashboard" style="background: #12151f; padding: 12px; border-radius: 8px; border: 1px solid #2d3142; font-size: 0.85em; margin-bottom: 15px;">
-                            <div style="margin-bottom: 10px; border-left: 3px solid ${advice.devStatus.includes('SERIAL') ? '#ff4d4d' : (advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00e676')}; padding-left: 8px;">
-                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Terminale Dev (${devWallet.substring(0,6)}...):</span>
-                                <span style="color: white; font-weight: bold;">${advice.devStatus}</span>
+                        <!-- DASHBOARD TATTICA -->
+                        <div class="radar-dashboard" style="background: rgba(18, 21, 31, 0.6); padding: 12px; border-radius: 8px; border: 1px solid #1a1c29; font-size: 0.85em; margin-bottom: 15px; font-family: monospace;">
+                            <div style="margin-bottom: 10px; border-left: 3px solid ${advice.devStatus.includes('SERIAL') ? '#ff3366' : (advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00ffcc')}; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Dev_Term] (${devWallet.substring(0,6)}...):</span>
+                                <span style="color: #e0e0e0; font-weight: bold;">${advice.devStatus}</span>
                             </div>
-                            <div style="margin-bottom: 10px; border-left: 3px solid #00ffcc; padding-left: 8px;">
-                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Analisi Volume (UBI):</span>
-                                <span style="color: white; font-weight: bold;">${advice.volumeStatus}</span>
+                            <div style="margin-bottom: 10px; border-left: 3px solid #00ffcc; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Vol_UBI]:</span>
+                                <span style="color: #e0e0e0; font-weight: bold;">${advice.volumeStatus}</span>
                             </div>
-                            <!-- 🧠 NEW: IL GRAFO SYBIL -->
-                            <div style="margin-bottom: 10px; border-left: 3px solid #b366ff; padding-left: 8px;">
-                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Grafo Finanziamenti (Sybil Tree):</span>
-                                <span style="color: white; font-weight: bold;">${advice.sybilStatus || "Calcolo in corso..."}</span>
+                            <div style="margin-bottom: 10px; border-left: 3px solid #b366ff; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Sybil_Graph]:</span>
+                                <span style="color: #e0e0e0; font-weight: bold;">${advice.sybilStatus || "Calcolo in corso..."}</span>
                             </div>
-                            <div style="margin-bottom: 10px; border-left: 3px solid #ff4d4d; padding-left: 8px;">
-                                <span style="color: #aaaaaa; display: block; font-size: 0.8em; margin-bottom: 2px;">Scudo Sanguisuga (Bundle):</span>
-                                <span style="color: white; font-weight: bold;">${advice.topHoldersStatus}</span>
+                            <div style="border-left: 3px solid #ffaa00; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
+                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Bundle_Shield]:</span>
+                                <span style="color: #e0e0e0; font-weight: bold;">${advice.topHoldersStatus}</span>
                             </div>
                         </div>
 
                         <!-- SIMULATORE ISTITUZIONALE -->
-                        <div class="strategy-box" style="margin-bottom: 15px; background: #0a0c10; padding: 12px; border: 1px solid #00ffcc; border-radius: 8px;">
-                            <h4 style="margin: 0 0 8px 0; color: #00ffcc; text-transform: uppercase; font-size: 0.9em;">🤖 Simulatore Istituzionale</h4>
-                            <p style="margin: 0; font-family: monospace; font-size: 0.95em; color: #fff;">${advice.strategy}</p>
+                        <div class="strategy-box" style="margin-bottom: 15px; background: rgba(0, 255, 204, 0.05); padding: 12px; border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 8px; box-shadow: inset 0 0 15px rgba(0,255,204,0.05);">
+                            <h4 style="margin: 0 0 8px 0; color: #00ffcc; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">🤖 Simulatore Istituzionale</h4>
+                            <p style="margin: 0 0 8px 0; font-family: monospace; font-size: 0.95em; color: #fff; line-height: 1.4;">${advice.strategy}</p>
+                            ${advice.tradeSetup ? `<div style="background: rgba(0,0,0,0.3); border-left: 3px solid #ffaa00; padding: 6px; font-family: monospace; font-size: 0.85em; color: #ffaa00;">${advice.tradeSetup}</div>` : ''}
                         </div>
 
                         ${earlySectionHTML}
                         ${simulatoreHTML}
                         ${feeHTML}
                         
-                       
                         ` : ''}
                     </div>
 
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc;">💼 Smart Money</h3><div style="font-size: 0.75em; color: #aaa;">Seleziona chi vuoi spiare attivamente</div></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">💼 SMART MONEY</h3><div style="font-size: 0.75em; color: #aaa;">Target intelligence system</div></div>
                         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                            <input type="text" id="new-wallet-input" placeholder="Indirizzo Solana..." style="flex-grow: 1; padding: 10px; background: #12151f; border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em;">
-                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Salva</button>
+                            <input type="text" id="new-wallet-input" placeholder="Incolla Address Solana..." style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.8em;">Traccia</button>
                         </div>
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
                     </div>
 
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f;">🚨 Live Spy Feed</h3><div style="font-size: 0.75em; color: #aaa;">Cosa stanno comprando ORA le tue balene?</div></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,0,127,0.4);">🚨 LIVE SPY FEED</h3><div style="font-size: 0.75em; color: #aaa;">Intercettazione flussi on-chain</div></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai tuoi wallet con l'allarme attivo (🔔)...</div>
+                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai wallet tracciati (🔔)...</div>
                         </div>
                     </div>
 
                 </div>
 
                 <!-- BOTTOM NAVIGATION -->
-                <div style="display: flex; background: #12151f; border-top: 1px solid #222; height: 55px; flex-shrink: 0;">
-                    <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05);">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.65em; font-weight: bold; text-transform: uppercase;">Radar</span>
+                <div style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
+                    <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
+                        <span style="font-size: 1.2em; margin-bottom: 2px; text-shadow: 0 0 5px #00ffcc;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Radar</span>
                     </div>
-                    <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.65em; font-weight: bold; text-transform: uppercase;">Tracker</span>
+                    <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Tracker</span>
                     </div>
-                    <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.65em; font-weight: bold; text-transform: uppercase;">Spy Feed</span>
+                    <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Spy Feed</span>
                     </div>
                 </div>
             </div>
@@ -256,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const highlightColor = (id === 'spy') ? '#ff007f' : '#00ffcc';
                     tab.style.color = highlightColor;
                     tab.style.borderTop = `2px solid ${highlightColor}`;
-                    tab.style.background = (id === 'spy') ? 'rgba(255, 0, 127, 0.05)' : 'rgba(0, 255, 204, 0.05)';
+                    tab.style.background = (id === 'spy') ? 'rgba(255, 0, 127, 0.08)' : 'rgba(0, 255, 204, 0.08)';
                 } else {
                     tab.style.color = '#777';
                     tab.style.borderTop = '2px solid transparent';
@@ -267,9 +268,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
         
-        // Assegniamo l'evento in modo sicuro
         const btnRicarica = document.getElementById('btn-ricarica');
         if (btnRicarica) {
+            btnRicarica.addEventListener('mouseenter', () => btnRicarica.style.background = '#1a1c29');
+            btnRicarica.addEventListener('mouseleave', () => btnRicarica.style.background = '#161821');
             btnRicarica.addEventListener('click', avviaRadar);
         }
 
@@ -297,10 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ... (sopra c'è la gestione degli input del simulatore)
-        
         inizializzaTracker();
-        caricaStoricoSpyNelDOM(); // 🔥 FIX: Ricarica lo storico ogni volta che apri un token
+        caricaStoricoSpyNelDOM();
     }
 
     avviaRadar();
@@ -588,8 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Errore nel loop spy:", error);
         } finally {
-            // 🔥 SPINTI AL LIMITE: Aggiornamento ogni 3 secondi per avvicinarci al "Tempo Reale"
-            setTimeout(startSpyLoop, 3000); 
+            // 🛡️ FIX HELIUS: Aggiorniamo le balene ogni 15 secondi per non collassare il nodo
+            setTimeout(startSpyLoop, 15000); 
         }
     }
 
