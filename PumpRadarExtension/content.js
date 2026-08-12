@@ -1,191 +1,75 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
 
-    // 🔥 1. CREA LA CONNESSIONE WEBSOCKET
+    // 🔥 1. CONNESSIONE WEBSOCKET (Sempre in ascolto)
     const socket = io("https://tricking-judiciary-footwear.ngrok-free.dev", {
         extraHeaders: { "ngrok-skip-browser-warning": "true" }
     });
-    socket.on("connect", () => {
-        console.log("🟢 Connesso al Radar Quantitativo WSS");
-    });
+    socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
+
+    let orderFlowWindow = [];
 
     function avviaRadar() {
-// ... IL RESTO RIMANE UGUALE ... {
-        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-            if (!tabs || tabs.length === 0) {
-                contentDiv.innerHTML = '<div style="padding: 10px;">❌ Errore lettura scheda.</div>';
-                return;
-            }
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs || tabs.length === 0) return;
             const url = tabs[0].url;
             
-            try {
-                const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-                
-                let tokenMint = null;
-                if (matchToken) tokenMint = matchToken[0];
+            const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+            let tokenMint = null;
+            if (matchToken) tokenMint = matchToken[0];
 
-                if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                    costruisciInterfacciaBase(null, null);
-                    return;
-                }
-
-                contentDiv.innerHTML = `
-                    <div style="padding: 20px; color: #00ffcc; text-align: center; font-family: monospace;">
-                        <div style="font-size: 2em; margin-bottom: 10px;">📡</div>
-                        ⏳ Analisi on-chain in corso...<br>
-                        <span style="font-size: 0.7em; color: #888;">${tokenMint.substring(0,12)}...</span>
-                    </div>`;
-
-                const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
-                    headers: { "ngrok-skip-browser-warning": "true" }
-                });
-                const data = await response.json();
-                if (data.error) throw new Error(data.error);
-
-                costruisciInterfacciaBase(tokenMint, data);
-
-            } catch (error) {
-                contentDiv.innerHTML = `<div style="padding: 20px; text-align:center; color:#ff4d4d;">⚠️ Errore API: ${error.message}</div>`;
+            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Naviga su un token per attivare il Radar.</div>';
+                return;
             }
+
+            // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live in 0.1s)
+            costruisciInterfacciaLive(tokenMint);
+
+            // ⏳ STEP 2: RICERCA IN BACKGROUND (Analisi on-chain differita)
+            fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                popolaInterfacciaStatica(data); // Inietta i dati quando sono pronti
+            })
+            .catch(err => {
+                const staticBox = document.getElementById('static-analysis-box');
+                if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center; margin-bottom: 15px;">⚠️ Errore Analisi Statica: ${err.message}</div>`;
+            });
         });
     }
 
-    function costruisciInterfacciaBase(tokenMint, data) {
-        if (!data) {
-            data = {
-                score: 0, rischio: "IN ATTESA",
-                hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" },
-                tradeValido: false, simulatoreTesto: "Naviga su un token per attivare il Radar."
-            };
-        }
+    function costruisciInterfacciaLive(tokenMint) {
+        // 🔥 L'Occhio Tattico: Copilota
+        const copilotHTML = `
+            <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">🧠 Copilota AI (Groq)</span>
+                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 0 8px rgba(179,102,255,0.4);">Richiedi Analisi</button>
+                </div>
+                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;"></div>
+            </div>`;
 
-        const score = data.score || 0;
-        const rischio = data.rischio || "N/A";
-        const colorClass = score >= 80 ? '#ff3366' : (score >= 60 ? '#ffaa00' : '#00ffcc');
-        const glowEffect = `box-shadow: 0 0 15px ${colorClass}40;`;
-
-        const apiLeft = data.apiRimanenti !== undefined ? data.apiRimanenti : 15;
-        const apiColor = apiLeft > 5 ? '#00e676' : (apiLeft > 0 ? '#ffaa00' : '#ff4d4d');
-
-        const devWallet = data.devWallet || "Sconosciuto";
-        const advice = data.advice || {
-            devStatus: "In attesa di dati...", volumeStatus: "In attesa di dati...",
-            topHoldersStatus: "In attesa di dati...", strategy: "In attesa di dati..."
-        };
-
-        // --- GRAFICA RILEVAMENTO BOT E TEMPO AL RUG ---
-        let earlySectionHTML = "";
-        if (data.earlyRadar) {
-            const er = data.earlyRadar;
-            const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff3366' : '#00ffcc';
-            earlySectionHTML = `
-                <div style="background: rgba(18, 21, 31, 0.8); border: 1px solid ${badgeColor}60; padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 0.8em; font-weight: 800; color: ${badgeColor}; text-transform: uppercase; letter-spacing: 1px;">🤖 Bot Detection</span>
-                        <span style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 6px; font-size: 0.65em; font-weight: bold; border-radius: 4px;">${er.potenzialeVolume}</span>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8em; text-align: center;">
-                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
-                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Acquisto Bot (Slot 0)</span>
-                            <b style="color:${er.bundleSlot0 ? '#ff3366' : '#00ffcc'}; font-size:1.2em; text-shadow: 0 0 5px ${er.bundleSlot0 ? '#ff3366' : '#00ffcc'}40;">${er.bundleSlot0 ? '⚠️ RILEVATO' : '✅ PULITO'}</b>
-                        </div>
-                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
-                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Supply ai Bot</span>
-                            <b style="color:${er.supplyBot >= 20 ? '#ff3366' : '#00ffcc'}; font-size:1.2em; text-shadow: 0 0 5px ${er.supplyBot >= 20 ? '#ff3366' : '#00ffcc'}40;">${er.supplyBot}%</b>
-                        </div>
-                        <div style="grid-column: span 2; background: #161821; padding: 10px; border-radius: 6px; border-left: 3px solid ${badgeColor}; text-align: left; margin-top: 4px;">
-                            <span style="color:#aaa; font-size:0.85em; text-transform: uppercase;">Tempo Stimato al Rug:</span><br>
-                            <b style="color: ${badgeColor}; font-size:1.1em; text-shadow: 0 0 5px ${badgeColor}60;">${advice.estimatedRugTime ? advice.estimatedRugTime : "Calcolo in corso..."}</b>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // --- GRAFICA CALCOLATORE E TRADE BLOCCATO ---
-        let simulatoreHTML = "";
-        if (data.tradeValido) {
-            const targetK = data.targetMC ? (data.targetMC / 1000).toFixed(1) : "??";
-            simulatoreHTML = `
-                <div style="background: rgba(10, 12, 16, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #00ffcc40; box-shadow: 0 0 10px rgba(0, 255, 204, 0.1);">
-                    <div style="color: #00ffcc; margin-bottom: 12px; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: 1px;">💸 Terminale Profitti (Target: ${targetK}k)</div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: center; font-size: 0.9em;">
-                        <span style="color: #aaa;">Input:</span>
-                        <input type="number" id="sim-input" value="0.1" step="0.01" style="width: 70px; padding: 6px; background: #12151f; border: 1px solid #00ffcc; border-radius: 4px; color: #00ffcc; text-align: center; font-weight: bold; font-family: monospace; outline: none; box-shadow: inset 0 0 5px rgba(0,255,204,0.2);">
-                        <span>SOL <span style="font-size:0.85em; color:#666;">($<span id="sim-usd-cost">...</span>)</span></span>
-                    </div>
-                    <div style="background: #161821; padding: 10px; border-radius: 6px; border-left: 4px solid #00ffcc; font-family: monospace;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                            <span style="color: #aaa;">Ricavo Lordo:</span><b style="color: #00ffcc; font-size: 1.1em;"><span id="sim-gross-sol">...</span> SOL</b>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #333; padding-top: 6px;">
-                            <span style="color: #aaa;">Profitto Netto:</span><b style="color: #00e676; font-size: 1.1em; text-shadow: 0 0 5px rgba(0,230,118,0.4);">+<span id="sim-net-sol">...</span> SOL (+$<span id="sim-net-usd">...</span>)</b>
-                        </div>
-                    </div>
-                </div>`;
-        } else {
-            simulatoreHTML = `
-                <div style="background: rgba(26, 15, 15, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff3366; box-shadow: 0 0 15px rgba(255, 51, 102, 0.2); text-align: center;">
-                    <div style="color: #ff3366; font-size: 1.3em; margin-bottom: 8px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,51,102,0.6);">⛔ SCAM RILEVATO ⛔</div>
-                    <div style="color: #ffaa00; font-size: 0.85em; background: rgba(255, 51, 102, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(255, 170, 0, 0.3);">
-                        ${data.simulatoreTesto ? data.simulatoreTesto : "Operazione bloccata. I bot stanno prosciugando la liquidità."}
-                    </div>
-                </div>`;
-        }
-
-        // ⚙️ ORACOLO FEE: Creazione del blocco visivo
-        // ⚙️ ORACOLO FEE: Creazione del blocco visivo
-        let feeHTML = "";
-        if (data.tradingFees) {
-            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff3366' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00ffcc');
-            feeHTML = `
-                <div style="background: rgba(18, 21, 31, 0.8); padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                    <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px;">⚙️ Oracolo Setup Bot</div>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; align-items: center;">
-                            <span style="color: #aaa;">Stato Network:</span>
-                            <strong style="color: ${feeColor}; text-shadow: 0 0 8px ${feeColor}60; background: ${feeColor}15; padding: 2px 8px; border-radius: 4px; border: 1px solid ${feeColor}40;">${data.tradingFees.text}</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: #0a0c10; padding: 8px; border-radius: 6px; border: 1px solid #1a1c29;">
-                            <span style="color: #aaa;">Slippage: <strong style="color: #fff; font-family: monospace; font-size: 1.1em;">${data.tradingFees.slippage}</strong></span>
-                            <span style="color: #aaa;">Priority: <strong style="color: #fff; font-family: monospace; font-size: 1.1em;">${data.tradingFees.fee}</strong></span>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // 🔥 CREA L'HTML DEL VELOCIMETRO ORDER FLOW
+        // 🔥 Il Cuore: Velocimetro
         const orderFlowHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">⏱️ 10s Order Flow</span>
-                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">50% BUY</span>
+                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">IN ATTESA...</span>
                 </div>
-                <!-- Barra di sfondo (Rossa per i Sell) -->
                 <div style="width: 100%; height: 10px; background: #ff4d4d; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);">
-                    <!-- Barra interna (Verde per i Buy) -->
                     <div id="flow-bar-green" style="width: 50%; height: 100%; background: #00e676; transition: width 0.3s ease-out; box-shadow: 0 0 10px rgba(0,230,118,0.5);"></div>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: monospace; font-size: 0.75em; color: #aaa;">
-                    <span id="flow-vol-buy">0.00 SOL</span>
-                    <span id="flow-vol-sell">0.00 SOL</span>
+                    <span id="flow-vol-buy">0.0 SOL</span>
+                    <span id="flow-vol-sell">0.0 SOL</span>
                 </div>
-            </div>
-        `;
-        // ... (orderFlowHTML esistente) ...
+            </div>`;
 
-        // 🔥 1. CREA L'HTML DEL COPILOTA TATTICO
-        const copilotHTML = `
-            <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">🧠 Copilota AI (Groq)</span>
-                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 0 8px rgba(179,102,255,0.4);">Richiedi Analisi</button>
-                </div>
-                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;">
-                    <!-- I risultati del copilota appariranno qui -->
-                </div>
-            </div>
-        `;
-        // 🔥 CREA L'HTML DEL LIVE TAPE
+        // 🔥 Il Sangue: Nastro WSS
         const liveTapeHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between;">
@@ -193,131 +77,91 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span style="color: #00ffcc; font-size: 0.8em;">WSS Sync</span>
                 </div>
                 <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 6px; height: 180px; overflow-y: auto; padding-right: 4px;">
-                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">In ascolto dei blocchi Solana...</div>
+                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">In ascolto della blockchain...</div>
                 </div>
-            </div>
-        `;
+            </div>`;
 
-        // 🟢 ORA INIETTIAMO TUTTO NEL CONTENITORE
+        // Struttura Base e Iniezione Istantanea
         contentDiv.innerHTML = `
             <style>
                 @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.4); box-shadow: 0 0 10px rgba(255,0,127,0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
+                @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
                 .spy-alert-active { animation: pulseTab 1.5s infinite; color: #fff !important; border-top: 2px solid #ff007f !important; }
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-track { background: #0a0c10; }
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
                 ::-webkit-scrollbar-thumb:hover { background: #444a66; }
+                @keyframes flashIn { 0% { background: #fff; } 100% { background: #161821; } }
             </style>
-                
-           
+            
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; position: relative; margin: -8px;">
                 
-                <div style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid ${data.hud.color}; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: 0 2px 15px ${data.hud.color}20; z-index: 10;">
-                    <div>
-                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Solana Memecoin Index</div>
-                        <div style="font-size: 1.1em; font-weight: 900; color: ${data.hud.color}; text-shadow: 0 0 5px ${data.hud.color}60;">${data.hud.icon} ${data.hud.change >= 0 ? '+' : ''}${data.hud.change}% <span style="font-size: 0.6em; color: #aaa; text-shadow: none;">Vol: $${data.hud.volume}M</span></div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trend</div>
-                        <div style="font-size: 0.75em; font-weight: bold; color: ${data.hud.color};">${data.hud.trend}</div>
-                    </div>
+                <!-- HEADER INDICE (Si popolerà dopo) -->
+                <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10;">
+                    <div style="color:#888; font-size:0.75em; font-family:monospace; animation: pulseGlow 2s infinite;">🔄 Scansione Indici in corso...</div>
                 </div>
 
                 <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 25px;">
                     
-                    <!-- TAB 1: RADAR -->
+                    <!-- TAB 1: RADAR (GERARCHIA VISIVA TATTICA) -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; box-shadow: inset 0 0 5px rgba(0,255,204,0.1);">🎯 ${tokenMint ? tokenMint.substring(0,14)+'...' : 'Nessun Token'}</div>
-                            
-                            <!-- 🔥 NUOVO BADGE API -->
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <div style="font-family: monospace; font-size: 0.75em; font-weight: bold; background: #161821; border: 1px solid ${apiColor}; color: ${apiColor}; padding: 6px 8px; border-radius: 6px; box-shadow: 0 0 8px ${apiColor}40;" title="Richieste AI rimaste in questo minuto">
-                                    ⚡ API: ${apiLeft}/15
-                                </div>
-                                <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: all 0.2s;">🔄</button>
-                            </div>
+                            <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">🎯 ${tokenMint.substring(0,12)}...</div>
+                            <div id="api-badge" style="display:none; gap:6px; align-items:center;"></div>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">Ricarica</button>
                         </div>
                         
-                        ${tokenMint ? `
-                        <div style="background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%); padding: 15px; border-radius: 8px; border: 1px solid #2d3142; border-left: 5px solid ${colorClass}; margin-bottom: 15px; ${glowEffect}">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold; letter-spacing: 1px;">Stato Sicurezza</div><div style="font-weight:900; font-size: 1.15em; color:${colorClass}; text-shadow: 0 0 8px ${colorClass}60;">${rischio}</div></div>
-                                <div style="text-align:right;"><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold; letter-spacing: 1px;">Rischio</div><div style="font-size:1.8em; font-weight: 900; color:${colorClass}; font-family: monospace; text-shadow: 0 0 8px ${colorClass}60;">${score}<span style="font-size: 0.4em; color: #777; text-shadow: none;">/100</span></div></div>
-                            </div>
-                        </div>
-                        
-                        <!-- DASHBOARD TATTICA -->
-                        <div class="radar-dashboard" style="background: rgba(18, 21, 31, 0.6); padding: 12px; border-radius: 8px; border: 1px solid #1a1c29; font-size: 0.85em; margin-bottom: 15px; font-family: monospace;">
-                            <div style="margin-bottom: 10px; border-left: 3px solid ${advice.devStatus.includes('SERIAL') ? '#ff3366' : (advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00ffcc')}; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
-                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Dev_Term] (${devWallet.substring(0,6)}...):</span>
-                                <span style="color: #e0e0e0; font-weight: bold;">${advice.devStatus}</span>
-                            </div>
-                            <div style="margin-bottom: 10px; border-left: 3px solid #00ffcc; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
-                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Vol_UBI]:</span>
-                                <span style="color: #e0e0e0; font-weight: bold;">${advice.volumeStatus}</span>
-                            </div>
-                            <div style="margin-bottom: 10px; border-left: 3px solid #b366ff; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
-                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Sybil_Graph]:</span>
-                                <span style="color: #e0e0e0; font-weight: bold;">${advice.sybilStatus || "Calcolo in corso..."}</span>
-                            </div>
-                            <div style="border-left: 3px solid #ffaa00; padding-left: 10px; background: rgba(0,0,0,0.2); padding-top: 4px; padding-bottom: 4px; border-radius: 0 4px 4px 0;">
-                                <span style="color: #888; display: block; font-size: 0.8em; margin-bottom: 3px; text-transform: uppercase;">[Bundle_Shield]:</span>
-                                <span style="color: #e0e0e0; font-weight: bold;">${advice.topHoldersStatus}</span>
-                            </div>
-                        </div>
-
-                        <!-- SIMULATORE ISTITUZIONALE -->
-                        <div class="strategy-box" style="margin-bottom: 15px; background: rgba(0, 255, 204, 0.05); padding: 12px; border: 1px solid rgba(0, 255, 204, 0.3); border-radius: 8px; box-shadow: inset 0 0 15px rgba(0,255,204,0.05);">
-                            <h4 style="margin: 0 0 8px 0; color: #00ffcc; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px;">🤖 Simulatore Istituzionale</h4>
-                            <p style="margin: 0 0 8px 0; font-family: monospace; font-size: 0.95em; color: #fff; line-height: 1.4;">${advice.strategy}</p>
-                            ${advice.tradeSetup ? `<div style="background: rgba(0,0,0,0.3); border-left: 3px solid #ffaa00; padding: 6px; font-family: monospace; font-size: 0.85em; color: #ffaa00;">${advice.tradeSetup}</div>` : ''}
-                        </div>
-
-                        ${earlySectionHTML}
-                        ${simulatoreHTML}
-                        ${feeHTML}
-                        ${orderFlowHTML}
                         ${copilotHTML}
-                        ${liveTapeHTML}                        
-                        ` : ''}
+                        ${orderFlowHTML}
+                        ${liveTapeHTML}
+
+                        <!-- CONTENITORE ASINCRONO PER DATI STATICI -->
+                        <div id="static-analysis-box">
+                            <div style="text-align: center; padding: 25px; background: rgba(0,0,0,0.3); border: 1px dashed #2d3142; border-radius: 8px; margin-bottom: 15px;">
+                                <span style="font-size: 1.8em; display: block; margin-bottom: 10px; animation: pulseGlow 1.5s infinite;">🔍</span>
+                                <span style="color: #00ffcc; font-family: monospace; font-size: 0.85em;">Autopsia Bundle in corso...<br><span style="color:#888; font-size: 0.75em; display:block; margin-top:6px;">(Tempo stimato: ~20s)</span></span>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- TAB 2: TRACKER -->
+                    <!-- TAB 2 E 3 (Nascosti) -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">💼 SMART MONEY</h3><div style="font-size: 0.75em; color: #aaa;">Target intelligence system</div></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">💼 SMART MONEY</h3></div>
                         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                            <input type="text" id="new-wallet-input" placeholder="Incolla Address Solana..." style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.8em;">Traccia</button>
+                            <input type="text" id="new-wallet-input" placeholder="Incolla Address..." style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Traccia</button>
                         </div>
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
                     </div>
 
-                    <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,0,127,0.4);">🚨 LIVE SPY FEED</h3><div style="font-size: 0.75em; color: #aaa;">Intercettazione flussi on-chain</div></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">🚨 LIVE SPY FEED</h3></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai wallet tracciati (🔔)...</div>
+                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti...</div>
                         </div>
                     </div>
-
                 </div>
 
-                <!-- BOTTOM NAVIGATION -->
+                <!-- BOTTOM TABS -->
                 <div style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px; text-shadow: 0 0 5px #00ffcc;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Radar</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Radar</span>
                     </div>
                     <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Tracker</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Tracker</span>
                     </div>
                     <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">Spy Feed</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Spy</span>
                     </div>
                 </div>
             </div>
         `;
 
+        configuraEventiBase(tokenMint);
+    }
+
+    function configuraEventiBase(tokenMint) {
+        // Navigazione Tabs
         const tabs = ['radar', 'tracker', 'spy'];
         function switchTab(activeId) {
             tabs.forEach(id => {
@@ -336,10 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
-        
-        // 🔄 LOGICA PULSANTE RICARICA
+
+        // Pulsante Ricarica
         const btnRicarica = document.getElementById('btn-ricarica');
         if (btnRicarica) {
             btnRicarica.addEventListener('mouseenter', () => btnRicarica.style.background = '#1a1c29');
@@ -347,112 +190,75 @@ document.addEventListener('DOMContentLoaded', () => {
             btnRicarica.addEventListener('click', avviaRadar);
         }
 
-        // 🧠 LOGICA DEL PULSANTE COPILOTA
+        // 🧠 Azione Copilota
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
-        
         if (btnCopilot && tokenMint) {
             btnCopilot.addEventListener('mouseenter', () => btnCopilot.style.background = '#d9b3ff');
             btnCopilot.addEventListener('mouseleave', () => btnCopilot.style.background = '#b366ff');
-            
             btnCopilot.addEventListener('click', async () => {
-                // UI: Stato di caricamento
                 btnCopilot.innerText = "⏳ Analisi in corso...";
                 btnCopilot.style.background = "#555";
                 btnCopilot.style.pointerEvents = "none";
                 copilotResult.style.display = "block";
-                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>Lettura della Scatola Nera...</span>";
+                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>Lettura parametri vitali...</span>";
                 
                 try {
                     const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}`, {
                         headers: { "ngrok-skip-browser-warning": "true" }
                     });
-                    
-                    if (!resp.ok) throw new Error("Errore di rete con Ngrok/Backend");
+                    if (!resp.ok) throw new Error("Errore Backend");
                     const dataResp = await resp.json();
                     
-                    if(dataResp.errore) throw new Error(dataResp.messaggio);
+                    // Estrazione sicura dei dati (Fallback se Groq non risponde con le chiavi giuste)
+                    let tattica = dataResp.tattica || "⚠️ Errore di comunicazione con il nodo AI.";
+                    let puntoRottura = dataResp.puntoRottura || "Dati illeggibili.";
+                    let azione = dataResp.azione || "ATTESA";
                     
-                    // Gestione Colore Azione Consigliata
-                    const azione = dataResp.azione || "ATTESA";
-                    let actionColor = azione.includes("FUGG") || azione.includes("PANIC") ? "#ff4d4d" : (azione.includes("COMPR") ? "#00e676" : "#ffaa00");
+                    // Se l'API restituisce un errore testuale puro (es. Rate Limit)
+                    if (dataResp.error || tattica.includes("Rate limit")) {
+                        tattica = "🛑 LIMITE API GROQ RAGGIUNTO. Hai esaurito i 100.000 token giornalieri gratuiti.";
+                        puntoRottura = "Devi attendere il reset dei server o usare un'altra API Key.";
+                        azione = "API BLOCCATA";
+                    }
+                    
+                    let actionColor = azione.includes("FUGG") || azione.includes("PANIC") || azione.includes("BLOCCATA") ? "#ff4d4d" : (azione.includes("COMPR") || azione.includes("SCALP") ? "#00e676" : "#ffaa00");
                     
                     copilotResult.innerHTML = `
-                        <div style="margin-bottom: 8px;">
-                            <strong style="color:#b366ff; font-size: 0.9em; text-transform: uppercase;">1. Tattica Rilevata:</strong><br>
-                            <span style="color:#e0e0e0;">${dataResp.tattica}</span>
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong style="color:#ffaa00; font-size: 0.9em; text-transform: uppercase;">2. Punto di Rottura:</strong><br>
-                            <span style="color:#e0e0e0;">${dataResp.puntoRottura}</span>
-                        </div>
-                        <div style="text-align: center; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px; font-size: 1.1em; text-shadow: 0 0 5px ${actionColor}60;">
-                            Azione: ${azione}
-                        </div>
+                        <div style="margin-bottom: 8px;"><strong style="color:#b366ff; text-transform: uppercase;">1. Tattica:</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
+                        <div style="margin-bottom: 10px;"><strong style="color:#ffaa00; text-transform: uppercase;">2. Previsione:</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
+                        <div style="text-align: center; padding: 6px; background: rgba(0,0,0,0.4); border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px; font-size: 1.1em; text-shadow: 0 0 5px ${actionColor}60;">Azione Consigliata: ${azione}</div>
                     `;
                 } catch(e) {
                     copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Errore Copilota: ${e.message}</div>`;
                 } finally {
-                    btnCopilot.innerText = "🔄 Ri-analizza Tattica";
-                    btnCopilot.style.background = "#b366ff";
-                    btnCopilot.style.pointerEvents = "auto";
+                    btnCopilot.innerText = "⏳ Cooldown 10s...";
+                    btnCopilot.style.background = "#555";
+                    
+                    // Impedisce lo spam di richieste per salvare i Token API
+                    setTimeout(() => {
+                        btnCopilot.innerText = "🔄 Ri-analizza Tattica";
+                        btnCopilot.style.background = "#b366ff";
+                        btnCopilot.style.pointerEvents = "auto";
+                    }, 10000);
                 }
             });
         }
 
-        // 💸 LOGICA SIMULATORE
-        if (data && data.tradeValido) {
-            const inputEl = document.getElementById('sim-input');
-            const costUsdEl = document.getElementById('sim-usd-cost');
-            const grossSolEl = document.getElementById('sim-gross-sol');
-            const netSolEl = document.getElementById('sim-net-sol');
-            const netUsdEl = document.getElementById('sim-net-usd');
-            const mult = data.moltiplicatore || 0;
-            const solPrice = data.prezzoSol || 150;
-
-            if (inputEl) {
-                inputEl.addEventListener('input', () => {
-                    let val = parseFloat(inputEl.value);
-                    if(isNaN(val) || val < 0) val = 0;
-                    if(costUsdEl) costUsdEl.innerText = (val * solPrice).toFixed(2);
-                    const grossSol = (val * mult).toFixed(3);
-                    if(grossSolEl) grossSolEl.innerText = grossSol;
-                    const netSol = (grossSol - val).toFixed(3);
-                    if(netSolEl) netSolEl.innerText = netSol;
-                    if(netUsdEl) netUsdEl.innerText = (netSol * solPrice).toFixed(2);
-                });
-                inputEl.dispatchEvent(new Event('input'));
-            }
-        }
-
-        // ... (inputEl.dispatchEvent(new Event('input'));, ecc.) ...
-        
+        // Gestione WSS e Order Flow Dinamico
         inizializzaTracker();
         caricaStoricoSpyNelDOM();
+        orderFlowWindow = [];
 
-        // 🔥 MEMORIA A BREVE TERMINE PER IL VELOCIMETRO
-        let orderFlowWindow = [];
-
-        // 🔥 4. MOTORE CHE RICEVE I DATI, ANIMA IL TAPE E AGGIORNA IL VELOCIMETRO
-        socket.off('nuovo_trade_live'); // Rimuove listener vecchi se si ricarica
+        socket.off('nuovo_trade_live');
         socket.on('nuovo_trade_live', (trade) => {
-            
-            // --- 1. AGGIORNAMENTO DEL TAPE VISIVO ---
             const tapeList = document.getElementById('live-tape-list');
             if (tapeList) {
-                // Pulisce il messaggio di attesa iniziale
                 if (tapeList.innerHTML.includes('In ascolto')) tapeList.innerHTML = '';
-
                 const isBuy = trade.tipo.includes("BUY");
                 const color = isBuy ? "#00e676" : "#ff4d4d";
-                
                 const el = document.createElement('div');
-                el.style.cssText = `
-                    font-family: monospace; font-size: 0.85em; color: ${color}; 
-                    display: flex; justify-content: space-between; background: #161821; 
-                    padding: 6px; border-radius: 4px; border-left: 3px solid ${color};
-                    animation: flashIn 0.3s ease-out;
-                `;
+                el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color}; animation: flashIn 0.3s ease-out;`;
                 
                 el.innerHTML = `
                     <div style="display: flex; flex-direction: column; width: 100%;">
@@ -464,66 +270,156 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
                             <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none; border: 1px solid #4da6ff; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;">🔍 Solscan</a>
                         </div>
-                    </div>
-                `;
-                
-                // Inserisce in cima
+                    </div>`;
                 tapeList.prepend(el);
-
-                // Mantiene solo le ultime 10 righe per non appesantire Firefox
-                if (tapeList.children.length > 10) {
-                    tapeList.removeChild(tapeList.lastChild);
-                }
+                if (tapeList.children.length > 10) tapeList.removeChild(tapeList.lastChild);
             }
 
-            // --- 2. CALCOLO E AGGIORNAMENTO DEL VELOCIMETRO ---
             orderFlowWindow.push(trade);
             const tenSecondsAgo = Date.now() - 10000;
-            
-            // Elimina i trade più vecchi di 10 secondi
             orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
 
             let buyVol = 0; let sellVol = 0;
-            orderFlowWindow.forEach(t => {
-                if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol);
-                else sellVol += parseFloat(t.sol);
-            });
+            orderFlowWindow.forEach(t => { if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol); else sellVol += parseFloat(t.sol); });
 
             const totalVol = buyVol + sellVol;
             let buyPressure = 50;
             if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
 
-            // Aggiorna il DOM
             const barGreen = document.getElementById('flow-bar-green');
             const pctText = document.getElementById('flow-percentage');
-            const volBuyText = document.getElementById('flow-vol-buy');
-            const volSellText = document.getElementById('flow-vol-sell');
-
             if (barGreen && pctText) {
                 barGreen.style.width = `${buyPressure}%`;
                 pctText.innerText = `${buyPressure.toFixed(1)}% BUY`;
                 pctText.style.color = buyPressure >= 50 ? "#00e676" : "#ff4d4d";
-                
-                if (volBuyText) volBuyText.innerText = `${buyVol.toFixed(1)} SOL`;
-                if (volSellText) volSellText.innerText = `${sellVol.toFixed(1)} SOL`;
+                document.getElementById('flow-vol-buy').innerText = `${buyVol.toFixed(1)} SOL`;
+                document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
             }
         });
+    }
 
-        // Aggiunge la classe CSS per il lampeggio (se non esiste già)
-        if (!document.getElementById('tape-style')) {
-            const style = document.createElement('style');
-            style.id = 'tape-style';
-            style.innerHTML = `@keyframes flashIn { 0% { background: #fff; } 100% { background: #161821; } }`;
-            document.head.appendChild(style);
+    function popolaInterfacciaStatica(data) {
+        // Aggiorna HUD in cima
+        const hudHeader = document.getElementById('hud-header');
+        if (hudHeader) {
+            hudHeader.style.borderBottom = `2px solid ${data.hud.color}`;
+            hudHeader.innerHTML = `
+                <div>
+                    <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Solana Memecoin Index</div>
+                    <div style="font-size: 1.1em; font-weight: 900; color: ${data.hud.color};">${data.hud.icon} ${data.hud.change >= 0 ? '+' : ''}${data.hud.change}% <span style="font-size: 0.6em; color: #aaa;">Vol: $${data.hud.volume}M</span></div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trend</div>
+                    <div style="font-size: 0.75em; font-weight: bold; color: ${data.hud.color};">${data.hud.trend}</div>
+                </div>`;
         }
 
-    } // <--- QUESTA È LA GRAFFA DI CHIUSURA DI: function costruisciInterfacciaBase(tokenMint, data)
-   
+        const staticBox = document.getElementById('static-analysis-box');
+        if (!staticBox) return;
+        
+        const score = data.score || 0;
+        const colorClass = score >= 80 ? '#ff3366' : (score >= 60 ? '#ffaa00' : '#00ffcc');
+        
+        let reportHTML = `
+            <div style="background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%); padding: 15px; border-radius: 8px; border: 1px solid #2d3142; border-left: 5px solid ${colorClass}; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold;">Stato Contratto</div><div style="font-weight:900; font-size: 1.15em; color:${colorClass};">${data.rischio || "N/A"}</div></div>
+                    <div style="text-align:right;"><div style="font-size:0.7em; color:#aaa; text-transform: uppercase; margin-bottom:4px; font-weight:bold;">Rischio</div><div style="font-size:1.8em; font-weight: 900; color:${colorClass}; font-family: monospace;">${score}<span style="font-size: 0.4em; color: #777;">/100</span></div></div>
+                </div>
+            </div>`;
+
+        if (data.advice) {
+            reportHTML += `
+                <div style="background: rgba(18, 21, 31, 0.6); padding: 12px; border-radius: 8px; border: 1px solid #1a1c29; font-size: 0.85em; margin-bottom: 15px; font-family: monospace;">
+                    <div style="margin-bottom: 10px; border-left: 3px solid ${data.advice.devStatus.includes('SERIAL') ? '#ff3366' : (data.advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00ffcc')}; padding-left: 10px; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 0 4px 4px 0;">
+                        <span style="color: #888; font-size: 0.8em; text-transform: uppercase;">[Dev_History]:</span> <span style="color: #e0e0e0; font-weight: bold;">${data.advice.devStatus}</span>
+                    </div>
+                    <div style="border-left: 3px solid #ffaa00; padding-left: 10px; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 0 4px 4px 0;">
+                        <span style="color: #888; font-size: 0.8em; text-transform: uppercase;">[Bundle_Shield]:</span> <span style="color: #e0e0e0; font-weight: bold;">${data.advice.topHoldersStatus}</span>
+                    </div>
+                </div>`;
+        }
+
+        // ... (Codice precedente dell'Advice) ...
+
+        if (data.earlyRadar) {
+            const er = data.earlyRadar;
+            const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff3366' : '#00ffcc';
+            
+            // 🔥 LOGICA INTELLIGENTE: Se il bot c'era ma ha lo 0%, significa che è già scappato.
+            const supplyText = er.supplyBot < 1 ? '< 1% (Sniper Uscito)' : er.supplyBot + '%';
+            const supplyColor = er.supplyBot >= 20 ? '#ff3366' : '#00ffcc';
+
+            reportHTML += `
+                <div style="background: rgba(18, 21, 31, 0.8); border: 1px solid ${badgeColor}60; padding: 12px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 0.8em; font-weight: 800; color: ${badgeColor}; text-transform: uppercase;">🤖 Bot & Sniper Detection</span>
+                        <span style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 6px; font-size: 0.65em; font-weight: bold; border-radius: 4px;">${er.potenzialeVolume}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8em; text-align: center;">
+                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Cecchino (Blocco 0)</span>
+                            <b style="color:${er.bundleSlot0 ? '#ff3366' : '#00ffcc'}; font-size:1.1em;">${er.bundleSlot0 ? '⚠️ PRESENTE' : '✅ ASSENTE'}</b>
+                        </div>
+                        <div style="background: #161821; padding: 8px; border-radius: 6px; border: 1px solid #2d3142;">
+                            <span style="color:#888; display:block; margin-bottom:4px; font-size: 0.9em;">Supply in mano ai Bot</span>
+                            <b style="color:${supplyColor}; font-size:1.1em;">${supplyText}</b>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        if (data.tradingFees) {
+            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff3366' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00ffcc');
+            reportHTML += `
+                <div style="background: rgba(18, 21, 31, 0.8); padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 15px;">
+                    <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800;">⚙️ Impostazioni per il tuo Wallet/Bot</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: #0a0c10; padding: 8px; border-radius: 6px; border: 1px solid #1a1c29;">
+                        <span style="color: #aaa;">Slippage Consigliato: <strong style="color: #fff; font-family: monospace;">${data.tradingFees.slippage}</strong></span>
+                        <span style="color: #aaa;">Priority Fee: <strong style="color: #fff; font-family: monospace;">${data.tradingFees.fee}</strong></span>
+                    </div>
+                </div>`;
+        }
+
+        if (data.tradeValido) {
+            reportHTML += `
+                <div style="background: rgba(10, 12, 16, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #00ffcc40;">
+                    <div style="color: #00ffcc; margin-bottom: 12px; font-weight: 900; text-align: center; text-transform: uppercase; font-size: 0.85em;">💸 Terminale Profitti Simulator</div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: center; font-size: 0.9em;">
+                        <input type="number" id="sim-input" value="0.1" step="0.01" style="width: 70px; padding: 6px; background: #12151f; border: 1px solid #00ffcc; border-radius: 4px; color: #00ffcc; text-align: center; font-weight: bold; font-family: monospace; outline: none;">
+                        <span>SOL <span style="font-size:0.85em; color:#666;">($<span id="sim-usd-cost">...</span>)</span></span>
+                    </div>
+                    <div style="background: #161821; padding: 10px; border-radius: 6px; border-left: 4px solid #00ffcc; font-family: monospace;">
+                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #333; padding-top: 6px;">
+                            <span style="color: #aaa;">Profitto Netto:</span><b style="color: #00e676; font-size: 1.1em;">+<span id="sim-net-sol">...</span> SOL (+$<span id="sim-net-usd">...</span>)</b>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        staticBox.innerHTML = reportHTML;
+
+        // Attiva Simulatore Matematico
+        if (data.tradeValido) {
+            const inputEl = document.getElementById('sim-input');
+            const mult = data.moltiplicatore || 0;
+            const solPrice = data.prezzoSol || 150;
+            if (inputEl) {
+                inputEl.addEventListener('input', () => {
+                    let val = parseFloat(inputEl.value) || 0;
+                    document.getElementById('sim-usd-cost').innerText = (val * solPrice).toFixed(2);
+                    const grossSol = (val * mult);
+                    const netSol = (grossSol - val).toFixed(3);
+                    document.getElementById('sim-net-sol').innerText = netSol;
+                    document.getElementById('sim-net-usd').innerText = (netSol * solPrice).toFixed(2);
+                });
+                inputEl.dispatchEvent(new Event('input'));
+            }
+        }
+    }
 
     avviaRadar();
 
-    // =========================================================
-    // MOTORE IN BACKGROUND: SPY & TRACKER CON SELEZIONE
     // =========================================================
     
     function inizializzaTracker() {

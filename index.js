@@ -4,11 +4,23 @@ const cors = require('cors');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const http = require('http');
 const { Server } = require("socket.io");
+// 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
+const originalWarn = console.warn;
+const originalError = console.error;
+console.warn = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('429 Too Many Requests')) return;
+    originalWarn(...args);
+};
+console.error = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('429 Too Many Requests')) return;
+    originalError(...args);
+};
 // 1. Configurazione Ibrida: REST per le query storiche, WSS per il live stream
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const WSS_URL = `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const blackBoxEventi = new Map();
+const pendingScans = new Map(); // Traccia le scansioni in corso per evitare doppioni
 const solanaConnection = new Connection(RPC_URL, {
     wsEndpoint: WSS_URL,
     commitment: 'confirmed'
@@ -17,7 +29,9 @@ const solanaConnection = new Connection(RPC_URL, {
 // Variabile globale per tenere traccia della connessione aperta
 let activeSubscriptionId = null;
 const knownBotsCache = new Set();
-
+// 🔥 FILTRO ANTI-429 PER TOKENS AD ALTO VOLUME
+    let ultimaElaborazioneTx = Date.now();
+    let codaTx = 0;
 // =====================================================================
 // 📡 MOTORE LIVE STREAMING (Tape Reading & Order Flow)
 // =====================================================================
@@ -37,6 +51,16 @@ function avviaAscoltoLive(tokenMint) {
             if (logsInfo.err) return; 
 
             const signature = logsInfo.signature;
+
+            // 🔥 CANCELLO ANTI-429: Processiamo max 3 transazioni al secondo.
+            // Se il mercato va troppo veloce, ignoriamo le transazioni minori per non far esplodere Helius.
+            // 🔥 CANCELLO ANTI-429 ULTRA-SEVERO (Per Piano Gratuito)
+                // Processiamo MASSIMO 1 transazione al secondo per non saturare Helius.
+                const oraAttuale = Date.now();
+                if (oraAttuale - ultimaElaborazioneTx < 1000) {
+                    return; // Ignora silenziosamente la transazione se è passato meno di 1 secondo
+                }
+                ultimaElaborazioneTx = oraAttuale;
 
             try {
                 // 1. Diamo al nodo 1 secondo per indicizzare la transazione prima di scaricarla
@@ -222,10 +246,19 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
 
         return { potenzialeVolumeBot: livelloVolume, bundleSlot0: sameBlockTxCount >= 3, supplyBundledPct: supplyBundledPct, funderComune: masterWallet, indicatoreTesto: indicatore };
     } catch (error) {
-        return { potenzialeVolumeBot: "NON DISPONIBILE", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Errore blocco 0." };
+        console.log("⚠️ Errore RPC durante l'analisi Bot Early Launch (Rate Limit Helius). Uso dati neutri.");
+        
+        // Restituiamo un oggetto valido invece di usare "res.json" che fa crashare il server
+        return {
+            bundleSlot0: false,
+            supplyBundledPct: 0,
+            funderComune: null,
+            potenzialeVolumeBot: "⚠️ SCONOSCIUTO",
+            indicatoreTesto: "⚠️ Analisi Bot bloccata dal limite richieste del nodo RPC."
+        };
     }
-}
 
+};
 // =====================================================================
 // 2. SIMULATORE AVANZATO (Con Graduation Alert)
 // =====================================================================
@@ -333,46 +366,89 @@ function calcolaApiRimanenti() {
 }
 // 🔥 IL MOTORE UNIVERSALE: Fa parlare qualsiasi Agente con Gemini
 // 🔥 IL MOTORE UNIVERSALE: Alimentato da Groq (LLaMA 3) per aggirare i limiti Google
+// 🔥 ESTRAZIONE CHIAVI DAL .ENV (Supporta 1 o più chiavi separate da virgola)
+const rawKeyEnv = process.env.GROQ_API_KEY || "";
+const groqKeys = rawKeyEnv.replace(/['"\s]/g, '').split(',').filter(k => k.length > 0);
+let currentGroqIndex = 0;
+
 async function interrogaAgente(nomeAgente, prompt) {
-    try {
-        const rawKey = process.env.GROQ_API_KEY || "";
-        const apiKey = rawKey.replace(/['"\s]/g, '');
-        const url = `https://api.groq.com/openai/v1/chat/completions`;
-        
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({ 
-                model: "llama-3.3-70b-versatile", // 🔥 AGGIORNATO AL NUOVO MODELLO
-                messages: [{ role: "user", content: prompt }],
-                response_format: { type: "json_object" } 
-            })
-        });
+    let tentativi = 0;
+    const maxTentativi = groqKeys.length === 0 ? 1 : groqKeys.length;
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || "Errore API Groq");
+    while (tentativi < maxTentativi) {
+        const apiKey = groqKeys[currentGroqIndex] || "";
+        
+        try {
+            const url = `https://api.groq.com/openai/v1/chat/completions`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({ 
+                    model: "llama-3.3-70b-versatile",
+                    messages: [{ role: "user", content: prompt }],
+                    response_format: { type: "json_object" } 
+                })
+            });
 
-        const text = data.choices[0].message.content;
-        return JSON.parse(text);
-        
-    } catch (error) {
-        console.error(`❌ Errore Agente [${nomeAgente}]:`, error.message);
-        
-        return { 
-            errore: true, 
-            messaggio: "Agente offline o dati corrotti",
-            devStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-            volumeStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-            topHoldersStatus: "⚠️ SCONOSCIUTO - Rate Limit",
-            sybilStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-            estimatedRugTime: "⏱️ SCONOSCIUTO",
-            strategy: `⛔ BLOCCO API: Passaggio in safe-mode.`,
-            tradeSetup: `⏳ Attendi la stabilizzazione del nodo.`
-        };
+            const data = await response.json();
+
+            // 🛑 CONTROLLO RATE LIMIT
+            if (response.status === 429 || (data.error && data.error.message.includes("Rate limit"))) {
+                console.log(`⚠️ [Agente ${nomeAgente}] Chiave ${currentGroqIndex + 1} esaurita (TPD). Ricarico l'arma...`);
+                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; // Ruota la chiave
+                tentativi++;
+                continue; // Ritenta istantaneamente con la nuova chiave
+            }
+
+            if (!response.ok) throw new Error(data.error?.message || "Errore API Groq");
+
+            const text = data.choices[0].message.content;
+            
+            // Pulizia di sicurezza nel caso l'IA inserisca markdown sfuggito
+            let pulito = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+            return JSON.parse(pulito);
+            
+        } catch (error) {
+            // Se l'errore sollevato dal catch è un Rate Limit "mascherato", ruota. Altrimenti entra in Safe Mode.
+            if (error.message.includes("Rate limit") || error.message.includes("429")) {
+                console.log(`⚠️ [Agente ${nomeAgente}] Limite raggiunto. Cambio chiave...`);
+                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
+                tentativi++;
+            } else {
+                console.error(`❌ Errore Agente [${nomeAgente}]:`, error.message);
+                
+                return { 
+                    errore: true, 
+                    messaggio: "Agente offline o dati corrotti",
+                    devStatus: "⚠️ SCONOSCIUTO - Errore API", 
+                    volumeStatus: "⚠️ SCONOSCIUTO - Errore API", 
+                    topHoldersStatus: "⚠️ SCONOSCIUTO - Errore API",
+                    sybilStatus: "⚠️ SCONOSCIUTO - Errore API", 
+                    estimatedRugTime: "⏱️ SCONOSCIUTO",
+                    strategy: `⛔ BLOCCO API: Passaggio in safe-mode.`,
+                    tradeSetup: `⏳ Attendi la stabilizzazione del nodo.`
+                };
+            }
+        }
     }
+    
+    // 🔥 SE ESCE DAL CICLO WHILE: TUTTE le chiavi sono bruciate.
+    console.error(`❌ Errore Agente [${nomeAgente}]: TUTTE le chiavi in Rate Limit.`);
+    return { 
+        errore: true, 
+        messaggio: "Rate Limit Globale raggiunto",
+        devStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
+        volumeStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
+        topHoldersStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+        sybilStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
+        estimatedRugTime: "⏱️ SCONOSCIUTO",
+        strategy: `⛔ RATE LIMIT GLOBALE: Cambia chiavi nel file .env`,
+        tradeSetup: `⏳ API KO.`
+    };
 }
 // 🔥 2.2 IL COORDINATORE DELLO SCIAME (Sostituisce generateTacticalAdviceAI)
 // 🔥 2.2 L'AGENTE MASTER (Sostituisce lo Swarm per evitare i limiti API di Google)
@@ -421,9 +497,24 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
     7. "tradeSetup": (Azione finale: FUGA, WAIT, o SCALP con size)
     `;
 
-    const sentenzaFinale = await interrogaAgente("Master", promptMaster);
-    return sentenzaFinale;
+    try {
+        const sentenzaFinale = await interrogaAgente("Master", promptMaster);
+        return sentenzaFinale;
+    } catch (error) {
+        console.log("⚠️ Agente Master in Rate Limit o errore. Applico paracadute di sicurezza.");
+        return {
+            devStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+            volumeStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+            topHoldersStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+            sybilStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+            estimatedRugTime: "N/A - Standby",
+            strategy: "⚠️ Rate Limit IA superato. Attendi il cooldown di Groq per l'analisi avanzata.",
+            tradeSetup: "WAIT",
+            errore: true // Segnala al sistema che stiamo usando i dati di emergenza
+        };
+    }
 }
+
 // =====================================================================
 // 3. ANALISI COMPONENTI
 // =====================================================================
@@ -752,6 +843,7 @@ function analizzaOrderFlow_Locale(txs) {
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     avviaAscoltoLive(tokenMint);
+    
     // 🧠 CONTROLLO CACHE: Se ho già analizzato questo token negli ultimi 15 secondi, restituisco il dato istantaneamente.
     if (scanCache.has(tokenMint)) {
         const cached = scanCache.get(tokenMint);
@@ -761,20 +853,41 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         }
     }
 
-   try {
+    // 🔥 IL LUCCHETTO: Se c'è già una scansione in corso per questo token, l'API aspetta senza lanciare doppi calcoli!
+    if (pendingScans.has(tokenMint)) {
+        console.log(`⏳ Richiesta duplicata per ${tokenMint}, mi aggancio all'analisi in corso...`);
+        try {
+            const result = await pendingScans.get(tokenMint);
+            return res.json(result);
+        } catch (e) {
+            return res.status(500).json({ error: "Errore API backend durante l'attesa" });
+        }
+    }
+
+    // 🚀 INCAPSULIAMO LA TUA LOGICA IN UNA PROMISE
+    const scanPromise = (async () => {
         console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
         const mintPubKey = new PublicKey(tokenMint);
 
         // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
+        // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
         await delay(1000);
-        const velocityData = await analizzaBattitoCardiaco(mintPubKey);
-        if (velocityData.blocco) {
-            return res.json({
-                score: 90, rischio: "ALTISSIMO / TRAPPOLA", dettagli: [`🛑 Battito Cardiaco MORTO`],
-                graficoAttivo: false, vitaToken: "N/A", azione: "MORTO (Illiquido)", fugaColor: velocityData.colore,
+        let velocityData = { blocco: false, txMinuto: 0, secondiDaUltimaTx: 0, stato: "Sconosciuto", colore: "#ffaa00" };
+        try {
+            velocityData = await analizzaBattitoCardiaco(mintPubKey);
+        } catch (e) {
+            console.log("⚠️ Battito cardiaco saltato per limite RPC (429), procedo con l'analisi...");
+        }
+        
+        // Blocchiamo l'analisi SOLO se siamo certi che il token è morto (es. ultima tx 2 ore fa), 
+        // non se Helius ci ha dato un errore temporaneo 429.
+        if (velocityData.blocco && velocityData.secondiDaUltimaTx > 300) {
+            return {
+                score: 90, rischio: "MORTO / ILLIQUIDO", dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
+                graficoAttivo: false, vitaToken: "N/A", azione: "EVITARE", fugaColor: "#ff4d4d",
                 hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" }, tradeValido: false,
-                simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Zero compratori attivi. Liquidi persi.`, moltiplicatore: 0, targetMC: 0, prezzoSol: 150
-            });
+                simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Rischio token illiquido o abbandonato.`, moltiplicatore: 0, targetMC: 0, prezzoSol: 150
+            };
         }
 
         // 🛡️ 2° RESPIRO: Prima di controllare i bot del blocco 0
@@ -807,11 +920,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         await delay(1000);
         console.log("⚡ Estrazione Firme e Base...");
-        // 📉 Riduciamo a 50 per azzerare totalmente i 429 di Helius
         const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 50 });
         const cabalaData = await analizzaCabalaSupply(mintPubKey);
 
-        await delay(1000); // 🫁 Respiro per l'API
+        await delay(1000);
 
         // 🧠 2. IDENTIFICAZIONE DEL DEV E DELL'ETÀ DEL TOKEN
         let walletAgeDays = null;
@@ -847,17 +959,16 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
         }
 
-        await delay(1000); // 🫁 Respiro per l'API
+        await delay(1000);
 
-        // 📊 3. CALCOLO VOLUMI E ORDER FLOW (OTTIMIZZATO IN SINGOLA CHIAMATA)
+        // 📊 3. CALCOLO VOLUMI E ORDER FLOW
         console.log("⚡ Estrazione Transazioni (UBI & Order Flow unificati)...");
         const recentSigs = signatures.slice(0, 20).map(s => s.signature);
         let parsedTxs = [];
         
-        // 📉 Ridotto il chunk size da 5 a 3 e aumentato il delay per proteggere l'RPC
         for (let i = 0; i < recentSigs.length; i += 3) {
             const chunk = recentSigs.slice(i, i + 3);
-            await delay(1500); // 🫁 Respiro profondo obbligatorio per Helius
+            await delay(1500); 
             try {
                 const chunkTxs = await solanaConnection.getParsedTransactions(chunk, { maxSupportedTransactionVersion: 0 });
                 parsedTxs.push(...chunkTxs);
@@ -866,11 +977,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
         }
 
-        // Le funzioni matematiche elaborano i dati istantaneamente dalla RAM
         const ubiData = analizzaUBI_Locale(parsedTxs);
         const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
 
-        await delay(1000); // 🫁 Respiro per l'API prima del Sybil Tree
+        await delay(1000);
 
         // 🕵️ 4. ANALISI MANIPOLAZIONE
         console.log("⚡ Analisi Dump e Sybil Tree...");
@@ -906,7 +1016,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         
         if (statoPanicSell.innescato) {
             simulazione.azione = "🚨 PANIC SELL AUTO-TRIGGER";
-            simulazione.coloreAzione = "#ff0000"; // Rosso puro
+            simulazione.coloreAzione = "#ff0000"; 
             simulazione.simulatoreTesto = statoPanicSell.payloadEmergenza.log;
             simulazione.raccomandazioneFees = { 
                 slippage: statoPanicSell.payloadEmergenza.slippage, 
@@ -944,7 +1054,6 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             if (solData.price) solPriceUsd = parseFloat(solData.price);
         } catch(e) {}
 
-        // 👇 UNA SOLA DICHIARAZIONE PULITA
         let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
         if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
         if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
@@ -988,9 +1097,20 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
         }
 
-        res.json(risultatoFinale);
+        return risultatoFinale; // Restituiamo l'oggetto alla Promise
+    })();
+
+    // INSERIAMO LA PROMISE NEL LUCCHETTO
+    pendingScans.set(tokenMint, scanPromise);
+
+    // ESEGUIAMO E GESTIAMO IL RISULTATO
+    try {
+        const finalData = await scanPromise;
+        pendingScans.delete(tokenMint); // Scansione finita, togliamo il lucchetto
+        res.json(finalData); // Inviamo al frontend
     } catch (error) { 
         console.error("Errore Dettagliato API Scan:", error);
+        pendingScans.delete(tokenMint); // In caso di crash, liberiamo comunque il lucchetto
         res.status(500).json({ error: "Errore API" }); 
     }
 });
@@ -1030,35 +1150,39 @@ app.get('/api/copilot/:tokenMint', async (req, res) => {
     }
 
     // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
+    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
+    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
+    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
     const logTestuale = eventi.join("\n");
     const promptCopilota = `
-    Sei il Chief Risk Officer (HFT) di un Hedge Fund specializzato in Memecoin su Solana.
-    Devi unire l'analisi statica del contratto ai flussi di volume in tempo reale.
+    Sei il Lead Algorithmic Trader di un fondo speculativo. Stai leggendo il FLUSSO ORDINI LIVE (Tape).
+    REGOLA SUPREMA: VIETATO usare risposte preconfezionate, ripetitive o robotiche. Devi descrivere la DINAMICA REALE con intelligenza e acume finanziario.
 
-    📊 CONTESTO ON-CHAIN (Analisi del Bundle e Contratto):
+    📊 CONTESTO STATICO:
     ${contestoIniziale}
 
-    📈 STATISTICHE LIVE (Ultimi ${eventi.length} eventi rilevanti):
-    - Acquisti FOMO (Retail): ${fomoCount}
-    - Micro-Dumping (Distribuzione occulta): ${dumpCount}
-    - Interventi Smart Money (Whales): ${whaleCount}
+    📈 EVENTI RECENTI INTERCETTATI DAL RADAR:
+    - 🟢 Pressione Retail (Acquisti FOMO): ${fomoCount}
+    - 🔴 Distribuzione (Micro-Dumping): ${dumpCount}
+    - 🐋 Interventi Balene (Smart Money): ${whaleCount}
 
-    ⏱️ TAPE READING GREZZO:
+    ⏱️ TAPE GREZZO CRONOLOGICO (Gli ultimi in basso sono istantanei):
     ${logTestuale}
     
-    LA TUA LOGICA:
-    - Se "Rischio Base" è alto (>70) E vedi "Micro-Dumping", è un RUG imminente in corso di distribuzione.
-    - Se "Rischio Base" è basso E vedi "Smart Money -> BUY", è un vero mark-up. Unisciti a loro.
-    - Se vedi tanta "FOMO" ma nessuna "Balena" che compra, è il top locale (Retail trap).
+    LA TUA LOGICA ANALITICA:
+    1. Se il Nastro è "vuoto" o con pochi eventi, non dire "In attesa", ma valuta se c'è accumulo silenzioso o disinteresse totale.
+    2. Se le Balene comprano e i Retail seguono, descrivi la forza del "Momentum Rialzista e della pressione in acquisto".
+    3. Se le Balene vendono grosse somme mentre i Retail comprano le briciole, denuncia immediatamente il "Dump in corso sui retail".
+    4. Leggi la sequenza temporale: un acquisto balena seguito da 3 vendite balena significa che il trend si è invertito.
 
-    Rispondi ESCLUSIVAMENTE con un JSON puro (senza usare backtick \`\`\` o markdown) con queste 3 chiavi precise:
+    Rispondi ESCLUSIVAMENTE con un JSON puro. Sii descrittivo, tecnico e analitico (usa 20-40 parole per campo per spiegare bene il contesto):
     {
-      "tattica": "Analisi profonda e cinica della manipolazione attuale",
-      "puntoRottura": "Proiezione esatta di cosa accadrà nel brevissimo termine",
-      "azione": "FUGGIRE / HOLD / COMPRARE / SCALPING FAST"
+      "tattica": "Analisi profonda di ciò che sta realmente accadendo tra le diverse size di portafoglio.",
+      "puntoRottura": "Qual è il prossimo livello logico o movimento atteso a brevissimo giro?",
+      "azione": "FUGGIRE / HOLD / SCALPING FAST / ENTRARE PESANTE / OSSERVARE"
     }
     `;
-
+    
     console.log(`🧠 Interrogazione Copilota God Mode in corso... [Eventi analizzati: ${eventi.length}]`);
     
     try {
@@ -1073,8 +1197,18 @@ app.get('/api/copilot/:tokenMint', async (req, res) => {
         
         res.json(jsonPulito);
     } catch (error) {
-        console.error("Errore IA Copilota o Parsing JSON:", error);
-        res.json({ tattica: "Errore di elaborazione cognitiva (Groq overload).", puntoRottura: "Dati corrotti.", azione: "ATTESA" });
+        console.error("Errore IA Copilota:", error.message);
+        
+        let waitTime = "qualche minuto";
+        if (error.message && error.message.includes("Please try again in")) {
+            waitTime = error.message.split("Please try again in ")[1].split(".")[0];
+        }
+
+        res.json({ 
+            tattica: "Analisi bloccata dai sistemi di sicurezza Groq (Limite TPD 100k superato).", 
+            puntoRottura: `Motore in cooldown. Riprova tra ${waitTime}.`, 
+            azione: "API BLOCCATA" 
+        });
     }
 });
 // =====================================================================
