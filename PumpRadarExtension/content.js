@@ -8,7 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
 
     let orderFlowWindow = [];
+    window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
+    let processedSigs = new Set(); // Per il Tab 3 Spy
 
+    // =========================================================
+    // AVVIO PRINCIPALE
+    // =========================================================
     function avviaRadar() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs || tabs.length === 0) return;
@@ -23,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live in 0.1s)
+            // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live)
             costruisciInterfacciaLive(tokenMint);
 
             // ⏳ STEP 2: RICERCA IN BACKGROUND (Analisi on-chain differita)
@@ -33,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 if (data.error) throw new Error(data.error);
-                popolaInterfacciaStatica(data); // Inietta i dati quando sono pronti
+                popolaInterfacciaStatica(data, tokenMint);
             })
             .catch(err => {
                 const staticBox = document.getElementById('static-analysis-box');
@@ -42,8 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // =========================================================
+    // COSTRUZIONE GRAFICA
+    // =========================================================
     function costruisciInterfacciaLive(tokenMint) {
-        // 🔥 L'Occhio Tattico: Copilota
         const copilotHTML = `
             <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -53,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;"></div>
             </div>`;
 
-        // 🔥 Il Cuore: Velocimetro
         const orderFlowHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -69,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>`;
 
-        // 🔥 Il Sangue: Nastro WSS
         const liveTapeHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between;">
@@ -81,12 +86,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>`;
 
-        // Struttura Base e Iniezione Istantanea
+        const spyBoxHTML = `
+            <div id="spy-section" style="background: #222; padding: 10px; border-radius: 8px; border: 1px solid #444; margin-bottom: 15px;">
+                <h4 id="spy-header" style="margin: 0 0 10px 0; color: #ffaa00; text-align: center; padding: 5px; border-radius: 4px; transition: all 0.3s ease;">
+                    🕵️ Agente Spy in Ascolto...
+                </h4>
+                <div id="spy-log-container" style="max-height: 150px; overflow-y: auto; font-size: 11px;"></div>
+            </div>`;
+
         contentDiv.innerHTML = `
             <style>
                 @keyframes pulseTab { 0% { background: rgba(255, 0, 127, 0.1); } 50% { background: rgba(255, 0, 127, 0.4); box-shadow: 0 0 10px rgba(255,0,127,0.5); } 100% { background: rgba(255, 0, 127, 0.1); } }
                 @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-                .spy-alert-active { animation: pulseTab 1.5s infinite; color: #fff !important; border-top: 2px solid #ff007f !important; }
+                @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
+                .spy-alert-active { animation: pulseRed 1s infinite !important; background-color: #660000 !important; color: #ff4d4d !important; border: 1px solid #ff4d4d !important; }
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-track { background: #0a0c10; }
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
@@ -96,14 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; position: relative; margin: -8px;">
                 
-                <!-- HEADER INDICE (Si popolerà dopo) -->
                 <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10;">
                     <div style="color:#888; font-size:0.75em; font-family:monospace; animation: pulseGlow 2s infinite;">🔄 Scansione Indici in corso...</div>
                 </div>
 
                 <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 25px;">
                     
-                    <!-- TAB 1: RADAR (GERARCHIA VISIVA TATTICA) -->
+                    <!-- TAB 1: RADAR -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">🎯 ${tokenMint.substring(0,12)}...</div>
@@ -115,7 +127,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${orderFlowHTML}
                         ${liveTapeHTML}
 
-                        <!-- CONTENITORE ASINCRONO PER DATI STATICI -->
+                        <!-- BOX SPY SOTTO AL RADAR -->
+                        ${spyBoxHTML}
+
+                        <!-- CONTENITORE DATI STATICI -->
                         <div id="static-analysis-box">
                             <div style="text-align: center; padding: 25px; background: rgba(0,0,0,0.3); border: 1px dashed #2d3142; border-radius: 8px; margin-bottom: 15px;">
                                 <span style="font-size: 1.8em; display: block; margin-bottom: 10px; animation: pulseGlow 1.5s infinite;">🔍</span>
@@ -124,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
-                    <!-- TAB 2 E 3 (Nascosti) -->
+                    <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
                         <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">💼 SMART MONEY</h3></div>
                         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
@@ -134,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
                     </div>
 
+                    <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
                         <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">🚨 LIVE SPY FEED</h3></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
@@ -160,8 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
         configuraEventiBase(tokenMint);
     }
 
+    // =========================================================
+    // EVENTI E LOGICA SOCKET
+    // =========================================================
     function configuraEventiBase(tokenMint) {
-        // Navigazione Tabs
         const tabs = ['radar', 'tracker', 'spy'];
         function switchTab(activeId) {
             tabs.forEach(id => {
@@ -182,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
 
-        // Pulsante Ricarica
         const btnRicarica = document.getElementById('btn-ricarica');
         if (btnRicarica) {
             btnRicarica.addEventListener('mouseenter', () => btnRicarica.style.background = '#1a1c29');
@@ -190,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnRicarica.addEventListener('click', avviaRadar);
         }
 
-        // 🧠 Azione Copilota
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
         if (btnCopilot && tokenMint) {
@@ -210,12 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!resp.ok) throw new Error("Errore Backend");
                     const dataResp = await resp.json();
                     
-                    // Estrazione sicura dei dati (Fallback se Groq non risponde con le chiavi giuste)
                     let tattica = dataResp.tattica || "⚠️ Errore di comunicazione con il nodo AI.";
                     let puntoRottura = dataResp.puntoRottura || "Dati illeggibili.";
                     let azione = dataResp.azione || "ATTESA";
                     
-                    // Se l'API restituisce un errore testuale puro (es. Rate Limit)
                     if (dataResp.error || tattica.includes("Rate limit")) {
                         tattica = "🛑 LIMITE API GROQ RAGGIUNTO. Hai esaurito i 100.000 token giornalieri gratuiti.";
                         puntoRottura = "Devi attendere il reset dei server o usare un'altra API Key.";
@@ -234,8 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } finally {
                     btnCopilot.innerText = "⏳ Cooldown 10s...";
                     btnCopilot.style.background = "#555";
-                    
-                    // Impedisce lo spam di richieste per salvare i Token API
                     setTimeout(() => {
                         btnCopilot.innerText = "🔄 Ri-analizza Tattica";
                         btnCopilot.style.background = "#b366ff";
@@ -245,13 +257,41 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Gestione WSS e Order Flow Dinamico
         inizializzaTracker();
         caricaStoricoSpyNelDOM();
         orderFlowWindow = [];
 
+        // =========================================================
+        // SOCKET: NASTRO LIVE E ORDER FLOW
+        // =========================================================
         socket.off('nuovo_trade_live');
         socket.on('nuovo_trade_live', (trade) => {
+            // 🔥 MOTORE P&L COLLEGATO AL NASTRO LIVE (Zero API)
+            if (window.paperPosition && window.paperPosition.active) {
+                const isBuyTrade = trade.tipo.includes("BUY");
+                const tradeSize = parseFloat(trade.sol);
+                
+               // 🔥 VOLATILITÀ DINAMICA PUMP.FUN
+                // Più il trade è grosso, più l'impatto esplode (Bonding Curve proxy)
+                // 1 SOL ora sposterà il prezzo di base del 2.5%, e i trade grossi avranno un bonus di inerzia
+                let priceImpactPct = tradeSize * 2.5; 
+                
+                // Effetto "Frenesia": se entra una balena con più di 3 SOL, l'impatto si moltiplica
+                if (tradeSize > 3) priceImpactPct = priceImpactPct * 1.5;
+                const pnlChange = window.paperPosition.entrySol * (priceImpactPct / 100);
+                
+                if (isBuyTrade) window.paperPosition.pnlSol += pnlChange;
+                else window.paperPosition.pnlSol -= pnlChange;
+
+                // Aggiorna la grafica in un millisecondo
+                const simNetSol = document.getElementById('sim-net-sol');
+                if (simNetSol) {
+                    const isProfit = window.paperPosition.pnlSol >= 0;
+                    simNetSol.style.color = isProfit ? '#00e676' : '#ff4d4d';
+                    simNetSol.innerText = `${isProfit ? '+' : ''}${window.paperPosition.pnlSol.toFixed(4)} SOL`;
+                }
+            }
+            // ... (il resto del codice del nastro rimane invariato)
             const tapeList = document.getElementById('live-tape-list');
             if (tapeList) {
                 if (tapeList.innerHTML.includes('In ascolto')) tapeList.innerHTML = '';
@@ -296,10 +336,102 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
             }
         });
+
+        // =========================================================
+        // SOCKET: ALLARME SPY (SYBIL DUMP)
+        // =========================================================
+        const spyHeader = document.getElementById('spy-header');
+        const spyLogContainer = document.getElementById('spy-log-container');
+        
+        socket.off('spy_alert');
+        socket.on('spy_alert', (data) => {
+            console.warn("🚨 SPY ALERT RICEVUTO:", data.messaggio);
+
+            // 1. INIETTA NEL NASTRO LIVE (In Cima)
+            const tapeList = document.getElementById('live-tape-list');
+            if (tapeList) {
+                if (tapeList.innerHTML.includes('In ascolto')) tapeList.innerHTML = '';
+                
+                const spyCard = document.createElement('div');
+                spyCard.style.cssText = "background: #330000; border: 1px solid #ff0000; padding: 8px; margin-bottom: 6px; border-radius: 4px; font-family: monospace; animation: flashIn 0.3s ease-out;";
+                
+                spyCard.innerHTML = `
+                    <div style="color: #ff0000; font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #ff4444; padding-bottom: 4px; margin-bottom: 6px;">
+                        🚨 SYBIL DUMP RILEVATO
+                    </div>
+                    <div style="color: #ffaa00; font-size: 0.8em; margin-bottom: 6px;">
+                        🕵️ Agente Spy Matematico
+                    </div>
+                    <div style="color: #fff; font-size: 0.85em; margin-bottom: 6px;">
+                        <span style="color: #ff4d4d;">${data.wallets.map(w => w.substring(0,8) + '...').join('<br>')}</span>
+                    </div>
+                    <div style="color: #ff4d4d; font-weight: bold; font-size: 0.9em; margin-bottom: 8px;">
+                        📉 ${data.messaggio}
+                    </div>
+                    <div style="display: flex; gap: 10px; border-top: 1px solid #ff4444; padding-top: 6px;">
+                        <a href="https://axiom.trade/token/${tokenMint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.85em; font-weight:bold;">🦍 Axiom</a>
+                        <a href="https://dexscreener.com/solana/${tokenMint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.85em; font-weight:bold;">🦅 DexScreener</a>
+                    </div>
+                `;
+                tapeList.prepend(spyCard);
+                if (tapeList.children.length > 10) tapeList.removeChild(tapeList.lastChild);
+            }
+
+            // 2. INIETTA NEL BOX SPY IN BASSO
+            if (spyLogContainer) {
+                const alertElement = document.createElement('div');
+                alertElement.style.background = 'rgba(255, 0, 0, 0.2)';
+                alertElement.style.borderLeft = '4px solid #ff0000';
+                alertElement.style.padding = '8px';
+                alertElement.style.marginBottom = '8px';
+                alertElement.style.borderRadius = '0 4px 4px 0';
+                
+                alertElement.innerHTML = `
+                    <div style="color: #ff4d4d; font-weight: bold; font-size: 1.1em;">
+                        [${data.timestamp}] 🚨 DUMP SYBIL RILEVATO
+                    </div>
+                    <div style="color: #e0e0e0; margin-top: 4px; font-size: 0.9em; margin-bottom: 8px;">
+                        ${data.messaggio}
+                    </div>
+                    <div style="color: #888; font-size: 0.8em; margin-bottom: 8px;">
+                        <strong>Wallet tracciati:</strong><br>
+                        ${data.wallets.map(w => w.substring(0,6) + '...').join(', ')}
+                    </div>
+                `;
+                spyLogContainer.prepend(alertElement);
+            }
+
+            // 3. EFFETTO LAMPEGGIANTE (Sul Tab Radar in basso e sull'header Spy)
+            if (spyHeader) {
+                spyHeader.classList.add('spy-alert-active');
+                spyHeader.innerText = "🚨 DUMP IN CORSO! CLICCA PER RESETTARE";
+            }
+            
+            const tabRadar = document.getElementById('tab-radar');
+            if (tabRadar) {
+                tabRadar.style.animation = 'pulseRed 1s infinite';
+                tabRadar.style.backgroundColor = '#660000';
+                tabRadar.style.color = '#ff4d4d';
+                setTimeout(() => {
+                    tabRadar.style.animation = 'none';
+                    tabRadar.style.backgroundColor = 'rgba(0, 255, 204, 0.05)';
+                    tabRadar.style.color = '#00ffcc';
+                }, 5000);
+            }
+        });
+
+        if (spyHeader) {
+            spyHeader.addEventListener('click', () => {
+                spyHeader.classList.remove('spy-alert-active');
+                spyHeader.innerText = "🕵️ Agente Spy in Ascolto...";
+            });
+        }
     }
 
-    function popolaInterfacciaStatica(data) {
-        // Aggiorna HUD in cima
+    // =========================================================
+    // ANALISI STATICA
+    // =========================================================
+    function popolaInterfacciaStatica(data, tokenMint) {
         const hudHeader = document.getElementById('hud-header');
         if (hudHeader) {
             hudHeader.style.borderBottom = `2px solid ${data.hud.color}`;
@@ -340,13 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        // ... (Codice precedente dell'Advice) ...
-
         if (data.earlyRadar) {
             const er = data.earlyRadar;
             const badgeColor = er.potenzialeVolume.includes("ALTO") ? '#ff3366' : '#00ffcc';
-            
-            // 🔥 LOGICA INTELLIGENTE: Se il bot c'era ma ha lo 0%, significa che è già scappato.
             const supplyText = er.supplyBot < 1 ? '< 1% (Sniper Uscito)' : er.supplyBot + '%';
             const supplyColor = er.supplyBot >= 20 ? '#ff3366' : '#00ffcc';
 
@@ -370,7 +498,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (data.tradingFees) {
-            let feeColor = data.tradingFees.text.includes('🔥') ? '#ff3366' : (data.tradingFees.text.includes('⚡') ? '#ffaa00' : '#00ffcc');
             reportHTML += `
                 <div style="background: rgba(18, 21, 31, 0.8); padding:12px; border-radius: 8px; border:1px solid #2d3142; margin-bottom: 15px;">
                     <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800;">⚙️ Impostazioni per il tuo Wallet/Bot</div>
@@ -381,47 +508,133 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
+        staticBox.innerHTML = reportHTML;
+
+        // ========================================================
+        // GRAFICA E LOGICA LIVE PAPER TRADING (Zero API, 100% WSS)
+        // ========================================================
         if (data.tradeValido) {
+            // Grafica minimalista: solo input e PnL Live centrale
             reportHTML += `
                 <div style="background: rgba(10, 12, 16, 0.9); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #00ffcc40;">
-                    <div style="color: #00ffcc; margin-bottom: 12px; font-weight: 900; text-align: center; text-transform: uppercase; font-size: 0.85em;">💸 Terminale Profitti Simulator</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="color: #00ffcc; font-weight: 900; text-transform: uppercase; font-size: 0.85em;">💸 Paper Trading </span>
+                        <span id="paper-bilancio" style="background: #222; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; color: #fff;">P&L: Caricamento...</span>
+                    </div>
+                    
                     <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; justify-content: center; font-size: 0.9em;">
                         <input type="number" id="sim-input" value="0.1" step="0.01" style="width: 70px; padding: 6px; background: #12151f; border: 1px solid #00ffcc; border-radius: 4px; color: #00ffcc; text-align: center; font-weight: bold; font-family: monospace; outline: none;">
-                        <span>SOL <span style="font-size:0.85em; color:#666;">($<span id="sim-usd-cost">...</span>)</span></span>
+                        <span>SOL Wallet Virtuale</span>
                     </div>
-                    <div style="background: #161821; padding: 10px; border-radius: 6px; border-left: 4px solid #00ffcc; font-family: monospace;">
-                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #333; padding-top: 6px;">
-                            <span style="color: #aaa;">Profitto Netto:</span><b style="color: #00e676; font-size: 1.1em;">+<span id="sim-net-sol">...</span> SOL (+$<span id="sim-net-usd">...</span>)</b>
-                        </div>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button id="btn-paper-buy" style="flex: 1; padding: 8px; background: #00e67620; border: 1px solid #00e676; color: #00e676; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;">🟢 ENTRA (BUY)</button>
+                        <button id="btn-paper-sell" style="flex: 1; padding: 8px; background: #ff4d4d20; border: 1px solid #ff4d4d; color: #ff4d4d; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; display: none;">🔴 ESCI (SELL)</button>
                     </div>
+
+                    <div style="background: #161821; padding: 15px 10px; border-radius: 6px; text-align: center; font-family: monospace; border: 1px solid #2d3142;">
+                        <span style="color: #aaa; font-size: 0.75em; text-transform: uppercase; display: block; margin-bottom: 6px; letter-spacing: 1px;">Profitto/Perdita Live</span>
+                        <b id="sim-net-sol" style="color: #555; font-size: 1.6em; transition: color 0.2s ease-out;">0.0000 SOL</b>
+                    </div>
+                    
+                    <div id="paper-trade-status" style="text-align: center; margin-top: 10px; font-size: 0.8em; color: #888; font-style: italic;">Pronto all'azione.</div>
                 </div>`;
         }
 
         staticBox.innerHTML = reportHTML;
 
-        // Attiva Simulatore Matematico
+        // Attiva Logica Simulatore Matematico & Database Paper Trading
         if (data.tradeValido) {
             const inputEl = document.getElementById('sim-input');
-            const mult = data.moltiplicatore || 0;
-            const solPrice = data.prezzoSol || 150;
-            if (inputEl) {
-                inputEl.addEventListener('input', () => {
-                    let val = parseFloat(inputEl.value) || 0;
-                    document.getElementById('sim-usd-cost').innerText = (val * solPrice).toFixed(2);
-                    const grossSol = (val * mult);
-                    const netSol = (grossSol - val).toFixed(3);
-                    document.getElementById('sim-net-sol').innerText = netSol;
-                    document.getElementById('sim-net-usd').innerText = (netSol * solPrice).toFixed(2);
+            const btnBuy = document.getElementById('btn-paper-buy');
+            const btnSell = document.getElementById('btn-paper-sell');
+            const statusEl = document.getElementById('paper-trade-status');
+            const bilancioEl = document.getElementById('paper-bilancio');
+            const simNetSol = document.getElementById('sim-net-sol');
+
+            // 1. Aggiornamento Bilancio Totale
+            const aggiornaBilancio = (val) => {
+                bilancioEl.innerHTML = `P&L Tot: <strong style="color: ${val >= 0 ? '#00e676' : '#ff4d4d'}">${val > 0 ? '+' : ''}${val.toFixed(3)} SOL</strong>`;
+            };
+
+            // Carica il bilancio iniziale all'apertura
+            fetch('https://tricking-judiciary-footwear.ngrok-free.dev/api/paper-trading', {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            })
+            .then(res => res.json())
+            .then(db => aggiornaBilancio(db.bilancio || 0))
+            .catch(() => bilancioEl.innerText = "P&L: Error");
+
+            // 2. Azione BUY (Attiva la reattività al Nastro WSS)
+            if (btnBuy) {
+                btnBuy.addEventListener('click', () => {
+                    const importo = parseFloat(inputEl.value) || 0;
+                    if (importo <= 0) return;
+
+                    // Inizializza il tracking live per il WSS
+                    window.paperPosition = { active: true, entrySol: importo, pnlSol: 0 };
+                    
+                    btnBuy.style.display = 'none';
+                    btnSell.style.display = 'block';
+                    inputEl.disabled = true;
+                    
+                    simNetSol.innerText = "0.0000 SOL";
+                    simNetSol.style.color = "#00ffcc"; // Colore di partenza
+                    statusEl.innerHTML = `<span style="color: #00e676; font-weight:bold;">✅ Entrato a mercato! Segui il nastro...</span>`;
                 });
-                inputEl.dispatchEvent(new Event('input'));
+            }
+
+            // 3. Azione SELL (Chiude e salva sul DB)
+            if (btnSell) {
+                btnSell.addEventListener('click', async () => {
+                    const finalPnl = window.paperPosition.pnlSol;
+                    window.paperPosition.active = false; // Stacca la spina dal WSS
+                    
+                    statusEl.innerHTML = `<span style="color: #ffaa00; font-weight:bold;">⏳ Chiusura posizione e salvataggio DB...</span>`;
+                    
+                    try {
+                        const resp = await fetch('https://tricking-judiciary-footwear.ngrok-free.dev/api/paper-trading', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                "ngrok-skip-browser-warning": "true" 
+                            },
+                            body: JSON.stringify({
+                                tokenMint: tokenMint, 
+                                azione: "EXIT",
+                                pnlNetto: finalPnl // Inviamo il PnL calcolato dal nostro Nastro Live
+                            })
+                        });
+                        
+                        const resData = await resp.json();
+                        if (resData.success) {
+                            statusEl.innerHTML = `<span style="color: #00e676; font-weight:bold;">✅ ${resData.messaggio}</span>`;
+                            aggiornaBilancio(resData.bilancio);
+                        } else {
+                            statusEl.innerHTML = `<span style="color: #ff4d4d; font-weight:bold;">❌ Errore Backend: ${resData.error}</span>`;
+                        }
+                    } catch (e) {
+                        statusEl.innerHTML = `<span style="color: #ff4d4d; font-weight:bold;">❌ Errore di Rete/Salvataggio DB</span>`;
+                    }
+
+                    // Ripristina l'interfaccia (senza far riferimento a variabili inesistenti)
+                    btnBuy.style.display = 'block';
+                    btnSell.style.display = 'none';
+                    inputEl.disabled = false;
+                    simNetSol.innerText = "0.0000 SOL";
+                    simNetSol.style.color = "#555";
+                    
+                    setTimeout(() => {
+                        if(statusEl.innerText.includes('Uscita')) statusEl.innerText = "Pronto all'azione.";
+                    }, 4000);
+                });
             }
         }
     }
 
-    avviaRadar();
-
     // =========================================================
-    
+    // SMART MONEY TRACKER (TAB 2 e TAB 3)
+    // =========================================================
     function inizializzaTracker() {
         const addBtn = document.getElementById('add-wallet-btn');
         const inputField = document.getElementById('new-wallet-input');
@@ -519,15 +732,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // =========================================================
-    // MOTORE LIVE SPY (Sbloccato e Intelligente)
-    // =========================================================
-    let processedSigs = new Set();
-
-    // =========================================================
-    // MOTORE LIVE SPY (Intelligente & Memoria Anti-Doppioni)
-    // =========================================================
-    
     function caricaStoricoSpyNelDOM() {
         chrome.storage.local.get(['spyHistory'], (res) => {
             const history = res.spyHistory || [];
@@ -543,24 +747,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 🔥 FIX: Ora restituisce una Promise per capire se la transazione è un doppione
     function salvaStoricoSpy(alertData) {
         return new Promise((resolve) => {
             chrome.storage.local.get(['spyHistory'], (res) => {
                 let history = res.spyHistory || [];
-                
-                // CONTROLLO ANTI-VECCHIUME: Se la firma della transazione esiste già, scartala!
                 const isDuplicate = history.some(h => h.signature === alertData.signature);
                 if (isDuplicate) {
                     resolve(false); 
                     return;
                 }
-
                 history.unshift(alertData); 
                 if (history.length > 20) history.pop(); 
-                chrome.storage.local.set({ spyHistory: history }, () => {
-                    resolve(true); // Salvataggio andato a buon fine (è una VERA nuova transazione)
-                });
+                chrome.storage.local.set({ spyHistory: history }, () => resolve(true));
             });
         });
     }
@@ -569,7 +767,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.local.get(['spiedWallets', 'walletNames'], async (res) => {
             const spied = res.spiedWallets || [];
             const names = res.walletNames || {};
-            
             if (spied.length === 0) return;
 
             for (const wallet of spied) {
@@ -582,7 +779,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (data.actions && data.actions.length > 0) {
                         for (const action of data.actions.reverse()) {
-                            
                             const alertData = {
                                 type: action.type,
                                 mint: action.mint,
@@ -591,19 +787,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 walletName: names[wallet] || `${wallet.substring(0,4)}...`,
                                 solSpent: action.solSpent,
                                 strategy: action.strategy,
-                                stats: data.walletStats // 🧠 Riceve dal server WinRate e Profilo (Bot/Umano)
+                                stats: data.walletStats
                             };
-                            
-                            // Se la funzione ci dice che NON è un doppione, la aggiungiamo alla grafica
                             const isNew = await salvaStoricoSpy(alertData);
-                            if (isNew) {
-                                aggiungiSpyCardHTML(alertData, true);
-                            }
+                            if (isNew) aggiungiSpyCardHTML(alertData, true);
                         }
                     }
-                } catch (e) {
-                    console.log("Errore connessione Spy:", e);
-                }
+                } catch (e) { console.log("Errore connessione Spy:", e); }
             }
         });
     }
@@ -619,7 +809,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let contentHTML = "";
         let statsHTML = "";
 
-        // 🧠 INIEZIONE INTELLIGENZA NELLA GRAFICA (Solo dati reali)
         if (data.stats) {
             statsHTML = `
                 <div style="display:flex; gap:8px; margin-bottom: 10px; font-size: 0.8em; margin-top: 6px;">
@@ -631,7 +820,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isBuy && data.strategy) {
             const solText = data.solSpent > 0.01 ? `${data.solSpent.toFixed(2)} SOL` : `Importo Nascosto (Routing DEX)`;
-            
             contentHTML = `
                 <div style="background:#11121a; border-left: 3px solid ${data.strategy.color}; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.85em;">
                     <strong style="color:${data.strategy.color};">${data.strategy.conviction}</strong><br>
@@ -652,9 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="color:${themeColor}; font-size:0.85em; margin-bottom:2px; font-weight:bold;">
                 ${titleText}: <span style="color:#aaa; font-weight:normal;">${data.walletName}</span>
             </div>
-            
             ${statsHTML}
-            
             <div style="display:flex; justify-content:space-between; align-items:center; background:#0a0c10; padding:6px; border-radius:4px; margin-bottom:10px; border: 1px solid #2d3142;">
                 <div style="font-family:monospace; font-size:0.95em; color:#fff;">
                     ${data.mint.substring(0,20)}...
@@ -663,9 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     📋 Copia
                 </button>
             </div>
-            
             ${contentHTML}
-
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                 <a href="https://axiom.trade/token/${data.mint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦍 Axiom</a>
                 <a href="https://dexscreener.com/solana/${data.mint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦅 DexScreener</a>
@@ -701,10 +885,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Errore nel loop spy:", error);
         } finally {
-            // 🛡️ FIX HELIUS: Aggiorniamo le balene ogni 15 secondi per non collassare il nodo
             setTimeout(startSpyLoop, 15000); 
         }
     }
 
+    // =========================================================
+    // START SCRIPT
+    // =========================================================
+    avviaRadar();
     startSpyLoop();
 });

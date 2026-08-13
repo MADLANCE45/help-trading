@@ -53,6 +53,21 @@
         .danger { color: #ff4444; font-weight: bold; }
         .safe { color: #00cc66; font-weight: bold; }
         .score { font-size: 1.2em; }
+
+        /* ========================================= */
+        /* 🚨 ANIMAZIONE AGENTE SPY                  */
+        /* ========================================= */
+        @keyframes pulseRed {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+        .spy-alert-active {
+            animation: pulseRed 1s infinite !important;
+            background-color: #660000 !important;
+            border: 1px solid #ff4d4d !important;
+            color: #ff4d4d !important;
+        }
     </style>
 </head>
 <body>

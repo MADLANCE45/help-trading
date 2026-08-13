@@ -4,6 +4,9 @@ const cors = require('cors');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const http = require('http');
 const { Server } = require("socket.io");
+const fs = require('fs');
+const path = require('path');
+
 // 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
 const originalWarn = console.warn;
 const originalError = console.error;
@@ -35,6 +38,8 @@ const knownBotsCache = new Set();
 // =====================================================================
 // 📡 MOTORE LIVE STREAMING (Tape Reading & Order Flow)
 // =====================================================================
+// 🔥 MEMORIA DELL'AGENTE SPY: Traccia le size identiche
+const spyCache = new Map();
 function avviaAscoltoLive(tokenMint) {
     const mintPubKey = new PublicKey(tokenMint);
 
@@ -139,7 +144,52 @@ function avviaAscoltoLive(tokenMint) {
                 }
                 
                 // Manteniamo gli ultimi 20 eventi per dare all'IA un contesto perfetto
+                // Manteniamo gli ultimi 20 eventi per dare all'IA un contesto perfetto
                 if (diarioEventi.length > 20) diarioEventi.shift();
+
+                // ==========================================================
+                // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL IN TEMPO REALE
+                // ==========================================================
+                // ==========================================================
+                // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL IN TEMPO REALE
+                // ==========================================================
+                if (tipoAzione === "🔴 SELL" && deltaSol >= 0.05) {
+                    const now = Date.now();
+                    
+                    // Usiamo una chiave unica per il token invece dell'importo
+                    if (!spyCache.has(tokenMint)) spyCache.set(tokenMint, []);
+                    let sellers = spyCache.get(tokenMint);
+                    
+                    // 1. Pulisce la memoria: dimentica le vendite più vecchie di 2.5 secondi
+                    sellers = sellers.filter(s => now - s.timestamp < 2500);
+                    
+                    // 2. Se questo wallet non ha già venduto in questa finestra, lo aggiunge
+                    if (!sellers.some(s => s.wallet === feePayer)) {
+                        sellers.push({ wallet: feePayer, amount: deltaSol, timestamp: now });
+                    }
+                    
+                    spyCache.set(tokenMint, sellers);
+                    
+                    // 3. IL TRIGGER AGGRESSIVO: 4 o più wallet diversi vendono in soli 2.5 secondi!
+                    if (sellers.length >= 4) {
+                        const totalDump = sellers.reduce((sum, s) => sum + s.amount, 0).toFixed(2);
+                        const alertMsg = `RAFFICA SYBIL: ${sellers.length} wallet stanno scaricando un totale di ${totalDump} SOL in 2 secondi!`;
+                        console.log(`\n🚨 SPY ALERT: ${alertMsg}`);
+                        
+                        // Spara l'allarme rosso al frontend
+                        io.emit('spy_alert', {
+                            timestamp: new Date().toLocaleTimeString('it-IT', { hour12: false }),
+                            messaggio: alertMsg,
+                            wallets: sellers.map(s => s.wallet)
+                        });
+                        
+                        // Svuota la cache per non spammare
+                        spyCache.set(tokenMint, []);
+                    }
+                }
+                // ==========================================================
+                // ==========================================================
+
                 // 🚀 SPARA IL DATO LIVE ALL'ESTENSIONE!
                 io.emit('nuovo_trade_live', liveEvent);
 
@@ -154,8 +204,14 @@ function avviaAscoltoLive(tokenMint) {
 }
 
 const app = express();
+app.use(cors()); // Sblocca le protezioni del browser
+app.use(express.json()); // Permette di leggere i body delle richieste POST
 const PORT = 3000;
-
+// 🕵️ LOG GLOBALE: Stampa tutte le richieste in entrata
+app.use((req, res, next) => {
+    console.log(`➡️ [${req.method}] ${req.url}`);
+    next();
+});
 // 🔥 CREAZIONE SERVER HTTP E TUNNEL SOCKET.IO
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -844,6 +900,89 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     avviaAscoltoLive(tokenMint);
     
+// =====================================================================
+// 💸 DATABASE LOCALE: LIVE PAPER TRADING SIMULATOR (ZERO-AI)
+// =====================================================================
+const dbPath = path.join(__dirname, 'paper_trading.json');
+
+function getPaperTrades() {
+    if (!fs.existsSync(dbPath)) {
+        fs.writeFileSync(dbPath, JSON.stringify({ trades: [], openPositions: {}, bilancio: 0 }));
+    }
+    const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    if (!db.openPositions) db.openPositions = {}; // Sicurezza
+    return db;
+}
+
+// Lettura Storico
+app.get('/api/paper-trading', (req, res) => {
+    try { res.json(getPaperTrades()); } catch (e) { res.status(500).json({ error: "Errore lettura DB" }); }
+});
+
+// ⚡ Endpoint per tracciare il PnL in tempo reale
+app.get('/api/paper-trading/live/:tokenMint', async (req, res) => {
+    try {
+        const db = getPaperTrades();
+        const posizione = db.openPositions[req.params.tokenMint];
+        if (!posizione) return res.json({ aperta: false });
+
+        // Pesca il prezzo live direttamente da DexScreener (Super Veloce, Costo 0)
+        let currentPrice = 0;
+        const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${req.params.tokenMint}`);
+        const dexData = await dexRes.json();
+        if (dexData.pairs && dexData.pairs.length > 0) {
+            currentPrice = parseFloat(dexData.pairs[0].priceUsd);
+        }
+
+        if (currentPrice > 0) {
+            const moltiplicatore = currentPrice / posizione.prezzoEntrata;
+            const controvalore = posizione.importoSol * moltiplicatore;
+            const pnlNetto = controvalore - posizione.importoSol;
+            const pnlPct = ((moltiplicatore - 1) * 100).toFixed(2);
+            
+            return res.json({ aperta: true, pnl: pnlNetto, pct: pnlPct });
+        }
+        res.json({ aperta: true, pnl: 0, pct: 0 });
+    } catch(e) {
+        res.json({ aperta: false });
+    }
+});
+
+// Apertura / Chiusura Posizione
+// Apertura / Chiusura Posizione
+// Apertura / Chiusura Posizione
+app.post('/api/paper-trading', express.json(), (req, res) => {
+    try {
+        const { tokenMint, azione, pnlNetto } = req.body;
+        const db = getPaperTrades();
+
+        let resMsg = "";
+
+        if (azione === "EXIT") {
+            const pnl = parseFloat(pnlNetto) || 0;
+            db.bilancio += pnl; // Aggiorna la cassa totale
+            
+            // Salva lo storico
+            db.trades.unshift({
+                id: Date.now(),
+                token: tokenMint,
+                pnlSol: pnl,
+                data: new Date().toLocaleString('it-IT')
+            });
+
+            if (db.trades.length > 50) db.trades.length = 50; // Max 50 trade
+            resMsg = `Uscita: ${pnl > 0 ? '+' : ''}${pnl.toFixed(3)} SOL`;
+        }
+
+        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+        res.json({ success: true, bilancio: db.bilancio, messaggio: resMsg });
+    } catch (e) {
+        console.error("Errore POST Paper Trading:", e);
+        res.status(500).json({ error: "Errore interno server" });
+    }
+});
+// =====================================================================
+// =====================================================================
     // 🧠 CONTROLLO CACHE: Se ho già analizzato questo token negli ultimi 15 secondi, restituisco il dato istantaneamente.
     if (scanCache.has(tokenMint)) {
         const cached = scanCache.get(tokenMint);
@@ -863,6 +1002,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             return res.status(500).json({ error: "Errore API backend durante l'attesa" });
         }
     }
+    
 
     // 🚀 INCAPSULIAMO LA TUA LOGICA IN UNA PROMISE
     const scanPromise = (async () => {
@@ -1182,7 +1322,7 @@ app.get('/api/copilot/:tokenMint', async (req, res) => {
       "azione": "FUGGIRE / HOLD / SCALPING FAST / ENTRARE PESANTE / OSSERVARE"
     }
     `;
-    
+
     console.log(`🧠 Interrogazione Copilota God Mode in corso... [Eventi analizzati: ${eventi.length}]`);
     
     try {

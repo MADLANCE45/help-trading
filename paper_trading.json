@@ -1,0 +1,60 @@
+{
+  "trades": [
+    {
+      "id": 1786613713587,
+      "token": "8UHnWSkGYJPmK1NqdMhuQYeXR6wEokN3wAncZEk7B6yt",
+      "pnlSol": 0.21736000000000005,
+      "data": "13/08/2026, 11:35:13"
+    },
+    {
+      "id": 1786613617646,
+      "token": "6buRs7XLLfD9oNPCVGw8qunJpySX8AJk4TmkG9sWmLAp",
+      "pnlSol": -0.0516,
+      "data": "13/08/2026, 11:33:37"
+    },
+    {
+      "id": 1786613554345,
+      "token": "6buRs7XLLfD9oNPCVGw8qunJpySX8AJk4TmkG9sWmLAp",
+      "pnlSol": -0.013536,
+      "data": "13/08/2026, 11:32:34"
+    },
+    {
+      "id": 1786612735524,
+      "token": "8bB646kTG3Uw7aJDS9UDnn3YXavFFpsBbC37td8ZiRyB",
+      "pnlSol": 0.0007760000000000001,
+      "data": "13/08/2026, 11:18:55"
+    },
+    {
+      "id": 1786611869920,
+      "token": "Gy29qtmG6jUuoTLYgb4TtFria3uRiv41ZDFfnYKqmZzd",
+      "pnlSol": 0,
+      "data": "13/08/2026, 11:04:29"
+    },
+    {
+      "id": 1786611858896,
+      "token": "Gy29qtmG6jUuoTLYgb4TtFria3uRiv41ZDFfnYKqmZzd",
+      "pnlSol": 0,
+      "data": "13/08/2026, 11:04:18"
+    },
+    {
+      "id": 1786558827544,
+      "token": "3mbRHjAMWakox822RaNVQ4hJBcPtf2NwBS7w8NR3T3oT",
+      "azione": "EXIT",
+      "prezzoSol": 75.98,
+      "importoSol": 0.7,
+      "pnlNetto": 0.34999999999999987,
+      "data": "12/08/2026, 20:20:27"
+    },
+    {
+      "id": 1786558816803,
+      "token": "3mbRHjAMWakox822RaNVQ4hJBcPtf2NwBS7w8NR3T3oT",
+      "azione": "ENTRY",
+      "prezzoSol": 75.98,
+      "importoSol": 0.7,
+      "pnlNetto": 0,
+      "data": "12/08/2026, 20:20:16"
+    }
+  ],
+  "bilancio": 0.5029999999999999,
+  "openPositions": {}
+}
