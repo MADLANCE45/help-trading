@@ -763,7 +763,77 @@ async function analizzaGrafoSybil(mintPubKey) {
         return { rilevato: false, testo: "🌳 SYBIL TREE: I Top 20 Holders sembrano indipendenti." };
     } catch (error) { return null; }
 }
+// =====================================================================
+// 🕵️ MODULO ANTI-SYBIL: SCOPRE I BUNDLER E I WALLET FANTASMA
+// =====================================================================
+async function analizzaReteSybil(arrayDiWallet) {
+    console.log(`🔍 Tracciamento fondi per ${arrayDiWallet.length} wallet sospetti...`);
+    let mappaFinanziatori = {};
+    let walletAnalizzati = 0;
 
+    for (let wallet of arrayDiWallet) {
+        try {
+            const pubKey = new PublicKey(wallet);
+            
+            // 1. Peschiamo le primissime transazioni della vita di questo wallet
+            const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 5 });
+            
+            if (sigs.length > 0) {
+                // Prendiamo la firma più vecchia (probabilmente quella di finanziamento iniziale)
+                const firmaPiuVecchia = sigs[sigs.length - 1].signature;
+                const tx = await solanaConnection.getParsedTransaction(firmaPiuVecchia, { maxSupportedTransactionVersion: 0 });
+                
+                if (tx && tx.meta) {
+                    const preBals = tx.meta.preBalances;
+                    const postBals = tx.meta.postBalances;
+                    const accountKeys = tx.transaction.message.accountKeys;
+                    
+                    // 2. Cerchiamo chi ha "perso" SOL in questa transazione verso il nostro wallet
+                    for (let i = 0; i < accountKeys.length; i++) {
+                        const indirizzoCoinvolto = accountKeys[i].pubkey.toString();
+                        const solPersi = (preBals[i] - postBals[i]) / 1e9; // Convertiamo lamports in SOL
+                        
+                        // Se questo indirizzo ha speso SOL e non è il wallet stesso né un programma di sistema
+                        if (solPersi > 0 && indirizzoCoinvolto !== wallet && indirizzoCoinvolto !== "11111111111111111111111111111111") {
+                            // Abbiamo trovato il finanziatore (Wallet Madre)
+                            mappaFinanziatori[indirizzoCoinvolto] = (mappaFinanziatori[indirizzoCoinvolto] || 0) + 1;
+                            break; 
+                        }
+                    }
+                }
+            }
+            walletAnalizzati++;
+        } catch (error) {
+            // Ignoriamo gli errori di un singolo wallet per non bloccare lo scan
+        }
+    }
+
+    // 3. Tiriamo le somme e cerchiamo la Cabala
+    let minacce = [];
+    for (const [walletMadre, numeroFigli] of Object.entries(mappaFinanziatori)) {
+        // Se un singolo wallet ha finanziato 3 o più acquirenti iniziali, è una truffa al 100%
+        if (numeroFigli >= 3) {
+            minacce.push({
+                funderMadre: walletMadre,
+                walletControllati: numeroFigli
+            });
+        }
+    }
+
+    if (minacce.length > 0) {
+        console.log(`🚨 ALLARME BUNDLER: Trovati Wallet Madre multipli!`, minacce);
+        return {
+            rilevato: true,
+            dettagli: minacce,
+            messaggio: `🚨 CABALA RILEVATA: ${minacce[0].walletControllati} wallet compratori sono stati finanziati dalla stessa entità segreta.`
+        };
+    }
+
+    return {
+        rilevato: false,
+        messaggio: "🟢 Rete Pulita: I compratori sembrano avere origini finanziarie indipendenti."
+    };
+}
 async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
     try {
         const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(devWalletAddress), { limit: 60 });
@@ -1255,100 +1325,340 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     }
 });
 // =====================================================================
-// 🧠 API COPILOTA: REVISORE TATTICO "GOD MODE" (Groq)
+// 🧠 COPILOTA IA: PREDATORE DI SCAM (Dati Dinamici Live)
 // =====================================================================
-app.get('/api/copilot/:tokenMint', async (req, res) => {
+// =====================================================================
+// 🧠 COPILOTA IA: PREDATORE DI SCAM (BLINDATO ANTI-CRASH + DATI LIVE)
+// =====================================================================
+// =====================================================================
+// 🧠 CERVELLO 5.0: MOTORE ESECUTIVO MULTI-AGENTE (Memoria + Llama 3.3)
+// =====================================================================
+// =====================================================================
+// 🧠 COPILOTA IA: CERVELLO 5.0 (Rotazione Chiavi + Dati Live)
+// =====================================================================
+// =====================================================================
+// 🧠 COPILOTA IA: CERVELLO 5.0 (Integrazione Moduli Forensi On-Chain)
+// =====================================================================
+// =====================================================================
+// 🧠 COPILOTA IA: CERVELLO 5.0 (Integrazione Forense + Debug Rete)
+// =====================================================================
+// =====================================================================
+// 🔫 CORE 1: LO SNIPER DEI VOLUMI (Groq - Velocità Estrema)
+// =====================================================================
+app.post('/api/copilot/:tokenMint', express.json(), async (req, res) => {
     const tokenMint = req.params.tokenMint;
-    const eventi = blackBoxEventi.get(tokenMint) || [];
-
-    // 1. IL CERVELLO: RECUPERA IL CONTESTO ON-CHAIN INIZIALE DALLA CACHE
-    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
-    let contestoIniziale = "Dati on-chain non in cache. Basati solo sul flusso live.";
     
-    if (datiIniziali) {
-        contestoIniziale = `
-        - Rischio Base Contratto: ${datiIniziali.score}/100 (${datiIniziali.rischio})
-        - Supply bloccata dai Bot iniziali: ${datiIniziali.earlyRadar?.supplyBot || 0}%
-        - Punteggio Pericolo Bundle: ${datiIniziali.advice?.topHoldersStatus || "Sconosciuto"}
-        `;
-    }
+    // Riceviamo solo Volumi e History in Tempo Reale
+    const { buyVol, sellVol, buyPressure, history } = req.body || { buyVol: 0, sellVol: 0, buyPressure: 50, history: [] };
 
-    // 2. LA MATEMATICA: CALCOLA STATISTICHE LIVE SUL VOLO
-    let fomoCount = 0; let dumpCount = 0; let whaleCount = 0;
-    eventi.forEach(e => {
-        if (e.includes('FOMO')) fomoCount++;
-        if (e.includes('DUMPING')) dumpCount++;
-        if (e.includes('SMART MONEY') || e.includes('WHALE')) whaleCount++;
-    });
-
-    if (eventi.length === 0) {
-        return res.json({ 
-            tattica: "Nessun volume rilevante intercettato.", 
-            puntoRottura: "In attesa dell'entrata di market maker o flussi retail.", 
-            azione: "OSSERVARE" 
-        });
-    }
-
-    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
-    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
-    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
-    // 3. IL PROMPT AVANZATO: Uniamo Statica e Dinamica
-    const logTestuale = eventi.join("\n");
-    const promptCopilota = `
-    Sei il Lead Algorithmic Trader di un fondo speculativo. Stai leggendo il FLUSSO ORDINI LIVE (Tape).
-    REGOLA SUPREMA: VIETATO usare risposte preconfezionate, ripetitive o robotiche. Devi descrivere la DINAMICA REALE con intelligenza e acume finanziario.
-
-    📊 CONTESTO STATICO:
-    ${contestoIniziale}
-
-    📈 EVENTI RECENTI INTERCETTATI DAL RADAR:
-    - 🟢 Pressione Retail (Acquisti FOMO): ${fomoCount}
-    - 🔴 Distribuzione (Micro-Dumping): ${dumpCount}
-    - 🐋 Interventi Balene (Smart Money): ${whaleCount}
-
-    ⏱️ TAPE GREZZO CRONOLOGICO (Gli ultimi in basso sono istantanei):
-    ${logTestuale}
-    
-    LA TUA LOGICA ANALITICA:
-    1. Se il Nastro è "vuoto" o con pochi eventi, non dire "In attesa", ma valuta se c'è accumulo silenzioso o disinteresse totale.
-    2. Se le Balene comprano e i Retail seguono, descrivi la forza del "Momentum Rialzista e della pressione in acquisto".
-    3. Se le Balene vendono grosse somme mentre i Retail comprano le briciole, denuncia immediatamente il "Dump in corso sui retail".
-    4. Leggi la sequenza temporale: un acquisto balena seguito da 3 vendite balena significa che il trend si è invertito.
-
-    Rispondi ESCLUSIVAMENTE con un JSON puro. Sii descrittivo, tecnico e analitico (usa 20-40 parole per campo per spiegare bene il contesto):
-    {
-      "tattica": "Analisi profonda di ciò che sta realmente accadendo tra le diverse size di portafoglio.",
-      "puntoRottura": "Qual è il prossimo livello logico o movimento atteso a brevissimo giro?",
-      "azione": "FUGGIRE / HOLD / SCALPING FAST / ENTRARE PESANTE / OSSERVARE"
-    }
-    `;
-
-    console.log(`🧠 Interrogazione Copilota God Mode in corso... [Eventi analizzati: ${eventi.length}]`);
-    
+    // 🛡️ KILL-SWITCH: CONTROLLO DILUVIO / RUG PULL
     try {
-        const rispostaGrezza = await interrogaAgente("Copilot", promptCopilota);
-        
-        // 🛡️ PROTEZIONE: Pulizia del JSON. Spesso Groq risponde con i tag markdown ```json ... ```
-        let jsonPulito = rispostaGrezza;
-        if (typeof rispostaGrezza === 'string') {
-            jsonPulito = rispostaGrezza.replace(/```json/gi, '').replace(/```/g, '').trim();
-            jsonPulito = JSON.parse(jsonPulito);
+        const battito = await analizzaBattitoCardiaco(new PublicKey(tokenMint));
+        if (battito.blocco || battito.secondiDaUltimaTx > 20) {
+            return res.json({
+                tattica: "🚨 RUG PULL / ZERO LIQUIDITÀ: Scambi fermi o pool prosciugata.",
+                puntoRottura: "Nessuna transazione rilevata.",
+                azione: "FUGGIRE"
+            });
         }
-        
-        res.json(jsonPulito);
-    } catch (error) {
-        console.error("Errore IA Copilota:", error.message);
-        
-        let waitTime = "qualche minuto";
-        if (error.message && error.message.includes("Please try again in")) {
-            waitTime = error.message.split("Please try again in ")[1].split(".")[0];
+    } catch (e) {}
+
+    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
+    let sybilStatus = datiIniziali?.sybil?.testo || "Dato Sybil mancante.";
+    let fedinaDev = datiIniziali?.fedinaDev ? datiIniziali.fedinaDev.status : "Sconosciuta.";
+    let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dumping disponibile."; // 🔥 ECCO LA RIGA CHE MANCAVA!
+
+    const historyText = history && history.length > 0 
+        ? history.map(h => `[${h.time}] Buy: ${h.buy} SOL | Sell: ${h.sell} SOL | Press: ${h.pressure}%`).join('\n')
+        : "Nessuno storico disponibile.";
+
+    const promptCopilota = `
+Sei uno speculatore on-chain specializzato in "Rug Prediction".
+VIETATO dare risposte generiche come "Balene comprano" o "Dump in arrivo".
+DEVI usare i numeri esatti forniti qui sotto per giustificare la tua analisi tecnica.
+
+DATI INVESTIGATIVI STRUTTURALI:
+- Rete Sybil / Cabala: ${sybilStatus}
+- Storico Sviluppatore: ${fedinaDev}
+- Micro-Dumping: ${microDumping}
+
+DINAMICA VOLUMI (Live):
+- COMPRA: ${buyVol} SOL
+- VENDITA: ${sellVol} SOL
+- Pressione: ${buyPressure}%
+STORICO TEMPORALE: 
+${historyText}
+
+REGOLE DI ANALISI (DA SCRIVERE NEL JSON):
+1. Usa sempre le cifre: devi scrivere quanti SOL sono in acquisto contro quanti in vendita.
+2. Se c'è una "Cabala Rilevata" o un "Wallet Padre", scrivi esplicitamente: "Rete Sybil attiva, il Dev controlla la supply. Volumi finti."
+3. Se c'è "Micro-Dumping", scrivi: "I Top Holders stanno scaricando lentamente sui retail".
+4. Se le balene (ordini grossi) comprano ma i top holders vendono, avvisa della trappola di exit liquidity.
+
+Rispondi RIGOROSAMENTE in JSON puro, sii tecnico e analitico:
+{
+  "tattica": "<Descrizione tecnica con i SOL esatti mossi e chi li muove (Dev/Balene/Retail). Ignora le frasi fatte. max 35 parole>",
+  "puntoRottura": "<Spiega ESATTAMENTE cosa innescherà il dump o il pump incrociando i volumi con i Dati Investigativi. max 30 parole>",
+  "azione": "COMPRARE / HOLD / VENDERE / FUGGIRE / OSSERVARE"
+}`;
+
+    try {
+        const chiaviDisponibili = (typeof groqKeys !== 'undefined' && groqKeys.length > 0) 
+            ? [...groqKeys] : [process.env.GROQ_API_KEY].filter(k => k && k.trim() !== '');
+
+        if (chiaviDisponibili.length === 0) throw new Error("Nessuna API Key Groq trovata.");
+        const chiaviMischiate = chiaviDisponibili.sort(() => 0.5 - Math.random());
+
+        let response;
+        let success = false;
+
+        for (const apiKey of chiaviMischiate) {
+            try {
+                response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [{ role: "user", content: promptCopilota }],
+                        temperature: 0.1,
+                        response_format: { type: "json_object" }
+                    })
+                });
+                if (response.ok) { success = true; break; }
+            } catch (e) {}
         }
 
-        res.json({ 
-            tattica: "Analisi bloccata dai sistemi di sicurezza Groq (Limite TPD 100k superato).", 
-            puntoRottura: `Motore in cooldown. Riprova tra ${waitTime}.`, 
-            azione: "API BLOCCATA" 
+        if (!success) throw new Error(`Tutte le chiavi Groq hanno fallito.`);
+
+        const data = await response.json();
+        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonPulito = JSON.parse(testoJson.substring(testoJson.indexOf('{'), testoJson.lastIndexOf('}') + 1));
+
+        res.json({
+            tattica: jsonPulito.tattica || jsonPulito.Tattica,
+            puntoRottura: jsonPulito.puntoRottura || jsonPulito.PuntoRottura,
+            azione: jsonPulito.azione || jsonPulito.Azione
         });
+    } catch (error) {
+        res.json({ tattica: "Errore API.", puntoRottura: "Lettura manuale.", azione: "OSSERVARE" });
+    }
+});
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// =====================================================================
+// ⚖️ CORE 2: IL GIUDICE SUPREMO (Gemini Flash - Connessione Diretta REST)
+// =====================================================================
+// =====================================================================
+// ⚖️ CORE 2: IL GIUDICE SUPREMO (Gemini 1.5 Pro - REST Nativo)
+// =====================================================================
+// =====================================================================
+// 🧠 MOTORE 1: PROFILAZIONE ALGORITMICA WALLET (Ingegneria Inversa)
+// =====================================================================
+app.post('/api/laboratorio/wallet-spy', async (req, res) => {
+    const { walletAddress, recentTrades } = req.body;
+
+    if (!recentTrades || recentTrades.length === 0) {
+        return res.json({ success: false, verdetto: "In attesa di intercettare transazioni per la profilazione..." });
+    }
+
+    try {
+        console.log(`\n🧠 Motore Quantitativo Locale avviato su: ${walletAddress}`);
+
+        let totalBuySol = 0; let totalSellSol = 0;
+        let buyCount = 0; let sellCount = 0;
+        let tokenMap = {};
+
+        // Analisi profonda delle transazioni (in ordine cronologico inverso)
+        recentTrades.slice().reverse().forEach(t => {
+            const action = t.azione || t.type;
+            const token = t.tokenMint || t.mint;
+            const sol = parseFloat(t.sol || t.solSpent || t.solAmount || 0);
+            
+            // Estrazione rudimentale del tempo in millisecondi per misurare l'Hold Time
+            let timeVal = Date.now();
+            if (typeof t.timestamp === 'string') {
+                const parts = t.timestamp.match(/(\d+):(\d+):(\d+)/);
+                if (parts) timeVal = (+parts[1] * 3600 + +parts[2] * 60 + +parts[3]) * 1000;
+            }
+
+            if (!tokenMap[token]) tokenMap[token] = { buyTime: null, buySol: 0, sellTime: null, sellSol: 0, isFlipped: false };
+
+            if (action === 'BUY') {
+                buyCount++;
+                totalBuySol += sol;
+                if (!tokenMap[token].buyTime) tokenMap[token].buyTime = timeVal;
+                tokenMap[token].buySol += sol;
+            } else if (action === 'SELL') {
+                sellCount++;
+                totalSellSol += sol;
+                if (tokenMap[token].buyTime && !tokenMap[token].sellTime) {
+                    tokenMap[token].sellTime = timeVal;
+                    tokenMap[token].isFlipped = true;
+                    tokenMap[token].sellSol += sol;
+                }
+            }
+        });
+
+        // Calcolo Metriche Avanzate
+        let holdTimes = [];
+        let winningTrades = 0;
+        let completedTrades = 0;
+
+        Object.values(tokenMap).forEach(data => {
+            if (data.isFlipped) {
+                completedTrades++;
+                let diffMs = data.sellTime - data.buyTime;
+                if (diffMs > 0) holdTimes.push(diffMs / 1000); // Converte in secondi
+                if (data.sellSol > data.buySol) winningTrades++;
+            }
+        });
+
+        const avgBuy = buyCount > 0 ? (totalBuySol / buyCount).toFixed(2) : 0;
+        const avgHold = holdTimes.length > 0 ? Math.round(holdTimes.reduce((a,b)=>a+b,0) / holdTimes.length) : "N/A";
+        const winRate = completedTrades > 0 ? Math.round((winningTrades / completedTrades) * 100) : "N/A";
+        
+        // Generazione della deduzione "Stile IA" basata sui calcoli
+        let tattica = "";
+        if (avgHold !== "N/A" && avgHold < 60) tattica = "Sniper Estremo / MEV (Entra ed esce in pochissimi secondi, punta al pump iniziale).";
+        else if (avgHold !== "N/A" && avgHold < 300) tattica = "Scalper Quantitativo (Cavalca il momentum per 1-5 minuti e scarica prima del dump).";
+        else tattica = "Momentum Trader (Usa ingressi calcolati a 6k MC e fa take-profit scaglionati).";
+
+        let htmlReport = `
+            <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #4a2b66;">
+                <strong style="color:#b366ff; text-transform: uppercase; font-size: 0.9em;">🤖 Profilazione Algoritmica</strong><br>
+                <span style="color:#e0e0e0; font-size: 0.95em;">L'agente sta operando come <b>${tattica}</b></span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #2d3142; text-align: center;">
+                    <span style="color:#888; font-size: 0.8em; display:block;">Size Media (BUY)</span>
+                    <strong style="color:#00ffcc; font-size: 1.1em;">${avgBuy} SOL</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #2d3142; text-align: center;">
+                    <span style="color:#888; font-size: 0.8em; display:block;">Hold Time Medio</span>
+                    <strong style="color:#ffaa00; font-size: 1.1em;">${avgHold} sec</strong>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid #2d3142; margin-bottom: 10px;">
+                <span style="color:#888; font-size: 0.8em; display:block; margin-bottom: 4px;">Dinamica Flussi (Ultime TX)</span>
+                <div style="display:flex; justify-content:space-between; font-size:0.9em; font-weight:bold;">
+                    <span style="color:#00e676;">IN: ${totalBuySol.toFixed(2)} SOL</span>
+                    <span style="color:#ff4d4d;">OUT: ${totalSellSol.toFixed(2)} SOL</span>
+                </div>
+            </div>
+            
+            <div style="text-align: center; padding: 6px; background: rgba(179, 102, 255, 0.1); border: 1px solid #b366ff; color: #e4e4e7; font-weight: bold; border-radius: 4px; font-size: 1em;">
+                ⚡ Win Rate Stimato: <span style="color: ${winRate > 50 ? '#00e676' : '#ff4d4d'};">${winRate}%</span>
+            </div>
+        `;
+
+        res.json({ success: true, verdetto: htmlReport });
+
+    } catch (error) {
+        console.error("❌ Errore Motore Quantitativo:", error.message);
+        res.json({ success: false, verdetto: "Impossibile calcolare i parametri: " + error.message });
+    }
+});
+
+
+// =====================================================================
+// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Sostituisce Gemini in Axiom)
+// =====================================================================
+// =====================================================================
+// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by GROQ Llama-3 70B)
+// =====================================================================
+app.get('/api/laboratorio/:tokenMint', async (req, res) => {
+    const tokenMint = req.params.tokenMint;
+    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
+    
+    if (!datiIniziali) {
+        return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
+    }
+
+    try {
+        console.log(`\n⚖️ Giudice Supremo (Groq Llama-3) avviato per: ${tokenMint}`);
+
+        let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
+        let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
+        let fedinaDev = datiIniziali?.fedinaDev ? JSON.stringify(datiIniziali.fedinaDev) : "Ignota";
+        let bundleInfo = datiIniziali?.earlyRadar ? JSON.stringify(datiIniziali.earlyRadar) : "Nessun bundle rilevato";
+        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M | Trend Rilevato: ${datiIniziali.hud.trend}` : "Dati di mercato assenti";
+
+        const promptLaboratorio = `
+Sei il "Giudice Supremo", un analista forense on-chain spietato. 
+Il tuo report deve essere telegrafico, chirurgico e strutturato a punti elenco. NIENTE discorsi lunghi, niente introduzioni.
+
+DATI DA ANALIZZARE:
+- Mercato/Volumi: ${liquidita}
+- Rete Sybil (Cabala): ${sybilStatus}
+- Micro-Dumping: ${microDumping}
+- Dev: ${fedinaDev}
+- Bundle/Cecchini: ${bundleInfo}
+
+REGOLE DI COMPILAZIONE (SEGUILE O IL SISTEMA ESPLODE):
+1. STILE: Usa SOLO un elenco puntato (max 4-5 punti brevissimi).
+2. ONDA PIRAMIDALE: Incrocia il "Bundle" e il "Micro-Dumping". Se la supply è controllata, scrivi esplicitamente se è in corso un'onda piramidale (i top holder stanno usando i nuovi retail come exit liquidity).
+3. BOT PREDATORI (MEV/Sandwich): Valuta la vulnerabilità. C'è il rischio che i bot predatori si accodino alle transazioni (es. tu compri 10 e loro ti scaricano in testa 9.7)? Avvisa il trader.
+4. TOKEN MORTO: Se i volumi scendono a zero o il trend è piatto, dichiaralo MORTO.
+
+ESEMPIO DI FORMATO:
+- 🩸 Liquidity: [Tua analisi rapida]
+- 👁️ Bundle & Sybil: [Tua analisi rapida]
+- 🔺 Schema Piramidale: [Rilevato/Non Rilevato + motivo]
+- 🤖 Rischio Bot Predatori: [Alto/Basso + motivo]
+
+METRICA FINALE OBBIGATORIA (su un'ultima riga separata):
+RISCHIO_SCAM_FINALE: XX%`;
+        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel sistema globale.");
+        
+        // 🛡️ ROTAZIONE CHIAVI (ROUND-ROBIN): Prende la chiave attuale e sposta l'indice in avanti
+        const apiKey = groqKeys[currentGroqIndex];
+        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
+        
+        console.log(`🔑 Usata chiave Groq numero: ${(currentGroqIndex === 0 ? groqKeys.length : currentGroqIndex)} di ${groqKeys.length}`);
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile", // Il nuovo modello supremo di Groq
+                messages: [{ role: "user", content: promptLaboratorio }],
+                temperature: 0.2 
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        const testoAI = data.choices[0].message.content;
+
+        let rischioScam = 50; 
+        const matchRischio = testoAI.match(/RISCHIO_SCAM_FINALE:\s*(\d+)%/);
+        if (matchRischio) rischioScam = parseInt(matchRischio[1]);
+        
+        const testoPulito = testoAI.replace(/RISCHIO_SCAM_FINALE:\s*\d+%/g, '').trim().replace(/\n/g, '<br>');
+        const coloreRischio = rischioScam > 60 ? "#ff4d4d" : (rischioScam > 30 ? "#ffaa00" : "#00e676");
+
+        const reportHTML = `
+            <div style="color: #e4e4e7; line-height: 1.5; margin-bottom: 12px; font-size: 0.9em; font-family: sans-serif;">
+                ${testoPulito}
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid ${coloreRischio}; padding: 10px; border-radius: 6px; text-align: center;">
+                <span style="color:#888; text-transform: uppercase; font-size: 0.8em; font-weight:bold; display:block; margin-bottom:4px;">Rischio Scam (Giudice Supremo)</span>
+                <strong style="color:${coloreRischio}; font-size: 1.6em; text-shadow: 0 0 10px ${coloreRischio}80; font-family: monospace;">${rischioScam}%</strong>
+            </div>
+        `;
+
+        res.json({ success: true, verdetto: reportHTML });
+
+    } catch (error) {
+        console.error("❌ Errore Giudice Groq:", error.message);
+        res.json({ success: false, verdetto: "Errore di calcolo AI: " + error.message });
     }
 });
 // =====================================================================

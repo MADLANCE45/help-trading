@@ -8,9 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
 
     let orderFlowWindow = [];
+   window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
     let processedSigs = new Set(); // Per il Tab 3 Spy
 
+    // =========================================================
+    // AVVIO PRINCIPALE
+    // =========================================================
     // =========================================================
     // AVVIO PRINCIPALE
     // =========================================================
@@ -38,7 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 if (data.error) throw new Error(data.error);
+                
+                // 1. Popola i dati statici (Rete Sybil, Fedina Dev, ecc.)
                 popolaInterfacciaStatica(data, tokenMint);
+                
+                // ⚖️ 2. SOLO ORA SVEGLIAMO GEMINI (I dati sono pronti!)
+                avviaLaboratorioGemini(tokenMint);
             })
             .catch(err => {
                 const staticBox = document.getElementById('static-analysis-box');
@@ -220,8 +229,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>Lettura parametri vitali...</span>";
                 
                 try {
+                    // Prende l'ultimo frame dei volumi live o dei valori di sicurezza
+                    const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
+
                     const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}`, {
-                        headers: { "ngrok-skip-browser-warning": "true" }
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            "ngrok-skip-browser-warning": "true" 
+                        },
+                        body: JSON.stringify(payloadDatiLive)
                     });
                     if (!resp.ok) throw new Error("Errore Backend");
                     const dataResp = await resp.json();
@@ -325,6 +342,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalVol = buyVol + sellVol;
             let buyPressure = 50;
             if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
+
+            // 🕵️ NUOVO: CALCOLO DELL'ORGANICITÀ (WASH TRADING DETECTION)
+            let uniqueWallets = new Set();
+            orderFlowWindow.forEach(t => uniqueWallets.add(t.wallet));
+            let organicita = orderFlowWindow.length > 0 ? Math.round((uniqueWallets.size / orderFlowWindow.length) * 100) : 100;
+
+            // 🔥 CERVELLO 5.0: SALVA IN MEMORIA LA STORIA PER L'IA
+            const currentSnapshot = {
+                time: new Date().toLocaleTimeString('it-IT'),
+                buy: parseFloat(buyVol.toFixed(2)),
+                sell: parseFloat(sellVol.toFixed(2)),
+                pressure: parseFloat(buyPressure.toFixed(1)),
+                organico: organicita // 👈 INIETTIAMO L'ORGANICITA'
+            };
+
+            window.liveMetrics.history.push(currentSnapshot);
+            if (window.liveMetrics.history.length > 10) {
+                window.liveMetrics.history.shift(); 
+            }
+
+            window.liveMetrics.buyVol = currentSnapshot.buy;
+            window.liveMetrics.sellVol = currentSnapshot.sell;
+            window.liveMetrics.buyPressure = currentSnapshot.pressure;
+            window.liveMetrics.organicita = organicita; // 👈 LO SALVIAMO NEL GLOBALE PER PASSARLO AL BACKEND
 
             const barGreen = document.getElementById('flow-bar-green');
             const pctText = document.getElementById('flow-percentage');
@@ -888,7 +929,83 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(startSpyLoop, 15000); 
         }
     }
+    // =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (GEMINI FLASH)
+// =====================================================================
+// =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (GEMINI)
+// =====================================================================
+// =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Llama-3 via Groq)
+// =====================================================================
+async function avviaLaboratorioGemini(tokenMint) {
+    let container = document.getElementById('gemini-report-container');
+    
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'gemini-report-container';
+        container.style.cssText = `
+            background: rgba(18, 10, 25, 0.9); 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            border: 1px solid #c084fc; 
+            box-shadow: inset 0 0 10px rgba(192, 132, 252, 0.15);
+        `;
+        
+        const radarView = document.getElementById('view-radar');
+        const staticBox = document.getElementById('static-analysis-box');
+        
+        if (radarView && staticBox) radarView.insertBefore(container, staticBox);
+        else if (radarView) radarView.appendChild(container);
+    }
 
+    // STATO DI CARICAMENTO (con bottone disabilitato)
+    container.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Giudice Supremo</span>
+            <button disabled style="background: #555; color: #ccc; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.7em; cursor: not-allowed;">⏳ Scansione...</button>
+        </div>
+        <div style="font-family: monospace; font-size: 0.85em; color: #ccc; text-align: center; padding: 10px; border-top: 1px dashed #4a2b66;">
+            <span style="animation: pulseGlow 1.5s infinite;">Indagine forense e analisi Bundle in corso...</span>
+        </div>
+    `;
+
+    try {
+        const baseUrl = 'https://tricking-judiciary-footwear.ngrok-free.dev'; // Assicurati che sia il tuo ngrok attuale
+        const response = await fetch(`${baseUrl}/api/laboratorio/${tokenMint}`, {
+            headers: { 
+                "ngrok-skip-browser-warning": "true",
+                "Accept": "application/json"
+            }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            // STATO DI SUCCESSO (con bottone cliccabile per ricaricare)
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Verdetto Giudice</span>
+                    <button id="btn-refresh-judge" style="background: #c084fc; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7em; transition: all 0.2s; box-shadow: 0 0 8px rgba(192,132,252,0.4);">🔄 Aggiorna</button>
+                </div>
+                ${data.verdetto}
+            `;
+
+            // Aggiungiamo l'evento al nuovo pulsante
+            const btnRefresh = document.getElementById('btn-refresh-judge');
+            btnRefresh.addEventListener('mouseenter', () => btnRefresh.style.background = '#d9b3ff');
+            btnRefresh.addEventListener('mouseleave', () => btnRefresh.style.background = '#c084fc');
+            btnRefresh.addEventListener('click', () => {
+                avviaLaboratorioGemini(tokenMint); // Richiama se stessa!
+            });
+
+        } else {
+            container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Errore AI: ${data.verdetto}</div>`;
+        }
+    } catch (error) {
+        container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">❌ Errore di connessione al Giudice. Assicurati che il backend sia attivo.</div>`;
+    }
+}
     // =========================================================
     // START SCRIPT
     // =========================================================
