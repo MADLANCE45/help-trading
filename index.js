@@ -221,9 +221,6 @@ const io = new Server(server, {
     }
 });
 
-io.on("connection", (socket) => {
-    console.log("🔌 Un nuovo terminale (Estensione) si è connesso al Radar Live!");
-});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
@@ -1128,10 +1125,22 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         }
 
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
+        // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         await delay(1000);
         console.log("⚡ Estrazione Firme e Base...");
-        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 50 });
-        const cabalaData = await analizzaCabalaSupply(mintPubKey);
+        
+        let signatures = [];
+        try {
+            // Abbassiamo la profondità da 50 a 20 per salvare le API gratuite!
+            signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 20 });
+        } catch (e) {
+            console.log("⚠️ Helius in Rate Limit (429). Attivo il paracadute per non crashare...");
+        }
+
+        let cabalaData = null;
+        try {
+            cabalaData = await analizzaCabalaSupply(mintPubKey);
+        } catch (e) {}
 
         await delay(1000);
 
@@ -1763,6 +1772,148 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
     } catch (error) { res.json({ actions: [], error: error.message }); }
 });
 // Sostituisci app.listen con server.listen
+
+    // =====================================================================
+// 🎯 IL CACCIATORE: GLOBAL SCREENER ALGORITMICO (Risk/Reward 6k MC)
+// =====================================================================
+
+// Memoria a breve termine per tutti i token che stanno nascendo
+const mempoolTokens = new Map(); 
+
+// Le tue Formule Matematiche
+const TARGET_MC = 6000; // Il punto di Reversal
+const MIN_TX_SEC = 2;   // Minimo 3 acquisti al secondo per confermare la pressione
+const MIN_RATIO = 1.1;  // Volume Buy deve essere +50% del Volume Sell
+const MIN_U_INDEX = 0.30; // Almeno 60% dei wallet devono essere unici (Anti-Wash)
+
+// =====================================================================
+// 🔌 GESTIONE CONNESSIONI WEBSOCKET E RADAR
+// =====================================================================
+const activeSniperSubs = new Map(); 
+
+io.on("connection", (socket) => {
+    console.log("🔌 Un nuovo terminale (Estensione) si è connesso al Radar Live!");
+
+    socket.on('imposta_wallet_spia', (walletsArray) => {
+        console.log(`\n🔄 Sincronizzazione Bersagli dal Frontend: Ricevuti ${walletsArray.length} wallet.`);
+        
+        for (const [wallet, subId] of activeSniperSubs.entries()) {
+            if (!walletsArray.includes(wallet)) {
+                solanaConnection.removeOnLogsListener(subId);
+                activeSniperSubs.delete(wallet);
+                console.log(`🛑 Radar spento per: ${wallet}`);
+            }
+        }
+
+        for (const wallet of walletsArray) {
+            if (!activeSniperSubs.has(wallet)) {
+                const subId = avviaAscoltoBersaglio(wallet);
+                activeSniperSubs.set(wallet, subId);
+            }
+        }
+    });
+});
+
+// =====================================================================
+// 🎯 IL MOTORE DEFINITIVO: SNIPER IBRIDO
+// =====================================================================
+function avviaAscoltoBersaglio(walletAddress) {
+    console.log(`📡 SNIPER IBRIDO IN ASCOLTO SU: ${walletAddress}`);
+    const targetPubKey = new PublicKey(walletAddress);
+
+    return solanaConnection.onLogs(targetPubKey, async (logsInfo, context) => {
+        if (logsInfo.err) return; 
+        const signature = logsInfo.signature;
+        const logString = logsInfo.logs.join(" ");
+
+        if (!logString.includes("Buy") && !logString.includes("Swap")) return;
+
+        setTimeout(async () => {
+            try {
+                const tx = await solanaConnection.getParsedTransaction(signature, { 
+                    maxSupportedTransactionVersion: 0, commitment: 'confirmed'
+                });
+
+                if (!tx || !tx.meta) return;
+
+                const postBals = tx.meta.postTokenBalances || [];
+                const tokenObj = postBals.find(b => b.owner === walletAddress && b.mint !== "So11111111111111111111111111111111111111112");
+                if (!tokenObj) return;
+
+                const tokenMint = tokenObj.mint;
+                const preBals = tx.meta.preTokenBalances || [];
+                const preObj = preBals.find(b => b.owner === walletAddress && b.mint === tokenMint);
+                const preAmount = preObj ? preObj.uiTokenAmount.uiAmount : 0;
+                const isBuy = tokenObj.uiTokenAmount.uiAmount > preAmount;
+
+                if (isBuy) {
+                    console.log(`\n🕵️ [TARGET ACQUISITO] Il wallet ${walletAddress.substring(0,6)} ha comprato ${tokenMint.substring(0,6)}...`);
+                    await valutaEsplosivitaToken(tokenMint, walletAddress);
+                }
+            } catch (e) {}
+        }, 2500); 
+    }, "confirmed");
+}
+
+async function valutaEsplosivitaToken(tokenMint, walletTarget) {
+    try {
+        const mintPubKey = new PublicKey(tokenMint);
+        const sigs = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 30 });
+        
+        let esito = "SCARTATO"; let motivo = ""; let colore = "#ff4d4d"; let isGolden = false;
+
+        if (sigs.length < 10) {
+            motivo = "Troppo illiquido/morto. Nessuna FOMO.";
+        } else {
+            const ora = Math.floor(Date.now() / 1000);
+            let txInLast60s = 0;
+            sigs.forEach(sig => { if (sig.blockTime && (ora - sig.blockTime <= 60)) txInLast60s++; });
+
+            if (txInLast60s < 10) {
+                motivo = `Bassa volatilità (${txInLast60s} tx/min). Manca la FOMO.`;
+            } else {
+                const recentSigs = sigs.slice(0, 15).map(s => s.signature);
+                const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+
+                let buyVol = 0; let sellVol = 0;
+                let uniqueWallets = new Set();
+
+                txs.forEach(tx => {
+                    if (!tx || !tx.meta) return;
+                    uniqueWallets.add(tx.transaction.message.accountKeys[0].pubkey.toString());
+                    const preSol = (tx.meta.preBalances[0] || 0) / 1e9;
+                    const postSol = (tx.meta.postBalances[0] || 0) / 1e9;
+                    if (preSol > postSol) buyVol += Math.abs(preSol - postSol);
+                    else sellVol += Math.abs(preSol - postSol);
+                });
+
+                const ratio = sellVol > 0 ? (buyVol / sellVol) : 999;
+                const uIndex = uniqueWallets.size / txs.length;
+
+                if (ratio >= 1.2 && uIndex >= 0.40) {
+                    esito = "VERIFICATO"; motivo = "Sicurezza superata. Rischio Wash-Trading basso."; colore = "#00e676"; isGolden = true;
+                    io.emit('golden_signal_found', {
+                        mint: tokenMint, ratio: ratio === 999 ? "MAX" : ratio.toFixed(2), uIndex: Math.round(uIndex * 100), buyVol: buyVol.toFixed(2), time: new Date().toLocaleTimeString('it-IT')
+                    });
+                } else {
+                    motivo = `Filtrato per sicurezza. Ratio: ${ratio === 999 ? "MAX" : ratio.toFixed(2)} | WashTrading U-Index: ${(uIndex*100).toFixed(0)}%`;
+                }
+            }
+        }
+
+        console.log(`⚖️ Autopsia: ${esito} -> ${motivo}`);
+        
+        io.emit('autopsia_sniper_live', {
+            mint: tokenMint, walletSpia: walletTarget, esito: esito, motivo: motivo, colore: colore
+        });
+
+    } catch (error) {}
+}
+
+// =====================================================================
+// 🚀 AVVIO SERVER DEFINITIVO
+// =====================================================================
 server.listen(PORT, () => {
     console.log(`🚀 Server Radar & WebSocket avviati sulla porta ${PORT}`);
 });
+// 🔴 FINE DEL FILE. NON AGGIUNGERE NESSUNA RIGA DOPO QUESTA.

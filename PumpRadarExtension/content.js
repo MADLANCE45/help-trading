@@ -6,7 +6,60 @@ document.addEventListener('DOMContentLoaded', () => {
         extraHeaders: { "ngrok-skip-browser-warning": "true" }
     });
     socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
+    // =========================================================
+    // 🚀 RICEZIONE SEGNALI DAL CACCIATORE ALGORITMICO GLOBALE
+    // =========================================================
+    socket.on('golden_signal_found', (segnale) => {
+        console.log("🎯 RILEVATO GOLDEN TOKEN:", segnale);
 
+        let alertBox = document.getElementById('golden-alert-box');
+        if (!alertBox) {
+            alertBox = document.createElement('div');
+            alertBox.id = 'golden-alert-box';
+            alertBox.style.cssText = `
+                position: fixed; bottom: 20px; right: 20px; background: #12151f;
+                border: 2px solid #ffaa00; box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+                padding: 15px; border-radius: 8px; z-index: 999999; color: white;
+                font-family: monospace; animation: pulseRed 1s infinite; min-width: 300px;
+            `;
+            document.body.appendChild(alertBox);
+        }
+
+        alertBox.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ffaa00; padding-bottom:8px; margin-bottom:8px;">
+                <span style="color:#ffaa00; font-weight:900; font-size:1.1em;">🚨 ALGORITMO MATCH!</span>
+                <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">X</button>
+            </div>
+            
+            <div style="font-size: 0.9em; line-height: 1.5; margin-bottom: 10px;">
+                <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Ratio Buy/Sell:</span> <span style="color:#00e676; font-weight:bold;">${segnale.ratio}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Organic U-Index:</span> <span style="color:#00e676; font-weight:bold;">${segnale.uIndex}%</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol Entrata:</span> <span style="color:#fff; font-weight:bold;">${segnale.buyVol} SOL</span></div>
+            </div>
+
+            <div style="background: #050608; padding: 8px; border-radius: 4px; margin-bottom: 12px; border: 1px solid #2d3142; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-family: monospace; font-size: 0.75em; color: #00ffcc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;" title="${segnale.mint}">${segnale.mint}</span>
+                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75em; font-weight: bold; flex-shrink: 0;">📋 Copia</button>
+            </div>
+
+            <a href="https://axiom.trade/token/${segnale.mint}" target="_blank" style="display:block; text-align:center; background:#ffaa00; color:#000; text-decoration:none; padding:8px; border-radius:4px; font-weight:900; letter-spacing:1px; transition:0.2s;">
+                ⚡ APRI SU AXIOM
+            </a>
+        `;
+        
+        const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+        audio.play().catch(() => {});
+
+        document.getElementById('close-golden-alert').addEventListener('click', () => alertBox.remove());
+
+        const copyBtn = document.getElementById('copy-golden-mint');
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(segnale.mint).then(() => {
+                copyBtn.innerText = "✅ Copiato!"; copyBtn.style.background = "#00e676"; copyBtn.style.color = "#000";
+                setTimeout(() => { copyBtn.innerText = "📋 Copia"; copyBtn.style.background = "#2a2d3d"; copyBtn.style.color = "#fff"; }, 2000);
+            });
+        });
+    });
     let orderFlowWindow = [];
    window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
@@ -467,6 +520,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 spyHeader.innerText = "🕵️ Agente Spy in Ascolto...";
             });
         }
+
+        // =========================================================
+        // 🔥 SOCKET: RICEZIONE AUTOPSIE DELLO SNIPER IBRIDO (NOVITA')
+        // =========================================================
+        // =========================================================
+        // 🔥 SOCKET: RICEZIONE AUTOPSIE DELLO SNIPER IBRIDO
+        // =========================================================
+        socket.off('autopsia_sniper_live');
+        socket.on('autopsia_sniper_live', (data) => {
+            const feed = document.getElementById('spy-feed-list');
+            if (feed) {
+                if (feed.innerHTML.includes('In attesa')) feed.innerHTML = '';
+
+                const card = document.createElement('div');
+                card.style.cssText = `background:#161821; border-top: 3px solid ${data.colore}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); animation: flashIn 0.3s ease-out;`;
+                
+                // Creiamo un ID univoco per il tasto copia di questa specifica card
+                const randomId = Math.random().toString(36).substring(7);
+                const copyBtnId = `copy-btn-auto-${randomId}`;
+
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="color:#b366ff; font-weight:bold; font-size:0.85em; text-transform:uppercase;">⚙️ Raggi X Quantitativi</span>
+                        <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${data.esito}</span>
+                    </div>
+                    <div style="color:#aaa; font-size:0.8em; margin-bottom:8px;">
+                        Generato dal wallet: <span style="color:#fff; font-family:monospace;">${data.walletSpia.substring(0,4)}...${data.walletSpia.slice(-4)}</span>
+                    </div>
+                    <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.85em; color:#e0e0e0;">
+                        ${data.motivo}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#11121a; padding:6px; border-radius:4px; border: 1px dashed #444;">
+                        <div style="font-family:monospace; font-size:0.9em; color:#00ffcc;" title="${data.mint}">
+                            ${data.mint.substring(0,10)}...${data.mint.slice(-4)}
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button id="${copyBtnId}" data-mint="${data.mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; padding:4px 8px; border-radius:4px; font-size:0.75em; font-weight:bold; cursor:pointer; transition:0.2s;">
+                                📋 Copia
+                            </button>
+                            <a href="https://axiom.trade/token/${data.mint}" target="_blank" style="background:#b366ff; border:1px solid #9933ff; color:#000; padding:4px 8px; border-radius:4px; font-size:0.75em; text-decoration:none; font-weight:bold; cursor:pointer;">
+                                Axiom
+                            </a>
+                        </div>
+                    </div>
+                `;
+                feed.prepend(card);
+                
+                // Aggiunge l'Event Listener al nuovo tasto Copia appena creato
+                const copyBtn = document.getElementById(copyBtnId);
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', (e) => {
+                        const mintToCopy = e.target.getAttribute('data-mint');
+                        navigator.clipboard.writeText(mintToCopy).then(() => {
+                            e.target.innerText = "✅ Copiato!"; 
+                            e.target.style.background = "#00e676"; 
+                            e.target.style.color = "#000";
+                            setTimeout(() => { 
+                                e.target.innerText = "📋 Copia"; 
+                                e.target.style.background = "#2a2d3d"; 
+                                e.target.style.color = "#fff"; 
+                            }, 2000);
+                        });
+                    });
+                }
+                
+                if (feed.children.length > 15) feed.removeChild(feed.lastChild);
+                
+                const tabSpy = document.getElementById('tab-spy');
+                if(tabSpy && tabSpy.style.color !== 'rgb(255, 0, 127)') tabSpy.classList.add('spy-alert-active');
+            }
+        });
     }
 
     // =========================================================
@@ -748,9 +872,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const spiedWallets = result.spiedWallets || [];
             listContainer.innerHTML = ''; 
 
+            // 🔥 QUESTA E' LA MAGIA: Invia i wallet con la "campanella accesa" al server backend!
+            socket.emit('imposta_wallet_spia', spiedWallets);
+
             for (const wallet of wallets) {
                 const displayName = walletNames[wallet] || `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
                 const isSpied = spiedWallets.includes(wallet);
+                // ... il resto del tuo ciclo for rimane identico!
                 
                 const spyBtnBg = isSpied ? '#ff007f' : '#242736';
                 const spyBtnText = isSpied ? '🔔 Spia ON' : '🔕 OFF';
@@ -772,7 +900,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     function caricaStoricoSpyNelDOM() {
         chrome.storage.local.get(['spyHistory'], (res) => {
             const history = res.spyHistory || [];
@@ -960,7 +1087,7 @@ async function avviaLaboratorioGemini(tokenMint) {
         else if (radarView) radarView.appendChild(container);
     }
 
-    // STATO DI CARICAMENTO (con bottone disabilitato)
+    // INTERFACCIA IN CARICAMENTO
     container.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Giudice Supremo</span>
@@ -972,7 +1099,7 @@ async function avviaLaboratorioGemini(tokenMint) {
     `;
 
     try {
-        const baseUrl = 'https://tricking-judiciary-footwear.ngrok-free.dev'; // Assicurati che sia il tuo ngrok attuale
+        const baseUrl = 'https://tricking-judiciary-footwear.ngrok-free.dev';
         const response = await fetch(`${baseUrl}/api/laboratorio/${tokenMint}`, {
             headers: { 
                 "ngrok-skip-browser-warning": "true",
@@ -982,7 +1109,7 @@ async function avviaLaboratorioGemini(tokenMint) {
         const data = await response.json();
         
         if (data.success) {
-            // STATO DI SUCCESSO (con bottone cliccabile per ricaricare)
+            // INTERFACCIA COMPLETATA CON PULSANTE AGGIORNA
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Verdetto Giudice</span>
@@ -991,12 +1118,12 @@ async function avviaLaboratorioGemini(tokenMint) {
                 ${data.verdetto}
             `;
 
-            // Aggiungiamo l'evento al nuovo pulsante
+            // Logica del pulsante
             const btnRefresh = document.getElementById('btn-refresh-judge');
             btnRefresh.addEventListener('mouseenter', () => btnRefresh.style.background = '#d9b3ff');
             btnRefresh.addEventListener('mouseleave', () => btnRefresh.style.background = '#c084fc');
             btnRefresh.addEventListener('click', () => {
-                avviaLaboratorioGemini(tokenMint); // Richiama se stessa!
+                avviaLaboratorioGemini(tokenMint); 
             });
 
         } else {

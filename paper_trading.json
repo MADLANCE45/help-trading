@@ -1,6 +1,24 @@
 {
   "trades": [
     {
+      "id": 1786788105245,
+      "token": "FMTMAgEUFQydLbwke3MPbHanPj5toD7j4ZwJkmjByUxP",
+      "pnlSol": 0,
+      "data": "15/08/2026, 12:01:45"
+    },
+    {
+      "id": 1786722746162,
+      "token": "BeQWhMWEa16xtKDRW8m1orFpmW7opks127nis95tozgu",
+      "pnlSol": 0,
+      "data": "14/08/2026, 17:52:26"
+    },
+    {
+      "id": 1786722743836,
+      "token": "BeQWhMWEa16xtKDRW8m1orFpmW7opks127nis95tozgu",
+      "pnlSol": 1.6087500000000001,
+      "data": "14/08/2026, 17:52:23"
+    },
+    {
       "id": 1786648635950,
       "token": "HMNVQS3JzPcecv7SNH67cc81Lq1Sm4AsxwARFkoVUgM6",
       "pnlSol": 0,
@@ -67,6 +85,6 @@
       "data": "12/08/2026, 20:20:16"
     }
   ],
-  "bilancio": -2.763,
+  "bilancio": -1.1542499999999998,
   "openPositions": {}
 }
