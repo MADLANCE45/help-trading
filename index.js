@@ -1890,13 +1890,54 @@ async function valutaEsplosivitaToken(tokenMint, walletTarget) {
                 const ratio = sellVol > 0 ? (buyVol / sellVol) : 999;
                 const uIndex = uniqueWallets.size / txs.length;
 
+                // ==========================================
+                // 🏆 LA DECISIONE FINALE E L'AUTO-TRADE
+                // ==========================================
                 if (ratio >= 1.2 && uIndex >= 0.40) {
-                    esito = "VERIFICATO"; motivo = "Sicurezza superata. Rischio Wash-Trading basso."; colore = "#00e676"; isGolden = true;
+                    esito = "VERIFICATO"; motivo = "Sicurezza superata. Innesco AUTO-COPY-TRADE!"; colore = "#00e676"; isGolden = true;
+                    
+                    // 1. Spara il MEGA POPUP GIALLO all'estensione
                     io.emit('golden_signal_found', {
                         mint: tokenMint, ratio: ratio === 999 ? "MAX" : ratio.toFixed(2), uIndex: Math.round(uIndex * 100), buyVol: buyVol.toFixed(2), time: new Date().toLocaleTimeString('it-IT')
                     });
+
+                    // 🤖 2. ESECUZIONE AUTOMATICA (PAPER TRADING)
+                    // Simuliamo l'ingresso della balena a mercato
+                    console.log(`\n🤖 [AUTO-SNIPER] Entro a mercato copiando la Balena su ${tokenMint.substring(0,6)}...`);
+                    
+                    // Contattiamo il nostro stesso database locale per aprire la posizione
+                    try {
+                        // Creiamo un delay finto che imita la velocità di esecuzione della rete
+                        await new Promise(res => setTimeout(res, 500));
+                        
+                        console.log(`⏱️ [AUTO-SNIPER] Timer di 25 secondi attivato (Tattica Scalp della Balena).`);
+                        
+                        // Dopo 25 secondi esatti, il bot chiude la posizione
+                        setTimeout(async () => {
+                            console.log(`\n🔴 [AUTO-SNIPER] Tempo scaduto! Uscita dalla posizione su ${tokenMint.substring(0,6)}...`);
+                            
+                            // Richiesta finta per generare un PnL (profitto) casuale realistico tra -10% e +30%
+                            const pnlSimulato = (Math.random() * 0.40 - 0.10) * 0.1; // 0.1 SOL è la size di ingresso
+                            
+                            await fetch('http://localhost:3000/api/paper-trading', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    tokenMint: tokenMint,
+                                    azione: "EXIT",
+                                    pnlNetto: pnlSimulato
+                                })
+                            });
+                            
+                            console.log(`💰 [AUTO-SNIPER] Trade Chiuso! PnL: ${pnlSimulato > 0 ? '+' : ''}${pnlSimulato.toFixed(4)} SOL`);
+                        }, 25000); // 25 SECONDI DI HOLD TIME!
+                        
+                    } catch (err) {
+                        console.log("Errore nell'Auto-Sniper:", err.message);
+                    }
+
                 } else {
-                    motivo = `Filtrato per sicurezza. Ratio: ${ratio === 999 ? "MAX" : ratio.toFixed(2)} | WashTrading U-Index: ${(uIndex*100).toFixed(0)}%`;
+                    motivo = `Filtrato. Ratio: ${ratio === 999 ? "MAX" : ratio.toFixed(2)} | U-Index: ${(uIndex*100).toFixed(0)}%`;
                 }
             }
         }
@@ -1913,7 +1954,29 @@ async function valutaEsplosivitaToken(tokenMint, walletTarget) {
 // =====================================================================
 // 🚀 AVVIO SERVER DEFINITIVO
 // =====================================================================
-server.listen(PORT, () => {
-    console.log(`🚀 Server Radar & WebSocket avviati sulla porta ${PORT}`);
+// =====================================================================
+// 🤖 AUTOPILOTA 24/7: SGANCIO DALL'ESTENSIONE
+// =====================================================================
+// Inserisci qui i wallet dei migliori trader che hai trovato
+const BALENE_AUTONOME = [
+    "EZzygUEZGLDgLG3JLapmpcEGTeJiEnXC8tVPXYXV63JG", // Il bot HFT
+    "93kk52HkrH5pHEPyb2KM62mP4cWA1N5DaSgBgDzA2uT9"  // L'altro tuo target
+];
+
+// Appena accendi il server, inizia a spiarli senza aspettare il frontend!
+BALENE_AUTONOME.forEach(wallet => {
+    if (!activeSniperSubs.has(wallet)) {
+        const subId = avviaAscoltoBersaglio(wallet);
+        activeSniperSubs.set(wallet, subId);
+    }
 });
+
+// =====================================================================
+// 🚀 AVVIO SERVER DEFINITIVO
+// =====================================================================
+server.listen(PORT, () => {
+    console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
+    console.log(`🤖 Autopilota Innescato: In ascolto H24 su ${BALENE_AUTONOME.length} balene.`);
+});
+
 // 🔴 FINE DEL FILE. NON AGGIUNGERE NESSUNA RIGA DOPO QUESTA.
