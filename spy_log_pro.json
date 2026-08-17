@@ -1,0 +1,674 @@
+[
+  {
+    "firma": "4LfVHkAbkTs1Y8u1AF77AWRnRfPpyEPJVe8MmiQkrnBBF5oLBL7wDdQdCUg2MeLruVHhpwGWvvu5WQM4vWMv8G6Z",
+    "tipo": "SELL",
+    "mint": "8DTQgiJao9rnKB36ak1RhjayQAdA1qww9aaqaq4Ypump",
+    "differenzaToken": 3038198.470735,
+    "timestamp": 1786955505000
+  },
+  {
+    "firma": "27iFvtZ6j5m5oiStEES8QTxfdk4aCeMt3bxyFjrER39aDPCarv1gtoAumgM4e73hKeCeKpfvdTA1hiXaTqbhrQV7",
+    "tipo": "BUY",
+    "mint": "8DTQgiJao9rnKB36ak1RhjayQAdA1qww9aaqaq4Ypump",
+    "differenzaToken": 3038198.470735,
+    "timestamp": 1786955495000
+  },
+  {
+    "firma": "xBFcCEjcFeo1c9ye7jvFgPkbNPSE7ZFpWxyrz6LmCMAEhzAv4yWoTXwkeSvMoE6mKhcHComLMarUjpa4KukhY6R",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 104667422.726766,
+    "timestamp": 1786955477000
+  },
+  {
+    "firma": "4sNo8ZVNqP8E5ouHec7aDbr3TqDCgVSUSBLmzDLsGi2pvic9DuxTL8xtcj8So8Nz8jQtHQMXvNiwc61SkdHGTTNS",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 104667422.726766,
+    "timestamp": 1786955438000
+  },
+  {
+    "firma": "4UMK6cUNXTrhwdJXCc6SkgK53cqncSFEhLs4oB11qwbTfbjtYfEWb2fFKwfX7SJmTu3GvddAv4y5Qjd3oAcxiJCf",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 80870839.168093,
+    "timestamp": 1786955437000
+  },
+  {
+    "firma": "4SdwZm653mbkpQKpF1gP84iQJyheAoV3YbbBw45pdheLyRYFsi7jCShkXh8i1x8ZW8tT3QcGM851CrC3JEzHrM6N",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 80870839.168093,
+    "timestamp": 1786955436000
+  },
+  {
+    "firma": "3r2S5mz81wJGRds2fTbCDAXFG84odgqiuWhJb45j9HTYAVEuR1MNUuMuuUWW5ZrfLtu9dvE6G2fi93xLbNRVPY1v",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 35524011.638775,
+    "timestamp": 1786955435000
+  },
+  {
+    "firma": "5YKhqtumBQeTSnBfAjhcuTaVQgmS6zZiHUfyFvJcZZcecBNEK7tkdWj6fDpzqfT7bf1tu8zv4SFkfMXBD9qqyatT",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 35524011.638775,
+    "timestamp": 1786955432000
+  },
+  {
+    "firma": "USbs8pBQ23BHi5hLxtf3x16xSistL2cTHuFrzYYrLXUNkXmcykrdKPytPt7w3qdrWparg6YNaArHyNYhk1fmkur",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 29046350.750197,
+    "timestamp": 1786955430000
+  },
+  {
+    "firma": "iEDVL2qMSTNDKrSCjF925JdX54T99HRw5ByG64MAU4JC63jD9gqAhDoiVJR6nf2umiZpHsFuXXYUxKvHmog7ft6",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 29046350.750197,
+    "timestamp": 1786955430000
+  },
+  {
+    "firma": "5qqAZnbUGf5btrV492TjuRzCLot6dJ2oceHsDd7xQtWuDZTwo9A1yP7aGPoCiye2RsfTzLuGCmt4D4km9HcmPtHt",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 10427998.124092,
+    "timestamp": 1786955429000
+  },
+  {
+    "firma": "5Dp21HVvDKZrJWPU3MhQQoxqcGGFRRg9xigTDxunsV1UHDaAbmSozeko4MyxvqecuaJusS8UmMKdk3wZG6TWiVgF",
+    "tipo": "SELL",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 2864225.9680010006,
+    "timestamp": 1786955427000
+  },
+  {
+    "firma": "s1Ti3XWRo54odqvAFnmyjysgBVkysJpeHS2HRvVxG1Diaa1acJVAfAX85pmQ4nuVpL3A5mKd1fxR2F6L5gxsrqX",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 10427998.124092,
+    "timestamp": 1786955423000
+  },
+  {
+    "firma": "4Xd19FSRfkeJA4TCbhdo9cdiUBP93pD9gwbHYKMEgh9qdBUxToDudk4a9v4QqTootKVhv3GfEKSJLEw7hZAHQa63",
+    "tipo": "BUY",
+    "mint": "24nGJNZ1Fg1Kh1MZgrsrEcA8t3BhNKvi8jKtA3V3pump",
+    "differenzaToken": 2864225.968001,
+    "timestamp": 1786955420000
+  },
+  {
+    "firma": "2FAAGU5HaK6QVXJ5P23PSh6iRWNDGky1NFFfdw4N8KY4xeFBiPC9YR1ewTB7JV2tzg9FmwUq99ruiG9iF7fVAUyY",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 118053500.210641,
+    "timestamp": 1786955228000
+  },
+  {
+    "firma": "5Vgq9WAA1PHRbSX1w2c3hdshe1atGTPC5QfBKevHKSifk9e3KWs7jp9nu8du5FEi28zKSvm9HqvhSzVScmoeNecD",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 72755182.296812,
+    "timestamp": 1786955201000
+  },
+  {
+    "firma": "3eoBR1ngYFBYs2zZstiMYetUzJ6edpJohJoxqJmnuaN96VfQyHqqii5WQ8xe4jbghRhke1XgiX37DCqYT3LZVdAp",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 118053500.210641,
+    "timestamp": 1786955180000
+  },
+  {
+    "firma": "4uuui713zdsQoaqSeWDw2eM2zGkd1xKVczwS8JtMAXFy8vh4HTvbawxi3TyLKxKemfHnCYQ8DsVaajkrqSkSe2VK",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 72755182.296812,
+    "timestamp": 1786955178000
+  },
+  {
+    "firma": "35bG3HFE1Uc4XMpBYVApDu7q7RJ3qmW5JCFk97w9YDqbqjoAo1uazTvhf1AASJ4FpoVDqfDjEhoBHfcnwdTkxZ9t",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 52089049.113393,
+    "timestamp": 1786955173000
+  },
+  {
+    "firma": "FEpxeuXmh3rkGoarLd5sURP7uvta93BujZa9JMhWVUjpXNDJg9AXaG3cfS8sGuDoUZcbgWsXWuNfzrrbnhgwuae",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 19977567.486133,
+    "timestamp": 1786955171000
+  },
+  {
+    "firma": "3UbSYvRPjKkMpH51TEnXvuBc9WVApw4hKfjKnqR8MqLHsKgm9edWngMknKag6KNq73ZUzHwLkEUAstZDYeJNBPSE",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 22862182.026176997,
+    "timestamp": 1786955169000
+  },
+  {
+    "firma": "kqsgwKbzHmYai3d1z6erXYdTG8wmEgASaZ7VmF2AswU3K4uqXAfyfaKxGJXUKbXPAfphtxobkuwedMtVkDuMitS",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 19977567.486132998,
+    "timestamp": 1786955168000
+  },
+  {
+    "firma": "4uRAzKmv67Cdq94hiHs7ng3548DhzUk2a9hsKCsZW7YygFtA55AXixDbGZiWToa1CeVNxYzKqywm3c8h9P63A6rD",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 28015262.793607004,
+    "timestamp": 1786955166000
+  },
+  {
+    "firma": "5LX3c33Y11PdJ3Zd5zNFy3bkwZKCqNEUXDsyFi1enBpzbZxfb8Wpw2bniHgKxJjedna5xcuwtKQPFqjYyoxYYNLR",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 12685280.410611998,
+    "timestamp": 1786955166000
+  },
+  {
+    "firma": "5SukAi4gB8gmKLUVaUZUx9kSos7P785EdM2K8egKh2R6PSbtyJU3KRZv6hRCTAbcXGpXdSuhBr8nJkbe7y91BzoD",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 52089049.11339301,
+    "timestamp": 1786955166000
+  },
+  {
+    "firma": "wejk1LSVzU9YKnKQSLCr6nh36TBFaNyXsDiScC8UyJZEDLzdBexi5L2ZUG2txsyzfxEg7yc1fwTnw4q8iSG5Hyg",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 48311931.911331,
+    "timestamp": 1786955164000
+  },
+  {
+    "firma": "skGATYWQ8C2shXxuKzrrehaDQBbufwx7bpnomZGNH52vMEMj7VP5Roa5MKvL2hhidNm9pYAxKFX6q4gAJaqoHAj",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 22862182.026176997,
+    "timestamp": 1786955164000
+  },
+  {
+    "firma": "nqs3acinPyxtrYJFzR4av6uY7fEYJRZDkuhMwZ1rRbkAZvyN5X48eE5tAA2jbCc4vqcn8SjQLuTKgfY4fcMLWq3",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 48311931.911331,
+    "timestamp": 1786955161000
+  },
+  {
+    "firma": "2rzf4Jg4M6pXusFvDyanhLrWLH1GXVwVDpoZuAd8DfCaQ732p81jspwJiB98y75wdJtvjF2k298aADGe1BHMnRJ7",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 17775564.903029,
+    "timestamp": 1786955160000
+  },
+  {
+    "firma": "2aTMXSxxJCVNoUDtRBneFUzVUeXYczQXGEduW4b4e5U5ofBBGRBvkuenAnp91czBqVRLEkbhY58eZ4c8QkLBK9Qc",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 28015262.793607,
+    "timestamp": 1786955160000
+  },
+  {
+    "firma": "63Jr8QmBqAKYN3GzMshJSgyii9cGKyhc2PkLX9UU2eUvqxGW29RTDFU44EZRBrxgvEjQeyrfUVH1HEG4j4zghSsX",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 12685280.410612,
+    "timestamp": 1786955159000
+  },
+  {
+    "firma": "2josHKmaTJ8Su4gby95S9XuLi8m8Px9WjF1Mf6ofbQW2VjRp7S7XSfvWC9zLZx8tYj1NMA3VW7aTHLpp3kK2ovZN",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 38364972.648531005,
+    "timestamp": 1786955159000
+  },
+  {
+    "firma": "rtrjUXXcjHVeNtmVaiXGTgHqJJrSkMqEMHjBKKneBFbTia2rcttDuvTvqJdRETUd9uUCKUge5Nksw9Am5vUfy2i",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 38364972.648531005,
+    "timestamp": 1786955158000
+  },
+  {
+    "firma": "5uvRGDwiBc8PVfxG61LPizEZwK1D8qKbwzdAfSYrH4Y9bRg4N51cc11yEibfRmUA3am4ZC3r5akrWH2Qz79Am9R4",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 3089957.540824,
+    "timestamp": 1786955157000
+  },
+  {
+    "firma": "5P7HXnau5YGQSUBsvZqDtpgYLkGuMqNemBbdvt7p7zzQYFNfA3KJJAi3evi7emGnFzZc5yee5rxiw6pLuECjvtfu",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 27629851.822664,
+    "timestamp": 1786955157000
+  },
+  {
+    "firma": "4MCjFEUYD6id8w1T4ExYB2vXS2P43dG7HDE1DPQFqKtYi5APvBAaB1Aq9n6LYKZCiDkniwaweYvLXSwsL3xgR2rw",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 27629851.822664,
+    "timestamp": 1786955156000
+  },
+  {
+    "firma": "34ME29uCUjqGusaKu4uzCffovgCuhZNkKref5uuhCHCMzuVGM8yP7aRV7S9gXMCT9fkTbDeyBnUY4snuXUbWxP3D",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 6056503.721107,
+    "timestamp": 1786955154000
+  },
+  {
+    "firma": "46nfcL6cLhFa13YqEEb17eKyQQnNKg7qQNTHaFmV8v1xV1VNswALDhPMp4wpRVT7GNDdgCc95jR79Bss79aT7JR2",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 17775564.903029,
+    "timestamp": 1786955152000
+  },
+  {
+    "firma": "UMQQN52meUzmZ7A5mTQBjdyYXRjj1ZXBT1c66qMpW9ppBE2Nne1mL3mAocHgpAoBQg85sJTrytptiv1tRL8tjnn",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 3089957.540824,
+    "timestamp": 1786955150000
+  },
+  {
+    "firma": "2BwyXSUECGZMQR2KSz3cZVoxMW66XTXPXoRDn86B3fZ2s2TcsvCdNkgV9c58rW6CGmMqXDpm1psHYoQWT7TEHWNc",
+    "tipo": "SELL",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 2433811.577384,
+    "timestamp": 1786955149000
+  },
+  {
+    "firma": "2k9mEvMxqQE1LifQDcQM9iny9vkcaLkfjgTDRLtc8UuiXZ7qWLyQHqtiKHRpAXohumCSEFRxgh6M1egFxG2ZTJpK",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 13640565.523254,
+    "timestamp": 1786955149000
+  },
+  {
+    "firma": "ij6STA6T8CJAMuZXSBCNckU6cW5eGaqtWkZSvYJMvxyvzueFj3hVrq2AvuMregBUmG6mvSZr7wSkgPAyWX3AxHZ",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 13640565.523254,
+    "timestamp": 1786955148000
+  },
+  {
+    "firma": "nbzAuwtFREirw3tNmrhyQpDkfBcetYLcv9jPSwBPCoNgEnc9rRUaaZcFrZaAorv6PJRxSKB8g8uM4KNt84VBRAn",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 6056503.721107,
+    "timestamp": 1786955146000
+  },
+  {
+    "firma": "5y3da9XiQZxz7UH2dYnDMHrb7tfTEqBKDShbLoXHhreqCnS8zD8kPkHFHPQ9NGPyHvdEGFkRcQr7x8J1dxa4Zo5U",
+    "tipo": "BUY",
+    "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+    "differenzaToken": 2433811.577384,
+    "timestamp": 1786955146000
+  },
+  {
+    "firma": "4bNeYYm6GEGqRD3hMLZmLhE5VWd54sEe6yyWAieBQEYFwfHRvaHPcfE49VNmgxV2mYRYnCHxi7eMrMA3chTejozE",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 1433141.329501,
+    "timestamp": 1786955125000
+  },
+  {
+    "firma": "4jwk2q22FEn7biH7ZGWf8gySdVszdfQ1Y51ekKs3y51yhcSnLTWsGFngNJZV2Hg779NDMgVnfWVNxu9bJGySq2B",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 1433141.329501,
+    "timestamp": 1786955123000
+  },
+  {
+    "firma": "XKqAw9PQqCpfBhiZ5qjZ6TbjbRZYmcCTksHy4hGyTF7xL9hXxz115i7XJiYb83LsyRZ8FqWPQbk9SoJtVW8TDd9",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 5519252.510943,
+    "timestamp": 1786955116000
+  },
+  {
+    "firma": "4CTZtA1Sz9MnLpVk6m64npLDw8rQw1ncnfk9bFgtqZKx4vZ2Dt4EUrcf2NbXvReJK7uGEYJzzuVyGT5tkjnpmd2",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 1460700.0065350002,
+    "timestamp": 1786955113000
+  },
+  {
+    "firma": "36jT2R91LaA5Evu6ck2mqp9HfTRZncvWBoeyQzxjmBubDjRrne9YqxJ4s9YkdihDVLsqTSgJqRiVHLmnjUBrmU6i",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 5519252.510943,
+    "timestamp": 1786955110000
+  },
+  {
+    "firma": "2Zw8oQe5dzuHqHXEjNNn4CsrPVYMaEenkWLcwSxCzv6Sn2oKdHSjR7YEiRAwryYJwY6NVCqky26QMrud1Aqd84v8",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 1460700.006535,
+    "timestamp": 1786955108000
+  },
+  {
+    "firma": "3v5MrD5SdPRYFGwT1F3ayBiTnLEoGvi8xsxbaZV5k5u48sANY8eH5BTjZ9o6kJiaxphfcrTDrZ8coH2FzsnJtaUe",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 31149371.165827,
+    "timestamp": 1786955095000
+  },
+  {
+    "firma": "2LKJo5DPAjosoSfyNh1afJ2536QgYEufZRhibzrWcAbFwGhTv9aW2k5pQjNtGg2V3ySJNredoQvRKze5QKoC9EVn",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 31149371.165827,
+    "timestamp": 1786955094000
+  },
+  {
+    "firma": "3djqDqKYC4GAHPt7nLW7NSXUyY73v14M9jK9RiNPwc2NfGsUBcXwZu3P2sXnQcNP1SwD9GHsCPTCMC52ZY15uvBk",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 24424494.695314,
+    "timestamp": 1786955091000
+  },
+  {
+    "firma": "2eAgiZAR7on4WZEG2CrBWKx9qL7at5Lyi1vBu31ULtvPXPYcfAsSJKvjcBAVvRrzsvurTbS6WpNcTDNewQEcjHYZ",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 24424494.695314,
+    "timestamp": 1786955088000
+  },
+  {
+    "firma": "2N6HSW37PQWkVGgT9aHi5pQzgWBzCcHhxbAtrfmJv9qisXo9ybHMS6N5hRU5rUFCetr5Dz9SWb3CAfr5tceEysgz",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 6568193.838463,
+    "timestamp": 1786955082000
+  },
+  {
+    "firma": "4JwunA2wFr27aeMa97htRsvmyxJAsvK5FBBYcgxuB4fo875pcGqEfPr91xT4MiFjg87EziHtuXFFNVEKdooesquf",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 30246581.962954998,
+    "timestamp": 1786955082000
+  },
+  {
+    "firma": "47DzdXxQ3PYgPPuVjd4RpKMio5zjaJxcRvebv4RGsEVfSJVjk8Yfev2Wmrb7WDdp2LrDC6tA5V7do9gXk7ia9ydF",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 9219628.931830004,
+    "timestamp": 1786955082000
+  },
+  {
+    "firma": "3ifuM8oj4C5E1gHuAK3Axf2Xsyx3xSBAFF4ynR8Earhk717pb7x8pzn6AX5GFnQK76gYwsiSWwZAsL7vJ7D19XmS",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 30246581.962955005,
+    "timestamp": 1786955082000
+  },
+  {
+    "firma": "4Vmgat1BxYLrq2YUo4RtFt5UHnUUrpwCuEdR886PhYWSABJE8oTgB9cPnh3NFyGFG1A4NRMmWrF5KGHpjMbhJ6Xc",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 22181481.472691,
+    "timestamp": 1786955079000
+  },
+  {
+    "firma": "a5nFAqjC6U3dNoS3d1ULa7Ps8VZFWfaQ3TfLbHLVUKr6BQLwP5KaTKX25bXHHHQ9aFi2FqRScoLZUiikVWyL3xr",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 22181481.472691,
+    "timestamp": 1786955078000
+  },
+  {
+    "firma": "3tjxPjiyEZCF3J2NgdzJT5iewMnwgCz25HT2by9NytN1gSCF7tXwMHJ6EiaHo4RhgB7aho4VAS3gmnrhzofkmk8J",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 9219628.93183,
+    "timestamp": 1786955077000
+  },
+  {
+    "firma": "3p3TsnecGM343Q4SzjLatpwH6Tm49vUZWZnKJdHKyGNHK3sgnE7ydypP5hZv28LjSSoyWpzvFa3boraApwrV3i7w",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 6568193.838463,
+    "timestamp": 1786955074000
+  },
+  {
+    "firma": "33cjJHcppX34VKR6rBZyWUKDQZcjemVWu46TVfjx71nGXZjoSkQVULjhgYjrhCcBU27LWPpKDiUsCbRAJGBRrze2",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 8084295.093869,
+    "timestamp": 1786955071000
+  },
+  {
+    "firma": "5F1F7BqvUwz8cJCqwkViiuHbRoZbMC6V5WKtFL7HzeRgE2KYHd4utzphuXvVfkwVARynC8YkvxMnW5w4PGKgnKcX",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 16791516.176213,
+    "timestamp": 1786955069000
+  },
+  {
+    "firma": "51AowLsc7xs1Zc77FugRHCiZaKnWgJYxkoL778gD7T3TyDyLkjx8Ucz1PaXGYBzgRn1RZk9z2HHEUzAAgYK8VUub",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 16791516.176213,
+    "timestamp": 1786955068000
+  },
+  {
+    "firma": "nZjoEMYinppkWWVVdbqnauAs9psRBAvN9BgC69oVBWx9hbZW35U9YyW3EyAkWZ9Gs58iLAbSy4mNGHPDC4A3Q6m",
+    "tipo": "SELL",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 17484335.356095,
+    "timestamp": 1786955067000
+  },
+  {
+    "firma": "2zBZTuRTCsjvXR4Fi46CPWAoCkTv4LdEH97YSDMCHETQb1UUu7ZzyGc3DueBoaghzn77q3jsqhdcSTG3DQ1qzEVs",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 17484335.356095,
+    "timestamp": 1786955064000
+  },
+  {
+    "firma": "5RLrQAJg9qnGNpERhYTxenbFMeUSwLuzcCFZAioS6NsNoZEK2p8MxJvRwwzuXuj83UG1u3q1fcuMybJKXgrf4QRc",
+    "tipo": "BUY",
+    "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+    "differenzaToken": 8084295.093869,
+    "timestamp": 1786955059000
+  },
+  {
+    "firma": "4N3GRAZvQobSgitC13GPNjohVUpbjdBNo6C6jF2ehLpYQLwUoRday8y9nPBMd5DmUmCDGi34GuA4nbDqDqpvSK9W",
+    "tipo": "SELL",
+    "mint": "3hZQHqoENF7fep3xGR1tfrJeQTduH73SjrbduH2kpump",
+    "differenzaToken": 28190936.61456,
+    "timestamp": 1786954951000
+  },
+  {
+    "firma": "5jSW39HQGTCSQbiD5dHGCENYap9vwZHC1xi2T2hBYaa32zAFXk5RKSBFGjpcNpL2Sn7RgMzrN7W4uZkLbf7TgqQZ",
+    "tipo": "BUY",
+    "mint": "3hZQHqoENF7fep3xGR1tfrJeQTduH73SjrbduH2kpump",
+    "differenzaToken": 28190936.61456,
+    "timestamp": 1786954950000
+  },
+  {
+    "firma": "3vyEdC28g3NSKVQu8YrkaKJng47TrUcqpNzBwqefz4V7JkRStbwqsQbcUHRk2nbNbKUkFtxTXrFYG9w5tQDy7iTi",
+    "tipo": "SELL",
+    "mint": "3hZQHqoENF7fep3xGR1tfrJeQTduH73SjrbduH2kpump",
+    "differenzaToken": 13714665.024514,
+    "timestamp": 1786954944000
+  },
+  {
+    "firma": "4VqxSKWfeRHeRaskYQ3PZaxLUVZGV4twPFupmDodNdBzDWBhPVuGYvFCn5iNrQbXhks1KHx4V8X7YjCJYzifD92C",
+    "tipo": "BUY",
+    "mint": "3hZQHqoENF7fep3xGR1tfrJeQTduH73SjrbduH2kpump",
+    "differenzaToken": 13714665.024514,
+    "timestamp": 1786954943000
+  },
+  {
+    "firma": "xRWzJCw5QvkEjAkLhbMhmrzpAunNvtszPcsJyoK2FkM8BxYmLQ68ZsmFZ43R9gSmfGPYFz6acLEdxqrcXD4AUhR",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 117969309.783003,
+    "timestamp": 1786954829000
+  },
+  {
+    "firma": "4268JaaYL5akRpVyw3x3d9kdxyHtAnxRQ7We6kPegR4Vr1PJyptvfQ7s5qFa9UmEEzcW6Mmi8E251bxKuotYSmRv",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 70065039.975512,
+    "timestamp": 1786954789000
+  },
+  {
+    "firma": "3MHH9t3NLnodPgquRe6TTXf9m2DnhkviL3jygS2S93gT2Q2udSF6fjkXBDY3PrTG9pT8HrSH1GzEWyX6UqGuMu7S",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 48599324.61770299,
+    "timestamp": 1786954784000
+  },
+  {
+    "firma": "4qamGnwY4gzK6Cv14nnyXijxtPib8Mso7BtftDso2H1i3B2cDYKXLCVxJefkqU9oBiXxXuKcpwsX2MX6R6c7fJUL",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 117969309.78300299,
+    "timestamp": 1786954784000
+  },
+  {
+    "firma": "4V9Ex4piyY4AR1WJAsWLFiJiekTkpesECTaFgK9viQW5JJW2PSUB7msftx1jwFRRe8uEY3NanPmCaomf975ANsKE",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 70065039.975512,
+    "timestamp": 1786954783000
+  },
+  {
+    "firma": "f8MdLNVAiXVap2VT68n3pSPjBvt7fvYr2vxVTLhB3CMhtVBRh88r9AaJxmgfYphVrdFBcyGst8XFkgx46zue6uf",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 53670051.679923005,
+    "timestamp": 1786954782000
+  },
+  {
+    "firma": "67DbuP8AVrN8V22MiSWjsQ1d9L55YEZDjH7rNNEu2eQ9q5iPhotbBPPosSiSeD8o8oFT8pxHmUXa6PXiMGaqE7Wt",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 53670051.679923005,
+    "timestamp": 1786954781000
+  },
+  {
+    "firma": "4TjhotY6guNiRaK75oxWQkk92QXQvaecU8K3kkTTec6U1qkjc2EjcY7dQ2svCxrhqahsggALoaGU2GLnQApnmEwk",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 72793236.439722,
+    "timestamp": 1786954775000
+  },
+  {
+    "firma": "1etPbK4zUTa5v1yJzJ11DPogqRPWUbGThiryczBSBD5NkUn2smhKYCKvqg8mwQBMz2UvcDYmPS73y94je22BVMH",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 72793236.439722,
+    "timestamp": 1786954774000
+  },
+  {
+    "firma": "2o7XcjJw4dp8MVBGVwk2QYftkrRYcKG1ivHUuMrR696JVRzvdWvqmcbj6Xq7XcMDiEmcYwua9ufYix31H3RLipQe",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 39150679.819752,
+    "timestamp": 1786954769000
+  },
+  {
+    "firma": "4UQfGLUCtKRp9p89eA8Z8QdSYfxfQUSw97J8Ju96pRvWuNh36TuUK6zwQ6BPjrFSLoHQzTgEVJZayQsAZ1z1mWio",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 39150679.819752,
+    "timestamp": 1786954768000
+  },
+  {
+    "firma": "5NXdv4T4EqrQYCXnwayXm2oX8Kc9axfP2rz2W4M6jr68bwYQeSMSQfq4qsxzrqxv3eJ1fdYafefoomqhToMrDyvr",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 48599324.617703,
+    "timestamp": 1786954767000
+  },
+  {
+    "firma": "3KS4zFUzyjEnxeyvfomCYog9mz5Uuub7d2EGbnUpTr87HRq8DSaGF7FXzMyYDqrLDZR5d72PGhRD9CXFHL2V3ssy",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 16427737.745407,
+    "timestamp": 1786954767000
+  },
+  {
+    "firma": "3YvuD3JhAajEYaWCdMEdgonF4QjnGcMUCJyMKqTFaqoyxqqm79aue1TAEP95nQLMs8gfEzjAZhjnoetUviFZY5AP",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 40204120.007209,
+    "timestamp": 1786954764000
+  },
+  {
+    "firma": "2cLqDFG4jWzsfqH7wHnzEGtmB1mtvS6R98YsM7FTU8gGmEDVexkU5SqWLvSFz1nBgoj8Nh8wq18fusj7rUQ5Gk8s",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 40204120.007209,
+    "timestamp": 1786954763000
+  },
+  {
+    "firma": "C36Ydd9ziKp6R72tK3GeHAFDBtsfgwewspr36UeDbqQHtgnrq1oktJoUrd1g3y66S4Pt4u41Vg1a5yy9eZ64qFQ",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 16427737.745407,
+    "timestamp": 1786954761000
+  },
+  {
+    "firma": "RirtJnxKgzescrBotDGNQwkdA7wcKBDRk1JEQyHF5B6KgysqPdhhL84pr8iZ8aoXJ5wMGNfXi5uryDgBTjBE8tF",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 18369283.466525,
+    "timestamp": 1786954756000
+  },
+  {
+    "firma": "33kAoDcVm4o7V3MYL1biwsfDdvDKmRpVyimoRjCbnAEtudgqB6iJ98UTVaFfjy1VLPVqwvMPXTpjqWMYqNvLjbr8",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 18369283.466525,
+    "timestamp": 1786954755000
+  },
+  {
+    "firma": "XU48G5rVfReeubTR2Vav2t4fYdbwdbapB2h9NcxzuqbCcMSUiebBYvBcD2iaFHh34SKd1dzxAUXgv3tJk3pfJnB",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 10694784.090059,
+    "timestamp": 1786954754000
+  },
+  {
+    "firma": "4nTgh3cDbj2LTAKVfVmk5pr2q7onqJnYqtFsr251rNXvLzhbskxKNRWRAjFr9yjcSVhU1GpXo63KN9sBUydB9sAU",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 10694784.090059,
+    "timestamp": 1786954753000
+  },
+  {
+    "firma": "4MsD9dSRvPTuzkQjKAgM1QUuijZ4Gx7baDDxmQEoAQqE5KWQ11DQYCn7PXkV7LGMcoyTdwD1QA4fNgkLeeLXEPLR",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 7532596.593812,
+    "timestamp": 1786954752000
+  },
+  {
+    "firma": "3NnNKyi7jj7vWCAq4KZrauLbY5PR7ikYfMd3eVQntVMUe8DVCvHqmgSyYGxxx14mJqRkJrBRXAgPxBftHLZJbJGe",
+    "tipo": "BUY",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 7532596.593812,
+    "timestamp": 1786954750000
+  },
+  {
+    "firma": "2nY7KrDPxrEC8aAQZf3Qvnar4svoC4qPq8z5ZWjEiYmnVtS3k5issuYbRnUetNguSLEkR4BJQtmDUezxPGiiUpw5",
+    "tipo": "SELL",
+    "mint": "5iY7rVxhK1z2MNWcWyqfHb1M9f8VLnCeETHiyYAopump",
+    "differenzaToken": 86827778.8847,
+    "timestamp": 1786954736000
+  },
+  {
+    "firma": "3MHeT5TcicXDMczRa5mGiJgBY8ZR5uehEBnjH5H3XeHAJitZJJvMWTQ8ZRFoLNyGYUTEwZVeWFs6n58XbmbDVmBp",
+    "tipo": "SELL",
+    "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+    "differenzaToken": 8863564.244046,
+    "timestamp": 1786954735000
+  }
+]

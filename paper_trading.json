@@ -1,6 +1,114 @@
 {
   "trades": [
     {
+      "data": "17/08/2026, 10:26:56",
+      "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
+      "pnl": -0.09474,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:25:28",
+      "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+      "pnl": -0.07626,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:25:01",
+      "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+      "pnl": -0.09234,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:24:55",
+      "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+      "pnl": -0.09234,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:24:46",
+      "mint": "3kt2hYKLKXHBvu3BnnqPAGoEeDcK6WdWyk2nNcaJpump",
+      "pnl": -0.09234,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:19:54",
+      "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+      "pnl": -0.03798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:19:54",
+      "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+      "pnl": -0.03798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:19:50",
+      "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+      "pnl": -0.03798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:19:42",
+      "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+      "pnl": -0.03798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:19:40",
+      "mint": "24nFrK888TFt19pnNmFBryjWQKH8mS8izMsDtnYvpump",
+      "pnl": -0.03798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:18:37",
+      "mint": "5iY7rVxhK1z2MNWcWyqfHb1M9f8VLnCeETHiyYAopump",
+      "pnl": -0.05863,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:18:28",
+      "mint": "5iY7rVxhK1z2MNWcWyqfHb1M9f8VLnCeETHiyYAopump",
+      "pnl": -0.05863,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:14:51",
+      "mint": "ZCAKADe5y7JLLWpG8UDRx5ZDdTsLmxTekCj58GLpump",
+      "pnl": 0,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:14:50",
+      "mint": "ZCAKADe5y7JLLWpG8UDRx5ZDdTsLmxTekCj58GLpump",
+      "pnl": 0,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:14:34",
+      "mint": "ZCAKADe5y7JLLWpG8UDRx5ZDdTsLmxTekCj58GLpump",
+      "pnl": -0.05871,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:13:15",
+      "mint": "DiMtjWni1K83wZiUTpmDvwXG9jpfDsnMN1QskATDpump",
+      "pnl": -0.06892,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:11:02",
+      "mint": "7mYSGRZu3QoURA6GDcZYbuu3UaeXvNirzFenm1WLpump",
+      "pnl": 0,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 10:10:13",
+      "mint": "FYqWB95ggm8bjCrPxnQ5GSNCgXxWKydyGzfasW17pump",
+      "pnl": 0.0113,
+      "esito": "✅ WIN"
+    },
+    {
       "id": 1786788105245,
       "token": "FMTMAgEUFQydLbwke3MPbHanPj5toD7j4ZwJkmjByUxP",
       "pnlSol": 0,
@@ -85,6 +193,6 @@
       "data": "12/08/2026, 20:20:16"
     }
   ],
-  "bilancio": -1.1542499999999998,
+  "bilancio": -2.025752625717252,
   "openPositions": {}
 }
