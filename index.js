@@ -1987,8 +1987,25 @@ async function valutaEsplosivitaToken(tokenMint, walletTarget) {
                         console.log(`👀 Mimetizzazione completata. Aspetto che la balena venda per uscire...`);
                         
                         // SALVIAMO NELLA MEMORIA STALKER
+                        // SALVIAMO NELLA MEMORIA STALKER
                         const trackerKey = `${walletTarget}-${tokenMint}`;
                         posizioniAperte.set(trackerKey, mcEntrata);
+
+                        // ==========================================
+                        // 🪂 IL PARACADUTE DI SICUREZZA (TIME-OUT)
+                        // ==========================================
+                        setTimeout(async () => {
+                            // Se dopo 4 minuti il trade è ancora aperto (la balena non ha venduto)
+                            if (posizioniAperte.has(trackerKey)) {
+                                console.log(`\n⏱️ [PARACADUTE ALERT] La balena sta holdando troppo a lungo ${tokenMint.substring(0,6)}... Chiudo il trade in autonomia!`);
+                                
+                                // Rimuove dalla memoria RAM
+                                posizioniAperte.delete(trackerKey);
+                                
+                                // Forza la vendita e salva nel paper_trading.json
+                                await chiudiPosizioneStalker(tokenMint, mcEntrata);
+                            }
+                        }, 240000); // 240.000 millisecondi = 4 Minuti esatti
                     }
                 } else {
                     motivo = `Filtrato. Ratio: ${ratio === 999 ? "MAX" : ratio.toFixed(2)} | U-Index: ${(uIndex*100).toFixed(0)}%`;

@@ -1,6 +1,2874 @@
 {
   "trades": [
     {
+      "data": "18/08/2026, 01:03:51",
+      "mint": "9PkWHzTHss7XcD16ndcpYk3pLNjae3oWH6yq8WFBb9pb",
+      "pnl": 0.0095,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 01:03:46",
+      "mint": "F5qnZ9qxdkvXSTECQ2MoGRvUDQGsKiMw59YhkWz4pump",
+      "pnl": 0.03912,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 01:03:28",
+      "mint": "EigK8isG6KdDP2pVJoerdgAxLnf2i98CDun3MGedpump",
+      "pnl": 0.02698,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 01:02:03",
+      "mint": "5wmkq7uAgfaMsfMa5oqZGqsDKbywEEC1imrgYuDupump",
+      "pnl": -0.02654,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 01:01:44",
+      "mint": "BeQzrSyqcrVjhq8rHidrHPVxLMp2MpVHMAFqMCQ9pump",
+      "pnl": -0.03981,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 01:00:28",
+      "mint": "5HrYVQ4Z1wwba6aaNRAsPugRyEUjAw22DvnHmT9opump",
+      "pnl": 0.01646,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:59:09",
+      "mint": "F5qnZ9qxdkvXSTECQ2MoGRvUDQGsKiMw59YhkWz4pump",
+      "pnl": -0.05709,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:58:46",
+      "mint": "D6ZtezyGR4ExmoLPRZVVN7gFoeoBPzxpYobAhDGUFyu9",
+      "pnl": -0.0444,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:57:40",
+      "mint": "7d4ur9XEeYyxnoyuE7kFA962hscy2oThmkxZakZLpump",
+      "pnl": -0.07251,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:56:05",
+      "mint": "AVXqiyLM1Wn7kYjz6GnEBgLKmdoWmPjXj9X4TDzriQHU",
+      "pnl": -0.08585,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:54:04",
+      "mint": "5HrYVQ4Z1wwba6aaNRAsPugRyEUjAw22DvnHmT9opump",
+      "pnl": -0.00621,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:53:53",
+      "mint": "D6ZtezyGR4ExmoLPRZVVN7gFoeoBPzxpYobAhDGUFyu9",
+      "pnl": 0.05307,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:51:57",
+      "mint": "7UhgLsCLdXyuxHmF4SRn6ZN5NrTciYndy2mACEb3pump",
+      "pnl": -0.03529,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:51:08",
+      "mint": "9PkWHzTHss7XcD16ndcpYk3pLNjae3oWH6yq8WFBb9pb",
+      "pnl": 0.01328,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:49:37",
+      "mint": "AjJii6yM6d8npxukyhzizioR6cQPVASatV9LbZAExyfr",
+      "pnl": -0.05018,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:48:49",
+      "mint": "3UuNM3aZ4qBHrzMZUNs6ASNA17Y1ZqtTmd2quXo1Ti2e",
+      "pnl": 0.04148,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:46:48",
+      "mint": "4JWztng3c6J5f6gPh7brpdLpAfEj6D8UWipiDY7Bpump",
+      "pnl": -0.01865,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:45:11",
+      "mint": "3NhEfVcGY6NLqViH6cPxMtAnPw72uMusm6gB4SRppump",
+      "pnl": -0.03462,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:45:03",
+      "mint": "9PkWHzTHss7XcD16ndcpYk3pLNjae3oWH6yq8WFBb9pb",
+      "pnl": -0.06368,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:43:04",
+      "mint": "ALdVkMzRgCZfTVPakWeSEMhpt7HHx9cVQPBKGSreMpHa",
+      "pnl": 0.01771,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:42:26",
+      "mint": "61fhDs34sz7SfBBZHoYbJW7XCruNtduq6mKC74Bepump",
+      "pnl": -0.08603,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:41:58",
+      "mint": "9PkWHzTHss7XcD16ndcpYk3pLNjae3oWH6yq8WFBb9pb",
+      "pnl": -0.0032,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:40:52",
+      "mint": "9ipCRaqCe5CnDz5nruD6BaedwodUbJb3RPjmAJ7Hpump",
+      "pnl": -0.03387,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:39:47",
+      "mint": "9PkWHzTHss7XcD16ndcpYk3pLNjae3oWH6yq8WFBb9pb",
+      "pnl": -0.03093,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:37:32",
+      "mint": "GHzMvHoMDBva9ERijyC7eAd7TqriCqb9LUPjQ7Efpump",
+      "pnl": -0.02432,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:37:06",
+      "mint": "Gma4nEGBkhM3ieaVb2oChda2Bc12MZLN8EywYfZYgFfD",
+      "pnl": -0.02585,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:36:18",
+      "mint": "8nC2LB5t1bR1Hwyz1dKuvuVbPoZF66CuekBnPbjZpump",
+      "pnl": 0.08521,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:33:33",
+      "mint": "9ipCRaqCe5CnDz5nruD6BaedwodUbJb3RPjmAJ7Hpump",
+      "pnl": 0.14147,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:33:17",
+      "mint": "6EEfLQnjUm5fc631PFf3zqcE8oMVatpp69Y2Rxg4q23n",
+      "pnl": -0.02237,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:31:37",
+      "mint": "AcMjz4Jiw7neVpBo5HrN3Hd6xexe9uTFA2kKHkKSsz5A",
+      "pnl": -0.09206,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:31:14",
+      "mint": "6SU66WcZCu2rkw6NT7ve1kgBk8iqmY9enuQwrpJdpump",
+      "pnl": 0.10483,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:31:03",
+      "mint": "DiwNdGqdnU5ppJa8jma6PKsTag7i6KeHMguvHRtTpump",
+      "pnl": -0.02446,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:30:22",
+      "mint": "CHX6XBK9YnyPv8Pa6kAQjprxrRWk1R3i3BBsnRA6pump",
+      "pnl": -0.04034,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:30:09",
+      "mint": "3M6WKJ6VWcF3AiAJ8SMnBVcajVPwqYb7zcwPDn6x2Yh8",
+      "pnl": -0.08555,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:28:01",
+      "mint": "3DB8mWA1Lru8o2dktJ9NuwzfAKcNTvXKZmsjMJz1pump",
+      "pnl": -0.07686,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:27:23",
+      "mint": "6EEfLQnjUm5fc631PFf3zqcE8oMVatpp69Y2Rxg4q23n",
+      "pnl": -0.01276,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:26:42",
+      "mint": "2JsmQWfpi4ZEyFSNRNebd2PMDN6cPR5bKwmSGULPpump",
+      "pnl": 0.08012,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:26:30",
+      "mint": "3BpL5EKV9h1hqtLcnMXqo3r7uvHg5kWtzxFz4x92pump",
+      "pnl": -0.01212,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:25:10",
+      "mint": "2JsmQWfpi4ZEyFSNRNebd2PMDN6cPR5bKwmSGULPpump",
+      "pnl": 0.20521,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:24:37",
+      "mint": "9ipCRaqCe5CnDz5nruD6BaedwodUbJb3RPjmAJ7Hpump",
+      "pnl": 0.00546,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:23:42",
+      "mint": "61fhDs34sz7SfBBZHoYbJW7XCruNtduq6mKC74Bepump",
+      "pnl": 0.10365,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:20:57",
+      "mint": "C7gAN1eMGCyEuvpJ1weit6sbEQ1fPMV9sND93oP5jxhH",
+      "pnl": -0.07771,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:19:39",
+      "mint": "7pi3qBiyLZuNJK2ieEYpkNCKZxndGcYC87sVG9fQpump",
+      "pnl": -0.09148,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:19:33",
+      "mint": "DMPyujmkqTpxWcFaowt5mezN2xauagz4KcmmF665pump",
+      "pnl": 0.15324,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:16:09",
+      "mint": "GrXTqVxzRfS5RkqD2JD8sV42VunWyLYhh1xAKvmSpump",
+      "pnl": -0.06507,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:15:36",
+      "mint": "6ZS9zTr4jZu3JAmgbwNL2ebteCVUrN4otyiPWjNJaMEH",
+      "pnl": 0.02187,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:15:30",
+      "mint": "5fACh867xw9k3RggGMyJLuZhyKVa5k8GNPggY6NJpump",
+      "pnl": -0.00155,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:13:23",
+      "mint": "3DB8mWA1Lru8o2dktJ9NuwzfAKcNTvXKZmsjMJz1pump",
+      "pnl": 0.15773,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:13:15",
+      "mint": "FMgdM997pRvbBAUb16G1QnCrFDazvZ59AXMAKcTgpump",
+      "pnl": -0.05153,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:12:41",
+      "mint": "24ou6cqRMdA8X2ToQapqthS9B2RqCKJFEZracYDRpump",
+      "pnl": 0.08495,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:10:57",
+      "mint": "Fcc5PpXkJCHAFuySUajCzahSb2J7gMyScdNaZjbopump",
+      "pnl": 0.59003,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:10:54",
+      "mint": "3BpL5EKV9h1hqtLcnMXqo3r7uvHg5kWtzxFz4x92pump",
+      "pnl": -0.05934,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:08:25",
+      "mint": "3BpL5EKV9h1hqtLcnMXqo3r7uvHg5kWtzxFz4x92pump",
+      "pnl": 0.27242,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:08:02",
+      "mint": "CjDs5Tur1ntJor2wXDmVX9uB99Neg1CW4CXHo8c2HhHo",
+      "pnl": 0.0374,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:07:02",
+      "mint": "CAp8UUoLdtkT3ZFq41CYXQUfxnLSGUgPtJ1CFzzJpump",
+      "pnl": -0.00503,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:06:45",
+      "mint": "AwU7jS1gSFuuUi6NwPhi43fKJPXvzgnswamVHNetpump",
+      "pnl": 0.01638,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:06:35",
+      "mint": "4arM6K3JkNBpVN4aPRh99jVGjDYDARNdidDqJx5bpump",
+      "pnl": 0.05418,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:04:04",
+      "mint": "Bfkahbteh35MQS8m453P5aCxfAquY6b4YPkWVLJ7pump",
+      "pnl": -0.0551,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:03:37",
+      "mint": "5fACh867xw9k3RggGMyJLuZhyKVa5k8GNPggY6NJpump",
+      "pnl": -0.02996,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "18/08/2026, 00:03:31",
+      "mint": "7RFkZg8Mp7zUR1nqeJ75xcDkwgsr2CGHZjuUwcfZpump",
+      "pnl": 0.00239,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:03:18",
+      "mint": "6ZS9zTr4jZu3JAmgbwNL2ebteCVUrN4otyiPWjNJaMEH",
+      "pnl": 0.04448,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "18/08/2026, 00:00:17",
+      "mint": "AwU7jS1gSFuuUi6NwPhi43fKJPXvzgnswamVHNetpump",
+      "pnl": 0.0458,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:58:43",
+      "mint": "4f8661gnq7ksm1Tm4PZEbDBpXRvaaVbVASaMnyqWpump",
+      "pnl": 0.09152,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:58:17",
+      "mint": "5fACh867xw9k3RggGMyJLuZhyKVa5k8GNPggY6NJpump",
+      "pnl": 0.02518,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:58:17",
+      "mint": "CjDs5Tur1ntJor2wXDmVX9uB99Neg1CW4CXHo8c2HhHo",
+      "pnl": -0.01418,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:56:21",
+      "mint": "HMeZ9nPzg28GhUeJLvmemMPMVm4Zru6MDE62pbukpump",
+      "pnl": -0.00757,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:55:01",
+      "mint": "AwU7jS1gSFuuUi6NwPhi43fKJPXvzgnswamVHNetpump",
+      "pnl": 0.05357,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:54:46",
+      "mint": "6ZS9zTr4jZu3JAmgbwNL2ebteCVUrN4otyiPWjNJaMEH",
+      "pnl": -0.06989,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:53:47",
+      "mint": "6xXxTwN9QQREo3CvatWTdLpQtZWnxW7K2M3EQjepump",
+      "pnl": -0.03669,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:52:03",
+      "mint": "mFUadUtJrXQ5Qh3E97xu7kqtfdWFJ5KxEKbkzfPiCHz",
+      "pnl": 0.01018,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:49:57",
+      "mint": "EW3dtS81peKXFvSSFY4NZHHczthFEpeLEJgnxRn1pump",
+      "pnl": -0.00041,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:49:48",
+      "mint": "AwU7jS1gSFuuUi6NwPhi43fKJPXvzgnswamVHNetpump",
+      "pnl": 0.01669,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:46:37",
+      "mint": "Ev9Dv9fNPRxb1dH9A9UUX2fsgy52syc8woY3JpaJpump",
+      "pnl": 0.01537,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:45:03",
+      "mint": "AwU7jS1gSFuuUi6NwPhi43fKJPXvzgnswamVHNetpump",
+      "pnl": -0.02459,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:45:01",
+      "mint": "GQo1kh6sPEEr1Sq4PTBp8ycT7PqyQbYWHnGEeqUMpump",
+      "pnl": -0.01657,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:43:01",
+      "mint": "HibFQAGBSyZ4rYSNs79iReXtAC7sHio1FeGSrET5pump",
+      "pnl": -0.0765,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:41:50",
+      "mint": "G6CphRFTadysW9SP9eibctG6EdzqfTmzmoKBuY31pump",
+      "pnl": -0.02694,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:37:33",
+      "mint": "FwhqFNUAZLbxJw2WReYjDW1EizbkoDD1ht8SqdCnJ33Z",
+      "pnl": 0.00909,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:37:01",
+      "mint": "6cqu4YgHQx4YidzAH6veMrjX1xfcpSexqbKSvanEpump",
+      "pnl": -0.04361,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:36:08",
+      "mint": "Bd2Bd5sY1RbqLs31oAapXmtoyjdsXeqyDwtGatNRpump",
+      "pnl": 0.00179,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:35:54",
+      "mint": "DYi4inaCKdtYDTwKZF8yj5r5kwgNmU4WbYCK53PKpump",
+      "pnl": -0.06432,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:34:29",
+      "mint": "CLZLvACbZNEEgLWzWBbSkyRfQSo4GvhvNSeFQLct3665",
+      "pnl": 0.01435,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:34:20",
+      "mint": "CH66bHx5ZaPK3iE69ELKXFhiKbUdBpd1rPbyGc9Gpump",
+      "pnl": 0.04581,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:33:20",
+      "mint": "Gh8CnX6yQicSDSzfKg3TmiQUzntDUpBEgq78tMv7pump",
+      "pnl": -0.03544,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:32:12",
+      "mint": "QoVWheHWrSgV86owFGmPq9rxRBWUqjyYSTaEa4upump",
+      "pnl": -0.0415,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:31:02",
+      "mint": "Ce5kUemEvR1eYEhqQUadusXn6XS3YhaBgGGyqPX63cuj",
+      "pnl": -0.02981,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:29:18",
+      "mint": "CH66bHx5ZaPK3iE69ELKXFhiKbUdBpd1rPbyGc9Gpump",
+      "pnl": 0.03324,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:28:00",
+      "mint": "Ds3mHnyFRR6bTxSwNrzdurx711hYwq7EvxDjA3HXpump",
+      "pnl": -0.04665,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:26:48",
+      "mint": "FwhqFNUAZLbxJw2WReYjDW1EizbkoDD1ht8SqdCnJ33Z",
+      "pnl": 0.05967,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:25:43",
+      "mint": "EjpgYTPGnZZ5dPmCTLdd4kB1XHXw6vvXwLpNdnJxpump",
+      "pnl": 0.08237,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:25:15",
+      "mint": "fd8Cm2Ug9hZMn5CzFHAKUtjDSUhcXSyHTRCY3VeXUni",
+      "pnl": -0.03579,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:24:53",
+      "mint": "8tCVrcrpqFKgpWzVUqfS9Cp4AygKK1hxuTm42epwo5ot",
+      "pnl": 0.01463,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:24:05",
+      "mint": "2tt7FYTGUpcNG2JMkQV3QUpqVXY3CTLihCr2zE9Bpump",
+      "pnl": -0.00003,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:22:44",
+      "mint": "Ev9Dv9fNPRxb1dH9A9UUX2fsgy52syc8woY3JpaJpump",
+      "pnl": -0.01399,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:21:54",
+      "mint": "JCEE2398LSvUhn1pYij53xvFPNa65CLzGChvjdebpump",
+      "pnl": -0.03219,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:21:51",
+      "mint": "8y4tkSS8EGaBND8c6wEoBsVsefUfLFHg2eKAGskxpump",
+      "pnl": -0.05793,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:21:38",
+      "mint": "EjpgYTPGnZZ5dPmCTLdd4kB1XHXw6vvXwLpNdnJxpump",
+      "pnl": 0.02612,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:21:18",
+      "mint": "FUzh8WAsZKdkSUFVoaFp1oXVcN9GJ4oEFrsLkUrJMuS5",
+      "pnl": -0.08468,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:21:14",
+      "mint": "BqjttGXHJxcT1Cy7sKTcc8LoYNYrbb9h1n5okDVqj6yf",
+      "pnl": 0.15966,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:20:57",
+      "mint": "i3PW1jsBZu2okS3uhqn17SbNDFcScb9TXGRky82pump",
+      "pnl": 0.14424,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:18:58",
+      "mint": "4uC16DfJePiYY28BRYLeU5Mn5GX43YUJXgyNdv6eT3No",
+      "pnl": 0.03786,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:18:08",
+      "mint": "9BM1aNmyAUCq5reBsD9AMxDeFdsTB5WWqNx2LuFDCqFg",
+      "pnl": -0.01279,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:18:04",
+      "mint": "D4cZgAmHVSX8myhb42miuzD27eFSi4epFs3reGdqpump",
+      "pnl": 0.00631,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:16:50",
+      "mint": "F6rMrDPJ5pmsZ3yRu1QpDBogLvGCUnobuR1fbzPypump",
+      "pnl": -0.0842,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:15:29",
+      "mint": "JAz47PFZrHEjhHnuKeAJjTBMAyoGSY5BrtwhQ83Apump",
+      "pnl": -0.03198,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:14:42",
+      "mint": "3DuNptuMaLpK7b4PMRXPhT8weiNvnSzYnvpS3sZwfgmn",
+      "pnl": 0.01292,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:14:19",
+      "mint": "7JYedZx9UDnUBjnriXEBJb2kEtXrJfJDpXmJTqXmmzHu",
+      "pnl": 0.00189,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:13:32",
+      "mint": "FSRECpJT7ueHohyaQTUSCyzaeh2QVVaatA3KSPzdpump",
+      "pnl": -0.02379,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:09:55",
+      "mint": "CYdLv3C71mQhNXqNMAu3ccJgLKB1DMuyFzRWKkEoxW7U",
+      "pnl": 0.00796,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:08:57",
+      "mint": "8LdvhqNZrweS8ZsaJdegqswbUrCSd9avp41iQRQRFUDc",
+      "pnl": -0.05903,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:08:45",
+      "mint": "HdrDfz8X3ep7qgpD3ZpoQtSEbrVt5BfHoGBjpeqZUENX",
+      "pnl": 0.28049,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:08:04",
+      "mint": "FK3LfcsPqVWQV1id7dxJVvvuYpZF4eeeCMKGNkc7aYJn",
+      "pnl": 0.42582,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:06:41",
+      "mint": "8CNqj7bQD8CKQk4fsuN5LuTz4Yi3vsEFrSxDk5EBpump",
+      "pnl": -0.04958,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:05:50",
+      "mint": "6Rkstb9oiez1eyo4cnQVAW5U5ZKSipvjUqN29kiiBAH1",
+      "pnl": -0.04249,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:05:49",
+      "mint": "9C2cdz9stP2VtrWBJQs9a4YaLZdRV2tmSuHWN3jAvPXb",
+      "pnl": -0.02394,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:05:36",
+      "mint": "6Zjrjkr8qtCy1MSx1wxVvwWQ2KBms7q2dCubCnvgc1F3",
+      "pnl": -0.03187,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:04:37",
+      "mint": "8LdvhqNZrweS8ZsaJdegqswbUrCSd9avp41iQRQRFUDc",
+      "pnl": -0.01499,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:03:40",
+      "mint": "6bjL2rHXcPdGjgkXhH9TaxUzk821naXwoCxDVdMepump",
+      "pnl": 0.00029,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:02:58",
+      "mint": "4uC16DfJePiYY28BRYLeU5Mn5GX43YUJXgyNdv6eT3No",
+      "pnl": -0.02742,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:02:24",
+      "mint": "8CNqj7bQD8CKQk4fsuN5LuTz4Yi3vsEFrSxDk5EBpump",
+      "pnl": -0.019,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 23:01:37",
+      "mint": "CYdLv3C71mQhNXqNMAu3ccJgLKB1DMuyFzRWKkEoxW7U",
+      "pnl": 0.05231,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:00:23",
+      "mint": "HUPMJ4Zsi9tLVoJS5SqHhKGxLosxFDejZAU9evy3pump",
+      "pnl": 0.05875,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 23:00:06",
+      "mint": "4uC16DfJePiYY28BRYLeU5Mn5GX43YUJXgyNdv6eT3No",
+      "pnl": 0.01537,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:59:18",
+      "mint": "H7hmp9KgRLLNeksNC7mYGteXYaoWcJf8ac2PJPCQdt3w",
+      "pnl": 0.07753,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:56:04",
+      "mint": "5vHDVVPqRCgNnAUPXYedA4LrVykstGkQAuZj16YCpump",
+      "pnl": 0.0052,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:55:03",
+      "mint": "FuTm14rfirJZ9oBjecDhvoyiwwBM9U7iKwUhHku9MxxX",
+      "pnl": 0.12162,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:55:00",
+      "mint": "8CNqj7bQD8CKQk4fsuN5LuTz4Yi3vsEFrSxDk5EBpump",
+      "pnl": 0.06761,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:54:33",
+      "mint": "GakRBdUcrSKSAhHxbH4MqrvGTQD7PFxh4oSHa14Wpump",
+      "pnl": -0.05202,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:52:26",
+      "mint": "Ev9Dv9fNPRxb1dH9A9UUX2fsgy52syc8woY3JpaJpump",
+      "pnl": 0.00482,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:52:08",
+      "mint": "4sJNsQAD4kyjqoZNtyxrzoKqiSzZpMBrLSRUSC6PRE9P",
+      "pnl": 0.05069,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:51:07",
+      "mint": "6GcFTakABAygNPaRqtmyfgEAFbu24bnkDc7PKEQhPhAf",
+      "pnl": 0.06754,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:50:21",
+      "mint": "C8vyx53CKeBoDKe8itnffsrk92fsB6PHRANEYa4fpump",
+      "pnl": -0.02626,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:48:14",
+      "mint": "8LdvhqNZrweS8ZsaJdegqswbUrCSd9avp41iQRQRFUDc",
+      "pnl": 0.06759,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:46:52",
+      "mint": "EPYum3Ku41qBvutToSrHgXGtS385kckJZw98BbaKpump",
+      "pnl": -0.00217,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:46:22",
+      "mint": "CZ5Y3VrPg5VLPYxbuSYHDRfXZ1hA8u7AUjoVGuD7pump",
+      "pnl": 0.07116,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:46:22",
+      "mint": "6EkGhfQ3FxQhWjkX4J4g2DEV3uUKofLSnLaJA5BXnk9T",
+      "pnl": 0.08186,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:43:05",
+      "mint": "1xjtZWkouEJkeamWiAQwmotqnzC1CrUPnwi8MuSBNBf",
+      "pnl": -0.01545,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:41:33",
+      "mint": "Ev9Dv9fNPRxb1dH9A9UUX2fsgy52syc8woY3JpaJpump",
+      "pnl": 0.10385,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:40:31",
+      "mint": "6EkGhfQ3FxQhWjkX4J4g2DEV3uUKofLSnLaJA5BXnk9T",
+      "pnl": -0.00707,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:39:06",
+      "mint": "4arM6K3JkNBpVN4aPRh99jVGjDYDARNdidDqJx5bpump",
+      "pnl": 0.0208,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:37:57",
+      "mint": "6rNAJ8YgNqC28inGVq7RTmNr7YqRzEY1NYnrii1ejTQV",
+      "pnl": 0.01406,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:37:37",
+      "mint": "BQcywMgzs69cCdHCuGzyRovv37RhdHoc43Zgcypoo3SS",
+      "pnl": 0.0173,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:36:45",
+      "mint": "FCQEum3v26uPFgLBu9WFCp2end5A9KWiQvSzHbvCeRan",
+      "pnl": -0.01355,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:36:42",
+      "mint": "FE1B9EbSKcNX6VThjq9zun3ZW7JsiiK1mfpbMRVGpump",
+      "pnl": 0.00196,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:33:40",
+      "mint": "8LdvhqNZrweS8ZsaJdegqswbUrCSd9avp41iQRQRFUDc",
+      "pnl": 0.01604,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:31:14",
+      "mint": "E6wRRw5AyHbasaJMhkcVDJ7tsxfTrAZfeXXicUQn6cDn",
+      "pnl": -0.0179,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:30:51",
+      "mint": "BFwH5PMvf8GZoy5NaGkAhhEtt2T3Qx8i6SzPLJLYpump",
+      "pnl": 0.04595,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:30:35",
+      "mint": "4KoZUEfZm6JkLQsEUTEH7UykrRszEJuoYattUABspump",
+      "pnl": -0.0063,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:30:18",
+      "mint": "HtdsTefDdyGXQt8TEXGWhVPRiJATNu9MsKGb975bpump",
+      "pnl": -0.04443,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:29:47",
+      "mint": "rJ1KRNbFZV7NqyYUXw3qcBXJ4S3BQX5SWBg69bQDCnw",
+      "pnl": -0.01251,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:29:37",
+      "mint": "5cyGw86WDc81UBqnr73J1KK3aq48zVfotcqXmL1Npump",
+      "pnl": -0.06725,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:29:34",
+      "mint": "DSDvBY17VQoEWMaZxivedBeGxetBTbNru7fF2KNX5y2F",
+      "pnl": 0.00118,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:28:05",
+      "mint": "4UR2U6zY7rJmXVs4d3xyfFUG1rynQUxsn3sqFdcNCMgM",
+      "pnl": -0.08118,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:27:31",
+      "mint": "DCUziPFDANZ2AAuMrkyJKjdhQ9sV75WjNpwrd5GS65Zu",
+      "pnl": 0.06793,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:26:51",
+      "mint": "28tQwiNmUSzSr5BnDcqC8YhBHoS1L8VLofGLSVPDpump",
+      "pnl": -0.03885,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:25:17",
+      "mint": "Ev9Dv9fNPRxb1dH9A9UUX2fsgy52syc8woY3JpaJpump",
+      "pnl": -0.03873,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:25:03",
+      "mint": "Dj4q8ssa1Qks4moExf7bXNWzEhYfDYrX8zFkyCgyjhtE",
+      "pnl": -0.0499,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:24:41",
+      "mint": "CTFaKHRfEUy5irjJMRMv5XKzLBYYAT47s3w8h4zXTw6D",
+      "pnl": 0.04892,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:23:41",
+      "mint": "Gas1Ec7MsxZVzqfpFbpG25fkv2oUFQDCGNABwheDTt3y",
+      "pnl": -0.08072,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:20:32",
+      "mint": "9hGCFwv1dN6ELa6wcqeT6DcSY5Tg9Agm2bDjZGisS81X",
+      "pnl": -0.05287,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:19:21",
+      "mint": "DNCjaDH5dc9zLmWLNi1fsSZtd64hEQuQ2Nxv3VPjFTUR",
+      "pnl": -0.00327,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:18:19",
+      "mint": "5kLaiHThdwMeqQpZTdzCCbVnKcbaCAU2T6zxiAyypump",
+      "pnl": -0.04163,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:17:27",
+      "mint": "6VVfgh1fHAxYzsvLLjDFHS35D24cbXmMUL1xRqcHkWL5",
+      "pnl": -0.05329,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:17:19",
+      "mint": "51z8Bw9UXVbFKANGTbW2iSzTtLPkQRDvn3mXTNUapump",
+      "pnl": 0.00192,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:14:32",
+      "mint": "BFDHwxVmytKCh4nd6Uq1H2JED5hfYXK5AQ7W4ptdpump",
+      "pnl": 0.02148,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:13:57",
+      "mint": "FB3g9n52rk1K64WVpunf7wMN23Hk8PCacDVPewKWpump",
+      "pnl": -0.06464,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:13:04",
+      "mint": "4oJmJNtf4hRwdAQBCdqwMKRRD25546XUikiCgBJSpump",
+      "pnl": -0.00957,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:10:22",
+      "mint": "6EAtjSVXDuHzCjveVCsD6qdcCWG2cWii1beZBCD7pump",
+      "pnl": -0.09262,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:10:09",
+      "mint": "CTFaKHRfEUy5irjJMRMv5XKzLBYYAT47s3w8h4zXTw6D",
+      "pnl": 0.28426,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:10:00",
+      "mint": "385Z6pDpfbieyHcMvsiWjvQjbc6EVqFuQuvoh3gNpump",
+      "pnl": -0.01939,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:09:59",
+      "mint": "CXTPY5qxyxLLPf7E72v7S4eVd3yEHZ6jWfTeGtB3x3QM",
+      "pnl": 0.03252,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:09:38",
+      "mint": "47nZWLDV18pQy91eZqE2xgqp6yHuQV4Qae8etQe25DPF",
+      "pnl": -0.01197,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:09:14",
+      "mint": "CxwDR1Akacn93aYr8zQb1N6qLLreJZVk7SksZ4NGpump",
+      "pnl": 0.17863,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:08:00",
+      "mint": "8hnH2T9kyP1T7atjqmvEdXPNBGc8JkD3vq4aEQZDpump",
+      "pnl": -0.02552,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:06:38",
+      "mint": "BprePWPatD1MgDvrLButcgEbAyGiYUgyjq4iTPvWD9dX",
+      "pnl": 0.17553,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:06:37",
+      "mint": "8vK8YKdkSPRYPBrwRXRApr3iaNadYfykQm42RXdYpump",
+      "pnl": -0.0858,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:06:24",
+      "mint": "7HfzpkRBpQwkvBWMFrKbEsDRP6yKQGCrsJfadQYCQjH2",
+      "pnl": 0.00485,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:05:39",
+      "mint": "385Z6pDpfbieyHcMvsiWjvQjbc6EVqFuQuvoh3gNpump",
+      "pnl": -0.01725,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:05:04",
+      "mint": "67ZBvk5Q57JgPAbzQriu2wBb8xs2A9aiqcGyKwuupump",
+      "pnl": -0.09259,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:03:49",
+      "mint": "FbtihwT3J3pqc5tDb5nbimmnZMDZfxbSAt3NbvCopump",
+      "pnl": 0.242,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 22:02:51",
+      "mint": "CXTPY5qxyxLLPf7E72v7S4eVd3yEHZ6jWfTeGtB3x3QM",
+      "pnl": -0.00567,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 22:01:46",
+      "mint": "9CcEUZ8WChzkexFuYhogbfFf7PmhCde1fweDUa4hddGz",
+      "pnl": 0.08103,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:59:45",
+      "mint": "DR2MUSKng4tE5aERxRVmfHNr74pgVewLeH5cZqS37any",
+      "pnl": 0.05672,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:59:05",
+      "mint": "BprePWPatD1MgDvrLButcgEbAyGiYUgyjq4iTPvWD9dX",
+      "pnl": 0.06846,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:58:45",
+      "mint": "2H7dEGHQy3BxZUpUVvnzbL7jTjUvyS9tqX6AxfsxfZr3",
+      "pnl": 0.13561,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:57:09",
+      "mint": "7R2xR2W7Tq5dyBhAmxj797A5gy622WDt7s35h2wWQxJh",
+      "pnl": 0.06146,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:56:03",
+      "mint": "7HfzpkRBpQwkvBWMFrKbEsDRP6yKQGCrsJfadQYCQjH2",
+      "pnl": 0.26297,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:55:40",
+      "mint": "8tCVrcrpqFKgpWzVUqfS9Cp4AygKK1hxuTm42epwo5ot",
+      "pnl": -0.05657,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:55:02",
+      "mint": "9MMXQQhhMhA4yWeTuiv7dkGTeCMzKCGmfmWgVD3ghYn7",
+      "pnl": 0.08998,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:54:46",
+      "mint": "2hrTNHrXeFzjHcj9p2TXabYvN6NS8WsLGLsRHSDr7uqb",
+      "pnl": -0.03237,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:53:19",
+      "mint": "72anogTm5r6hwqcEy5YJafHVCQso1HRBVdq7k6HRK63L",
+      "pnl": 0.02381,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:52:58",
+      "mint": "HquLBhV9ryWv57Gq1NmcNpduG1jbEdGTEhu9LN1oSp17",
+      "pnl": 0.01313,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:52:47",
+      "mint": "2hrTNHrXeFzjHcj9p2TXabYvN6NS8WsLGLsRHSDr7uqb",
+      "pnl": -0.08081,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:52:18",
+      "mint": "Da3QSwuufxVydNbDFwxhnVQ5qQNN7CX4cT4zHZh6pump",
+      "pnl": -0.05461,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:51:54",
+      "mint": "9GZ8v2xBQsheDUx8dCF5dDjDjHwLMtcgTzLfCtGbpump",
+      "pnl": 0.08353,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:51:32",
+      "mint": "ETMYJeCNgm3HW63Z6fSz7Ks6U7KzVcrMWPdE1822pump",
+      "pnl": -0.03666,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:49:22",
+      "mint": "Gn4MCPr9pfVtaca6oSpTyaNjhvs4kPZd1b6nnqHqpump",
+      "pnl": 0.1453,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:49:03",
+      "mint": "HYcBqTQ4i6USnpK2VV6CYPB9r7XM8rBfzWgpJjeWpump",
+      "pnl": -0.0066,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:48:45",
+      "mint": "72anogTm5r6hwqcEy5YJafHVCQso1HRBVdq7k6HRK63L",
+      "pnl": 0.17999,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:48:38",
+      "mint": "2NoyFaK2JoWPsYqDH6cJV6kQxRwnfej4q3Auc9SDpump",
+      "pnl": -0.07389,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:48:23",
+      "mint": "EugAMgCVgrWmsm5qW5ZhCnM8XTbnx1oiFTR8Fq19pump",
+      "pnl": -0.03306,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:47:56",
+      "mint": "HsGfaKLMxTiUJAc1gm3GrvcQFmutHESchtvnw6vBfoQq",
+      "pnl": 0.00753,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:47:38",
+      "mint": "C6wgcgqeLTEoyZqHyunE2r8Mmo3aCeptKDXLUxERpump",
+      "pnl": -0.09266,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:47:18",
+      "mint": "B992x7uN65gtZCqeCdbzw5cheB42PZQMoBaCwP5Wpump",
+      "pnl": -0.02761,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:47:10",
+      "mint": "8tCVrcrpqFKgpWzVUqfS9Cp4AygKK1hxuTm42epwo5ot",
+      "pnl": 0.20706,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:47:03",
+      "mint": "2mFrMqKYGcBgN8XaXR74YyVwBeeaYEYLTnSvBkAihAoo",
+      "pnl": 0.08696,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:44:27",
+      "mint": "239RM3LHvgaHoKpwM6cgz5aGmB8t5HXouN8NY4nmZZLr",
+      "pnl": -0.06215,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:43:14",
+      "mint": "F9C4dqtdr7vWfhkCP73JcTPp3brDMrSeBf1DVFA9UhCc",
+      "pnl": 0.09228,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:42:53",
+      "mint": "51z8Bw9UXVbFKANGTbW2iSzTtLPkQRDvn3mXTNUapump",
+      "pnl": 0.04472,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:42:39",
+      "mint": "CqZrLrhy5tDZyJLwWrNL4bDLySSM7bGSDjck9WW9pump",
+      "pnl": -0.07768,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:42:18",
+      "mint": "CxwDR1Akacn93aYr8zQb1N6qLLreJZVk7SksZ4NGpump",
+      "pnl": -0.00902,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:40:52",
+      "mint": "462KCr7q3sL9s4U4cWxGfpDnCQ2vbR1aXaDxmrespump",
+      "pnl": -0.0339,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:40:37",
+      "mint": "6gB2jo7J4vtFQy6TcdyLajU61TkDECAVyw59F61GdrCb",
+      "pnl": -0.07341,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:37:20",
+      "mint": "Eme822muEhzokFAv281vkxQA95QHusrzRmsNmD4pVQz5",
+      "pnl": 0.07482,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:37:16",
+      "mint": "2N2fSMcAGukuc94j9Xgs1WHGmFgSjQhZmES84G2Nnggf",
+      "pnl": 0.09281,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:36:31",
+      "mint": "AjK7kbDZ8934qGfrLzCLb317x1mHEEidredSTboiqNz1",
+      "pnl": 0.04982,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:34:55",
+      "mint": "CFx4kNsQioDwBqhnNewNqUySzwGJRmXNf9j1Krfxpump",
+      "pnl": -0.06886,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:34:38",
+      "mint": "bMou3ZPKp8K6RF3TCv3KNiBGW8V9rxVQ6ZGVj2txL3G",
+      "pnl": -0.06385,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:32:39",
+      "mint": "7zAYhoLSP9SCn9yECpdweBCqxTKJ3XqojTSoUfJGpump",
+      "pnl": 0.01743,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:32:19",
+      "mint": "GfU6Ec5p4jtJA4wdJeCsjXEtGdDomtDKsfEMZP3LTq3u",
+      "pnl": 0.08294,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:31:38",
+      "mint": "2mFrMqKYGcBgN8XaXR74YyVwBeeaYEYLTnSvBkAihAoo",
+      "pnl": 0.05732,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:31:04",
+      "mint": "Eme822muEhzokFAv281vkxQA95QHusrzRmsNmD4pVQz5",
+      "pnl": 0.06466,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:30:48",
+      "mint": "5KH1FJze5fv9QvboHSropSEAgn3Tz4h5CWtT6mXbu4FK",
+      "pnl": 0.00079,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:30:02",
+      "mint": "FjQdyW9hRe3hN7jgvGX5EtudWMQNhQoGkdcWiCHuVfBR",
+      "pnl": -0.03657,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:30:00",
+      "mint": "5TRwaAjrCdkW6uCTX4mCBKzapaZmzW47shfHUn5Qz8cD",
+      "pnl": -0.05244,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:28:58",
+      "mint": "2N2fSMcAGukuc94j9Xgs1WHGmFgSjQhZmES84G2Nnggf",
+      "pnl": -0.06254,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:27:23",
+      "mint": "R7JG3mAvKfLVeeu34eYRHoY9gr7UsWsMkgLzEs5pump",
+      "pnl": -0.05208,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:27:13",
+      "mint": "D8MJDhbe5J1pj4crt5bvHPZ8H3QpK8g6qCfgQNYPpump",
+      "pnl": -0.05249,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:26:41",
+      "mint": "8BBsLuMJcbk4fYEtJ1XjgegNMeCMC6V1KfcnuijNpump",
+      "pnl": 0.00032,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:23:31",
+      "mint": "H5LiNMjcBd4Zm7GVPay8XccjUdBwsu4eNG45ru7qpump",
+      "pnl": 0.00219,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:20:56",
+      "mint": "FjQdyW9hRe3hN7jgvGX5EtudWMQNhQoGkdcWiCHuVfBR",
+      "pnl": 0.04421,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:19:24",
+      "mint": "GfU6Ec5p4jtJA4wdJeCsjXEtGdDomtDKsfEMZP3LTq3u",
+      "pnl": 0.01999,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:19:17",
+      "mint": "5m5So6tT4fvz1nsfjrp45r1MKqKh9VGC77yjQnVopump",
+      "pnl": -0.03172,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:19:08",
+      "mint": "33Nx6hqWRJxB9Aa84rW8kX3vLfbieZZoEXNBYSY3KNZq",
+      "pnl": 0.00017,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:15:46",
+      "mint": "63NtagkEH89cPnKwiPCmtnMd4EyHhNXaYihHbpCvroiL",
+      "pnl": -0.02384,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:15:38",
+      "mint": "FjQdyW9hRe3hN7jgvGX5EtudWMQNhQoGkdcWiCHuVfBR",
+      "pnl": 0.01932,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:15:19",
+      "mint": "2LD7AYiankc61rDnAxynVHqFVoHwsySqACyUCGUrpump",
+      "pnl": -0.06444,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:14:20",
+      "mint": "3RUXCjJyz7QqtnaLT8wKRbcaUmLcEZtEJEzoU83jpAAX",
+      "pnl": 0.05929,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:12:47",
+      "mint": "4HVexHeXXSXy1jSMiZySBKQTaJLABVC74gANaMu6pump",
+      "pnl": -0.06806,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:08:59",
+      "mint": "9kgadkMxbQZTpiLw3aXUkUfzWwzukKYHqqrLePsdpump",
+      "pnl": -0.04148,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:05:57",
+      "mint": "HwM4fBoHFh4uDybnQuwG6pEyZfzsexsiGZ7s1Kfhpump",
+      "pnl": 0.02223,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:05:28",
+      "mint": "CyrieSKAMYvvqN9XHstGqCZffW7BDCPA4tLoErxrsGkA",
+      "pnl": -0.02355,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:05:04",
+      "mint": "FpjScNf9JYRWpkeJstWuTBC4wUvS32PPW8VcyKoHjcij",
+      "pnl": -0.07039,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:03:05",
+      "mint": "HwM4fBoHFh4uDybnQuwG6pEyZfzsexsiGZ7s1Kfhpump",
+      "pnl": 0.0615,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:01:33",
+      "mint": "HapNr8e3LAhP9M6Jnpevwu5zWsQsSd7JtdZrRMiRpump",
+      "pnl": -0.07708,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 21:00:44",
+      "mint": "3RUXCjJyz7QqtnaLT8wKRbcaUmLcEZtEJEzoU83jpAAX",
+      "pnl": 0.11404,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 21:00:43",
+      "mint": "GfU6Ec5p4jtJA4wdJeCsjXEtGdDomtDKsfEMZP3LTq3u",
+      "pnl": 0.10558,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:58:53",
+      "mint": "GadS1kr15Fh1twG3duukYZARk69u2vgkCXCM9WNcpump",
+      "pnl": -0.09238,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:58:38",
+      "mint": "2VetcYWpyKqQM6kAyhjmYpoXMxD7wpSS5CynQy2Tpump",
+      "pnl": 0.03289,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:58:26",
+      "mint": "GxRb5yqFSYyHPzCpwy9HHMVkYLcuSs7uLW19GGXjANYT",
+      "pnl": -0.0103,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:56:19",
+      "mint": "2mFrMqKYGcBgN8XaXR74YyVwBeeaYEYLTnSvBkAihAoo",
+      "pnl": -0.01846,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:55:04",
+      "mint": "9M92b1Ww6ihHxqpoZtRpVfw7ZA6cU3ySqnG23gxRpump",
+      "pnl": -0.01873,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:53:55",
+      "mint": "DUJo58pRimevdLo3URNsSBx2NkcMc5V9rpWFJVEppump",
+      "pnl": 0.02506,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:53:44",
+      "mint": "7tR6kjDq3VLb8N2DCL8MaZMMLusiBD1sQ72ws2JSpump",
+      "pnl": -0.02248,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:53:37",
+      "mint": "E2rQLGJxb1pq4u4AoXSAmqTbspupMXfgfbJsXU5npump",
+      "pnl": -0.01998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:53:30",
+      "mint": "CyrieSKAMYvvqN9XHstGqCZffW7BDCPA4tLoErxrsGkA",
+      "pnl": 0.30105,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:53:04",
+      "mint": "HRwxY8nRxisJmyi78ArsQUzqdGvLVEc4e95JNSepump",
+      "pnl": -0.00227,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:52:11",
+      "mint": "2CtmNwhApZayAK8vDG93niZQUHk8C5PeFTwhpzADpump",
+      "pnl": 0.00646,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:51:53",
+      "mint": "2VetcYWpyKqQM6kAyhjmYpoXMxD7wpSS5CynQy2Tpump",
+      "pnl": -0.03564,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:51:43",
+      "mint": "EEnEeaJMA9R2N3LhcHGSuWSD7hC1MrWFsfKcADVmpump",
+      "pnl": -0.03849,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:49:58",
+      "mint": "G5NoXEr6uKPf9R1qRegzrTH53SoqKNLigBJAz83Kpump",
+      "pnl": -0.0291,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:49:51",
+      "mint": "GRtA6iGUioXobjYN3p3TahnUZHUf61J5XqgMvv1Apump",
+      "pnl": -0.05576,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:46:29",
+      "mint": "2kcGMZMBobwiCoKzDhVkcDNc29PyTDnz6um3jvmGpump",
+      "pnl": -0.07546,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:44:05",
+      "mint": "2SUtHNASyo6abh7fmmQRfJS3CFvwtAHi4NxB87sAVL7b",
+      "pnl": 0.02014,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:43:34",
+      "mint": "GRtA6iGUioXobjYN3p3TahnUZHUf61J5XqgMvv1Apump",
+      "pnl": -0.04594,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:41:48",
+      "mint": "DHDH7rDVaBk8Z5jwqDLF9tytwwmhtvrpypQLYtTMdosb",
+      "pnl": 0.00367,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:41:33",
+      "mint": "4sHPbxm4bbMdvt6kXdkGJYDxcMpmTcCkoantQSEzpump",
+      "pnl": 0.34324,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:40:25",
+      "mint": "Ed2BYkALA3aKCV7VaABc1TW6eouC9hp9iPKV3cVQUiKr",
+      "pnl": -0.00001,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:40:02",
+      "mint": "xhmaxtbqWMfiDg1jS9S5Dz1Se2s1p5WsN623LWX69Av",
+      "pnl": 0.02559,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:39:28",
+      "mint": "AP6MnfhHciSQd3PyMn3Wpxs2cniMi13NF4G1janRpump",
+      "pnl": -0.09319,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:37:35",
+      "mint": "HedySZJUzj2URKpkkT1voiATgZYYyAUwUrY7EKgEpump",
+      "pnl": -0.08444,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:36:24",
+      "mint": "5t54of98d2tt6h7JFBRACYJTssvAL21Pzk2WTYX7pump",
+      "pnl": -0.08293,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:35:44",
+      "mint": "E4FSxPVxNFYf7j27ksoC7xCeoTqp6jAKRJPHj4nvpump",
+      "pnl": -0.09717,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:33:22",
+      "mint": "FuFQvgmBkqWXiMSaTJz21WwXPgAKhFmweRPg2k56pump",
+      "pnl": -0.09905,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:33:19",
+      "mint": "HpRqzo6f1m5xco82nKZQTeVpWgVxhTkPkvjHAWQXpump",
+      "pnl": -0.09953,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:32:16",
+      "mint": "H9HwPbdMuYAw3678gT6gJ8dyWDR3W6hWGFpVNZBepump",
+      "pnl": -0.09962,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:29:58",
+      "mint": "uZxuQBnk1MjyaTNr1R8L3dsh6Njq8wpgMsNpFMApump",
+      "pnl": -0.09991,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:29:21",
+      "mint": "B6iRdH5y6YF5BRy7Agvpv8fc4RhcmRATTD9DEFJypump",
+      "pnl": -0.09984,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:28:00",
+      "mint": "2N1TihUxjLah8bF2ZrPRZCzLkH7oGJNdkRbCdbpJpump",
+      "pnl": -0.0986,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:23:32",
+      "mint": "C99ARreujdb5XGJgKPjRTGh15UPTMJB9KSKpBh26pump",
+      "pnl": -0.09332,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:23:06",
+      "mint": "3PAGXdDrL95FmtVpvgkhiERNBqWHT3NBH3WYhHHZpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:19:50",
+      "mint": "8VEFWLVW8SnJD1zsfBbTK9cws5aCBKA4Y5EFFxGZpump",
+      "pnl": -0.09992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:19:40",
+      "mint": "EWjtDqdYKHDLT9VXVpHco8nyEPnCHfcRTx8eGKg6pump",
+      "pnl": -0.09682,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:19:13",
+      "mint": "BC3bN66KQHV16h6UjvH1fUuQiULzyagdm7KQPrD8pump",
+      "pnl": -0.08303,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:16:05",
+      "mint": "88h53M3xArkuHYe8vEJ1BRnDkKxuY1qEcPBhUNvPpump",
+      "pnl": -0.09992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:16:00",
+      "mint": "H2SSiZ3gszuFxi7xmRHem3mvyqtkqajdFXYbkVeopump",
+      "pnl": -0.09935,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:12:39",
+      "mint": "BgLzD6iAs3MN9hCE1tnwUAYgCXURJbRsQvZsVzsspump",
+      "pnl": -0.09997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:12:33",
+      "mint": "FGpeJ73fHwyFgj9SCG9bU3tD5uJuGrixkbrYqDxMpump",
+      "pnl": -0.0993,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:11:41",
+      "mint": "JJSRBF36SuJXm8rovUfwJwmsPeLzfhQwq7Cwgyjpump",
+      "pnl": -0.0993,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:11:39",
+      "mint": "7RbiAwqooaGxADQatzsrVTCms9y4f4DUQKcfweVDpump",
+      "pnl": -0.09829,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:08:57",
+      "mint": "3baZe9UHz1ndAWS7FRM9PTAcuHbF75xdAbjraVNepump",
+      "pnl": -0.09948,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:08:46",
+      "mint": "Ge11iQXDDDe7FWwhdw8RRphHsaLzj7Fe2YCzXb3pump",
+      "pnl": -0.09989,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:08:31",
+      "mint": "E44H7hEyTELyVvuAsTUzfxxMwA9U8HMspiAHknnFpump",
+      "pnl": -0.09976,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:08:05",
+      "mint": "A442nHZaLTzQJ4SikgEttVYoFrWNkBnzzUKGkMiopump",
+      "pnl": -0.09991,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:05:48",
+      "mint": "5zyQDT4PQsibnDStbUJsnvNHzYGVASXufmVB686gpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:05:20",
+      "mint": "8F4AiTSV63bBBnjjWAzG2HRezEA52ZqgBgQcTeMupump",
+      "pnl": -0.09982,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:05:16",
+      "mint": "AHxdmczcKFKKqRrs32pq44v3iRpuXPzocY9cxobapump",
+      "pnl": -0.09937,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:00:55",
+      "mint": "Jb1ohRGDvy4G6LxuJu6aisRsmbU43xtMvRADw5ppump",
+      "pnl": -0.06449,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:58:15",
+      "mint": "4hvKpzDG4qi1JpKiv94G9Ld2hWDk16jiQKC4knhnpump",
+      "pnl": -0.0999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:57:16",
+      "mint": "5UQC17XFGAeB1xHoEYMPMLpycXkAVyZov31ZwYw1pump",
+      "pnl": -0.09965,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:55:36",
+      "mint": "EFNJnhDUWku2xoAPQ5WM2QEkk2QbXN1L3NSt31wXpump",
+      "pnl": -0.09841,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:53:44",
+      "mint": "F8RBKHN4p7CYojeTmgtzZBddbZt7dPfRCNzFyWWUpump",
+      "pnl": -0.0992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:50:25",
+      "mint": "2RUbFJpdUNiF4hzDuRSjWUNz89gWmkrqff1YLNKcpump",
+      "pnl": -0.09958,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:49:09",
+      "mint": "J8qkaCKh5UnjBM4nXdRWpbYGqKmFNw742bLmqruppump",
+      "pnl": 0.06667,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 19:47:29",
+      "mint": "73QRkpvKZEGe1v2BJBsfMVYrAMt1YfjUmZukvzm3pump",
+      "pnl": -0.09962,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:44:56",
+      "mint": "5dW1XxBb4p7VqdHp5SCUiGNW2xMibiiqVPjQaB2upump",
+      "pnl": -0.04572,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:44:55",
+      "mint": "DMBB1SHzhisVXF8T8ELmJXQiJCnCc6KDbfSSKuNvpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:43:19",
+      "mint": "AU8D7SD2dHRyEsVoBfonbaEi4cUzcp32DFvW2Hytpump",
+      "pnl": -0.09985,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:42:01",
+      "mint": "6StyYtvWHafnnsHj5yWJ3GrhSRUeA9Y1byAUPJ9Bpump",
+      "pnl": -0.07016,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:41:25",
+      "mint": "9aKPZBcXvhLYbZWmZh9fVAYATjKJCCU7GS2khx12pump",
+      "pnl": -0.09888,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:38:51",
+      "mint": "EHn2bjw6eWSrHw5vPv5YwkD9DrUY5JRGHQookLhbpump",
+      "pnl": -0.0992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:37:19",
+      "mint": "3GaQUq6cG2vrnu1Z2SF8pGajFEP1g6Xv1isqznCkpump",
+      "pnl": -0.07083,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:36:55",
+      "mint": "D2oWrTzAPSNtMmhmJwk745DKoDrP3KHitew7SScGpump",
+      "pnl": -0.09359,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:36:48",
+      "mint": "Gb4GLCV3yNV7RdQakZ4nDX19vVVvJPLuBZcGUYc4pump",
+      "pnl": -0.09794,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:36:00",
+      "mint": "AsqPJpMcjYjfaZaMtJUVA8LVmUp6VwBD9TfjZ86wpump",
+      "pnl": -0.09863,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:33:25",
+      "mint": "4QHxBuvmbs1ucNvRcBo4Xt1oucUZcKN5mUnc7P9opump",
+      "pnl": -0.09962,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:33:14",
+      "mint": "EHkX865NuMEaDjazTY7yVoqWGBLiLXzd57rxKByKpump",
+      "pnl": -0.09973,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:32:28",
+      "mint": "67fxWGGtV4iMW1jczGZuDEP9Lb8a88CETja1HERxpump",
+      "pnl": -0.09993,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:31:08",
+      "mint": "CJXPSu9SJnN6Y8ShWtVy7ydQgFEFKDKcai8Wx7N4pump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:29:20",
+      "mint": "3zFj7xL2A1xMFhg5mJmSZ2JLEtYbRrGJheUC2g73pump",
+      "pnl": -0.04123,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:28:57",
+      "mint": "DCTNP8NysAvV89amEGtk7fSgwaa43e5CUwoTAtHfpump",
+      "pnl": -0.09191,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:28:18",
+      "mint": "2WdBiraCcnFsde47dTMUNDCoND6QrijX4ReP6Ddhpump",
+      "pnl": -0.09964,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:27:39",
+      "mint": "CzM4McKHxcxcVS31TThpdkg4Ti2eXpmys4Ga8KPnpump",
+      "pnl": -0.05379,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:26:39",
+      "mint": "Dv5dDZ3MaaDTnPgCB49XPZs4x8woj1LxtDGtDNmbpump",
+      "pnl": -0.09995,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:25:54",
+      "mint": "8up8EdnwpDyjEFWHAqgrsdjNWoVkmP6GBHURG2i1pump",
+      "pnl": -0.0938,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:24:58",
+      "mint": "4J8C8X9QDmiV862YZ4YCky8q37H9rS27PBEDhbYSpump",
+      "pnl": -0.09991,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:21:57",
+      "mint": "2SGoXRJMQQqJj2E7SWAcRmDgmfRbpbq1AtAcPXDtpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:21:49",
+      "mint": "HaPD6DjEWkNs8uthahEEKrW2s14WfUFmKQLVLgrqpump",
+      "pnl": -0.09482,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:20:06",
+      "mint": "5ykZT75CxddQZ1oQxLbeNc7dfRP1e5F3XDJQm9WJpump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:17:56",
+      "mint": "CzM4McKHxcxcVS31TThpdkg4Ti2eXpmys4Ga8KPnpump",
+      "pnl": -0.09741,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:17:09",
+      "mint": "457NmEWAF1rcwsEp5wBdPTsM5y9rZ8s9s2GjZUsNpump",
+      "pnl": -0.03085,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:15:33",
+      "mint": "5dwWNDy7Z7NtS2MviwHJoomDzbyE4y4D2WUn5A1wpump",
+      "pnl": -0.07838,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:15:20",
+      "mint": "EDkSwJNUabNsgGrgXBPwmq8cDSE8pTPJqPYEAYPSpump",
+      "pnl": -0.09992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:12:11",
+      "mint": "BoybbtiqMePQLNVZBogtUfqDhR3s8nN1kqi5UWX5pump",
+      "pnl": -0.09986,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:11:48",
+      "mint": "8nG9KjcP47qynbnPABkPYHRYYr1wjDDakKGKKnEDpump",
+      "pnl": -0.09938,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:09:50",
+      "mint": "EpdZctZMpeLkkA5iCmuxhdhRZ3qqpeARN8e6wB2jpump",
+      "pnl": -0.09949,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:09:49",
+      "mint": "Ah5U2R88dSTHeNYmrCJnZqH2TcnWZFTfxnpNyYyEpump",
+      "pnl": -0.05458,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:09:04",
+      "mint": "BuFJkJxsjyowx4pinW8YMrJuvFFnrsFEoVcg3b9ppump",
+      "pnl": -0.09528,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:08:19",
+      "mint": "6c75T2UhQAhaKFESRDnFrWRhHFoW4CSVmBHBDejWpump",
+      "pnl": -0.09988,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:07:43",
+      "mint": "AxQeioTzTmLcsvvDoKnjN2Axv2JYyLZyFDhtdKgUpump",
+      "pnl": -0.09841,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:04:32",
+      "mint": "EkLHsiQRcPgEqxFLRaZCtb6DV6mJzBCALKcnzWvGpump",
+      "pnl": -0.09938,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:03:48",
+      "mint": "D5h8aC2W5EiuK4MVcDcy2RQJytJFFaVWDgv5QX52pump",
+      "pnl": -0.09963,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:01:08",
+      "mint": "F76wALy4MZ8HKC5CPP4oDwapU5NVmNkDERXnnta7pump",
+      "pnl": -0.09966,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:00:46",
+      "mint": "GKC64GtwYwfuskBvchU3wEUcLPLYEYE2P6XDNLn9pump",
+      "pnl": -0.09495,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 19:00:19",
+      "mint": "BJoEtzu2YvJWTYZJUo3DMu9AYNqrJipjBZbxHTKGpump",
+      "pnl": -0.07614,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:59:12",
+      "mint": "2x4NJxVZWe9FFWAqC2DfTmi16bmyKiEmziDpBjSvpump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:58:46",
+      "mint": "9rr1BHQ2EzDe6hQYUZ1frwBFtY9ZybfbYKxfBo65pump",
+      "pnl": -0.09969,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:56:38",
+      "mint": "5T2vNrD9V9cxUCsbukFGyW3MizMTFBeeXBt6X6Z5pump",
+      "pnl": -0.09991,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:55:18",
+      "mint": "AHxCgAVwC1AQfz4NtiyjeK41ULvYAtfW3jKE4h2fpump",
+      "pnl": -0.09794,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:55:04",
+      "mint": "Fbb4LZBT8B48hn19RkUUu2c8Happ83vdVRWwXW5tpump",
+      "pnl": -0.09892,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:52:10",
+      "mint": "4fnJBefZQmEaXywKhTwAwHtzHAyJkSuKP4x4UXd1pump",
+      "pnl": -0.0986,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:50:44",
+      "mint": "AxZijDwgmnpeZoWSkBdGnDYrNbhxtzoRCxzSTrZmpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:50:07",
+      "mint": "4fVYr56SmUs75HxK1RmvsVEFfz3XavYnQSgbkySnpump",
+      "pnl": -0.06719,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:49:34",
+      "mint": "8qCNJ2sRGppUMbciwnWRBMi8RjFJipn9og8kWjKopump",
+      "pnl": -0.09917,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:42:01",
+      "mint": "73WrQQmqNWoJSBRdMqfQ791fhCKexUbsi8xv7xtvpump",
+      "pnl": -0.07259,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:41:46",
+      "mint": "9sQwjYrpvxQAix3hWRiK4165yK2TXdA12fp9bXeKpump",
+      "pnl": -0.09516,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:39:44",
+      "mint": "3n1uh5EFyxzsHXqqnesgkiS7FBcGV8LR9rSovKyqpump",
+      "pnl": -0.09951,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:37:12",
+      "mint": "9WtVKQGUscLZw6XgKV9PKFgoRNezaJGYbZb3Bivzpump",
+      "pnl": -0.09832,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:34:56",
+      "mint": "457NmEWAF1rcwsEp5wBdPTsM5y9rZ8s9s2GjZUsNpump",
+      "pnl": -0.09995,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:34:21",
+      "mint": "FpytvrpvGETLVLRqCJHnFN4wmS6kztL5eNw7jTRzpump",
+      "pnl": -0.09896,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:29:45",
+      "mint": "8dyLcZA9H7Me1xUJk7yE3yXxeJo7pDUs1WVeoQUXpump",
+      "pnl": -0.09052,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:28:01",
+      "mint": "7xUQULRtr1PbV7tTbA7wbGfStgGTAfnPb2UwXuU8pump",
+      "pnl": -0.08958,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:27:11",
+      "mint": "4fVYr56SmUs75HxK1RmvsVEFfz3XavYnQSgbkySnpump",
+      "pnl": -0.09634,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:26:07",
+      "mint": "BT1saNirrHrqGVUEDRSLMrUUdjukGEeCDPKKB1z3pump",
+      "pnl": -0.0998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:20:26",
+      "mint": "6eqEixD1wnxgxgGNGyuPSFR6PZZE8FH2wB2z8yptpump",
+      "pnl": -0.09773,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:20:25",
+      "mint": "87NJewfcWY7VAvLsH3CPB8GnyBgjgX7UgmoPPopYpump",
+      "pnl": -0.0976,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:18:00",
+      "mint": "DY59PVzWvdSYfncSV1FK6KXZLFF9QPa4p8jXffzqpump",
+      "pnl": -0.09932,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:17:08",
+      "mint": "25Ydq3trL55ACDqUrWQKvzy5WsDWQX2A25PdyUXSpump",
+      "pnl": -0.08115,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:15:23",
+      "mint": "BopJFVJqCZwaQR2D9ttabseFJqbVVe3WXN2FVvHypump",
+      "pnl": -0.08289,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:14:24",
+      "mint": "45euMLJUtsCfVLUNp6zyvPexDfDT1s87a8FH3aSApump",
+      "pnl": -0.09216,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:12:23",
+      "mint": "E7w2gTejsB5FzmE7MHp1kkzZJmFSCkxSNqw8AWyUpump",
+      "pnl": -0.07817,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:11:38",
+      "mint": "ECC7RFSzmGS8uy9FrRcWJ127CbLMcNffrrrarQ71pump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:05:29",
+      "mint": "GwgNSW8xWS53RQmsA6KH3SwXxabSQA1852R5TEJNpump",
+      "pnl": 0.08123,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 18:04:52",
+      "mint": "E7w2gTejsB5FzmE7MHp1kkzZJmFSCkxSNqw8AWyUpump",
+      "pnl": -0.0997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:03:25",
+      "mint": "4XSiSJQgudMoVPrNtF4XR77at4Hennbrcj67m2hDpump",
+      "pnl": -0.09841,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 18:03:13",
+      "mint": "Hr89XamKhuFbP3LajmgEhwkgZHYgmCBvR752NChxpump",
+      "pnl": -0.09617,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:56:27",
+      "mint": "GLouuaQAeQsDegsVwFYN3AcYeimnQSFYbhm2EttTpump",
+      "pnl": -0.09995,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:55:45",
+      "mint": "3Y72zZFL8GiaSwm9C895SqkbpfShDv2cTotqY5aqpump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:55:32",
+      "mint": "9QCNrjqsjYMxSWMDrXHMjp6s66R8qHTKuruNkSFQpump",
+      "pnl": -0.09992,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:54:06",
+      "mint": "2Hp7duKpduSgyAxzdhQsxJmYmz1AZHF8yJVjSznkpump",
+      "pnl": -0.09968,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:51:57",
+      "mint": "4bFRHxXFWKpmooWVKQzJty23YHR7aBh7dUiDXSoRpump",
+      "pnl": -0.09967,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:51:34",
+      "mint": "FYUx78ybLkqhGgG6zUpm9TAVjRAy2usTzsULQE6vpump",
+      "pnl": -0.07802,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:50:56",
+      "mint": "BtPpzVjRbKCPV2WRAw6VdUVU6vJFkfjY8LvecFyFpump",
+      "pnl": -0.09532,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:49:00",
+      "mint": "BpbrNc4RFoVzn5iKiSU6h25XczHBU8pDXZmCQE3opump",
+      "pnl": -0.09984,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:47:23",
+      "mint": "peabF5wqVcsjnv2sidJyYmbTxpgFf1so9uMbezSpump",
+      "pnl": -0.09994,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:44:25",
+      "mint": "6HxH1HGis7yvboMwmZnBRPB5au4xjVDBhj9LFeQspump",
+      "pnl": -0.09926,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:44:12",
+      "mint": "GAgaoCsWJGsijmXmYatrUsBGW7CDsCWbnbknix6Dpump",
+      "pnl": -0.09765,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:43:43",
+      "mint": "GAgaoCsWJGsijmXmYatrUsBGW7CDsCWbnbknix6Dpump",
+      "pnl": -0.09773,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:41:02",
+      "mint": "3j61nangp5NBV78G4VohW16dFZPFcngiwTCxP5CEpump",
+      "pnl": -0.09523,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:39:53",
+      "mint": "3cweGB9YnZGJ5Zr18qhammqtxGHnLLzFQQXWdNf5pump",
+      "pnl": -0.0997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:36:53",
+      "mint": "2jqfwuwwn1BdZXnyMnFw3r4GP3Kn6vaLTJTaFcE2pump",
+      "pnl": -0.09932,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:35:30",
+      "mint": "94vunbaTiguLii4oon5ApBSRSbkNmCU3TPCmiyMhpump",
+      "pnl": -0.09894,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:32:44",
+      "mint": "5oEwpEftKt4QQSMp22TuSXYQxTDLMWFbsoBkafd1pump",
+      "pnl": -0.09586,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:31:58",
+      "mint": "FhJK3kL2Dp3XZLgcVfH7BibkoiV53S1uDD49mzmxpump",
+      "pnl": -0.09782,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:30:38",
+      "mint": "6awhRyhVqXXJwjjTHE39W8an1gAx1o1GaCN8PZacpump",
+      "pnl": -0.07088,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:29:37",
+      "mint": "4dVe8o7rJ5HMKJE2sHwbg3gk9WbKMu4MaMu5HpMspump",
+      "pnl": -0.09927,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:27:19",
+      "mint": "DzCaB8iQLs4Bdxxaqz8Zjy5AGarB5k12KqpK9YLwpump",
+      "pnl": -0.09996,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:25:13",
+      "mint": "24o1DcSPESk12jeSR8Yo2pDTv7KYFSxLaTTkQQpBpump",
+      "pnl": -0.09906,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:24:13",
+      "mint": "3UZaA1pvisExx4D9UC4ijiHBUVpDfJ9z3hQumSVLpump",
+      "pnl": -0.09899,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:23:37",
+      "mint": "9vwptsNrpgovBAk4hSMCyuQ8qEMQp9RdcQWJ9wfNpump",
+      "pnl": -0.09198,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:21:47",
+      "mint": "DwRdWwNMAhHmubMGmqxzcRpeFHjQTyVTgXPAB7Sgpump",
+      "pnl": -0.09976,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:21:15",
+      "mint": "24nxsd6xArUhkgHJtCm2BsRAhzMts6mSYFvrnNjEpump",
+      "pnl": -0.09795,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:19:21",
+      "mint": "CyRq6m7uLXMrXgCZWXyDVUMMVcAmSHYw9LUi2WbKpump",
+      "pnl": -0.09989,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 17:03:29",
+      "mint": "24np9tDddyhrvHVgGs27VNdUocs8MURJz9wfvywHpump",
+      "pnl": -0.09934,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:56:29",
+      "mint": "CsHWzwwtdgFYpSXg1opytSsHDP5uAcV5bDYF5GpGpump",
+      "pnl": -0.0998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:53:19",
+      "mint": "HfBXh4d7r18J3LSpn6NimFtZigBrn2t3LjacP4uhpump",
+      "pnl": -0.09905,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:52:20",
+      "mint": "J1BQ2kZ1e3WprhTpMJz9RqhmWG83xzMoaM9REMFEpump",
+      "pnl": -0.09659,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:51:15",
+      "mint": "9fYegNFnc7Eg6oY5kkHeFtHE3vfjFWpAABqwpBo5pump",
+      "pnl": -0.09996,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:49:23",
+      "mint": "GGPZ9wYQQUsZbjWkmHLVnqn89tBazr3FdhMs6WCDpump",
+      "pnl": -0.09963,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:48:34",
+      "mint": "BAJ6dKVaM2hHnDNxh4j2MaVUHpRh32AWJQMs4JLNpump",
+      "pnl": -0.09798,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:46:58",
+      "mint": "8BT8ghPn7DZ2irr2pj7pU2TtaeJyaCdvtWoVmiYZpump",
+      "pnl": -0.09989,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:45:07",
+      "mint": "DdwdHKh53aVTG3wYmMKbqPmkEmPbwLGRzYCaXzrJBwbi",
+      "pnl": -0.09997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:41:59",
+      "mint": "tftrfDiSzSAxiQTS6ALqrJTMKtmmmDmy3NeMdpfpump",
+      "pnl": -0.09995,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:40:59",
+      "mint": "3nhyfxoY3ZHpGnY5yi85L4UpKaWhKFdLDsKyidhgpump",
+      "pnl": -0.09985,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:39:30",
+      "mint": "2nHjRHv6Qj3KFBmFTWrQ5vrdkWipsjyi9Shxdycgpump",
+      "pnl": 0.1736,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 16:37:58",
+      "mint": "HaQtRGXss54UsarLgQCY9AXUdjgbWXpwEL35JFzypump",
+      "pnl": -0.09452,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:37:02",
+      "mint": "NcQbjc9SRMZ12SRqU3T4DwCzNc1md7nGPg1BsA5pump",
+      "pnl": -0.09921,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:32:41",
+      "mint": "BcXVB92K8hDeQ4ASncgMcbYiyppzg2o63W7xRDtxpump",
+      "pnl": -0.09983,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:29:42",
+      "mint": "FxfCYfaFNyQDupv3zvL5hmKo2LEkSDMa7HoA3BPNpump",
+      "pnl": -0.09305,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:28:14",
+      "mint": "3wRL6DpzjKppN3rA3A4CAeR2Ft2HypcxNp3a6WLZpump",
+      "pnl": -0.09579,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:27:59",
+      "mint": "2Aek6rCqmaEna5EwyUM5Xp8MiW4Sppu6eSVEueQWpump",
+      "pnl": -0.09924,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:27:24",
+      "mint": "AHD1fNHL9FbpwFwd4DfzC9egUYGRDGZWZwDkygKjpump",
+      "pnl": -0.0745,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:27:18",
+      "mint": "75cZWxHttrFQEheDgSYfmYZL8FjG4Te3hEAgjKVnpump",
+      "pnl": -0.09983,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:25:41",
+      "mint": "GtbS3sbqwPcBMk1b9F2w9jQqmJYgCpNUScqBUDyupump",
+      "pnl": -0.09508,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:22:58",
+      "mint": "F6f6FqzZbgqcaVtciqpCDpKAuwMaLkiEB1jQsVBCpump",
+      "pnl": -0.09898,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:21:21",
+      "mint": "3hKUVttRLWckieeuBFLxn7GseY3mE6n6pTSJFHvkpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:20:07",
+      "mint": "HeP9RMop93rh2ppB1C2ZXDtYJFVYsb3XXc2ngPqLpump",
+      "pnl": -0.1,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:17:32",
+      "mint": "3crddnn2aTg8dJTfuXpoEYPHKYuXC4X5YKpHSnCXpump",
+      "pnl": -0.09829,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:16:09",
+      "mint": "5PGR3irP5Mqe5mrffj7d82JVenjJ4QHiJPvFbLPfpump",
+      "pnl": -0.09989,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:15:05",
+      "mint": "fy5454cwNGbhYRXNBGKZSzGzsWwcTidhTXyon9apump",
+      "pnl": -0.09944,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:13:05",
+      "mint": "GvB3DQxibZ3iCkLUZUNJti9KWRL8RETPRH3sifChpump",
+      "pnl": -0.09976,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:12:13",
+      "mint": "FJxgzv2d8KhLsBhGqPFw4U3qWDv33FTkdEht5KQTpump",
+      "pnl": -0.09456,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:11:47",
+      "mint": "8Z3NWNEp3TeGEvwPggoC2AR8YEK5gu7aBUjX8h5Bpump",
+      "pnl": -0.09041,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:11:17",
+      "mint": "ErQhk5v8jdpFwx5n8kTJTzAQq4kRrpWkoGmVjw96pump",
+      "pnl": -0.0996,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:03:42",
+      "mint": "Exy7M5ZBu35byyPHYjAEz3oHa3sZ1tuRHHgfVwokpump",
+      "pnl": -0.09896,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:03:08",
+      "mint": "F4iRSun4vWgBdSyTp32stVGX1CWkxJ7L5KhR4Nospump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 16:01:26",
+      "mint": "7zHD28pundoATybykKDFD1mLrF1eLR9ZryKD6cXTpump",
+      "pnl": -0.09984,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:59:10",
+      "mint": "6Vndr82jJFWFcXRuFrgtr6r4LVdHkeLoVJogkJiupump",
+      "pnl": -0.0999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:52:49",
+      "mint": "78oeuHWA4xW5d7G8HRFoWf8UbqixveLopDfEq6JCpump",
+      "pnl": -0.08805,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:51:13",
+      "mint": "82ChAMPTe1CPTjkJfVSScDtxF254PWsda9dG7Cxtpump",
+      "pnl": -0.09962,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:48:52",
+      "mint": "Bw4ZoGwUjbkB6KrhLQXxgkuGXedm39izJYohcVQXpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:48:35",
+      "mint": "Cuwb1feZSAiD4AtaEkggdvEsfCXvcCsBLRkc5mBKpump",
+      "pnl": -0.09876,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:46:09",
+      "mint": "5nHqQ4UmXzxRUXEBfEJninuCM53FSkAK1F5qtQnspump",
+      "pnl": -0.09062,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:40:40",
+      "mint": "7uc2HKhDQEZcsCvQejFesxoSWP9oKYMNffbb3kchpump",
+      "pnl": -0.09961,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:39:36",
+      "mint": "DXcdx2KEvZUSn5JBXnuUCdFD4QgaFrBvw7XnJWLrpump",
+      "pnl": -0.09562,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:36:31",
+      "mint": "32q7auNDziFu9vQjLi5rem7K7yMd9YWbHb8sCQ3YTTjB",
+      "pnl": -0.09087,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:35:51",
+      "mint": "EuTbso3GENNHKHithiYhFn6vRKD4GDEvs2noy17Qpump",
+      "pnl": -0.09962,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:32:42",
+      "mint": "9wWiXXKbvgTeNMxPWTYknG4SjnZAoqBwBRYqgrDxkBVt",
+      "pnl": -0.09701,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:30:42",
+      "mint": "5jVDQiqM1LGa1GTaQKP68JebccY8gmuNi9DuderMkjsj",
+      "pnl": -0.09988,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:30:37",
+      "mint": "CznLDtHotzM4vJpA41oF8TYcnM69oZvizorDPZmewT6z",
+      "pnl": -0.07502,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:29:27",
+      "mint": "5N7wPmuZQUaYCzSYmEnmbTuUG7XgJt8cirox739Wpump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:28:34",
+      "mint": "5NiRXhqhFR9kdQgRmf8J6PYiGJ4giJvszChK9dZ3pump",
+      "pnl": -0.09424,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:27:26",
+      "mint": "9C2cx5JKgL57RzXLEyptWwpETpLhCHS27uYSs4Bpump",
+      "pnl": -0.09994,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:26:18",
+      "mint": "AzH2wXjWt2jeGhrb5ReDBj3pt2FSPrKyXK2hL355pump",
+      "pnl": -0.1,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:24:53",
+      "mint": "7XxaFAntFi36349CogRNfpJQd7MxhAis2HET9Xqypump",
+      "pnl": -0.08001,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:24:11",
+      "mint": "DrbQAXgfJFRKVCSwRjeLTdumPUKLRyc2yZeyHTvDpump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:24:05",
+      "mint": "7Ez2R3sj7MiHqqK3AT9n4n7DhtqvR2T5VM8FhyUZpump",
+      "pnl": -0.09259,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:23:37",
+      "mint": "5NiRXhqhFR9kdQgRmf8J6PYiGJ4giJvszChK9dZ3pump",
+      "pnl": -0.07298,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:22:58",
+      "mint": "87ecXsraAYdcmn2hpPUVoFiwCdEJnDRZyr49z4MHpump",
+      "pnl": -0.06586,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:20:13",
+      "mint": "DYGqgHnt4JVtXiFRtrR4E5c697deCtRCaG3wszQ2pump",
+      "pnl": -0.09242,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:17:27",
+      "mint": "6WjmmqrJtvvKCKfi4tEvrhB83uw9impTT2m4GC99pump",
+      "pnl": -0.09996,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:13:39",
+      "mint": "FukNsdvVP9gQVynacxHy3LDm1ggjbdhHzUJdrNMKpump",
+      "pnl": -0.09858,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:13:37",
+      "mint": "87ecXsraAYdcmn2hpPUVoFiwCdEJnDRZyr49z4MHpump",
+      "pnl": -0.09326,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:13:22",
+      "mint": "gxkDSPgzW8sD1GDW156FCVWK5tArpUWNw12PJs7pump",
+      "pnl": -0.09873,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:12:10",
+      "mint": "HQfEEZEMYrjBpNsezAmcta1iQXTZhBczpHZmUWBjBcDb",
+      "pnl": -0.06531,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:11:24",
+      "mint": "4goikYCgeKaQrUvYNVzN3WH8xkNsTPG8TZti6ui7pump",
+      "pnl": -0.09997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:08:36",
+      "mint": "D8yhusZ9PG3hmCt1wW1UmpeSusSA1xfikRaKdLK6pump",
+      "pnl": -0.0994,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:07:42",
+      "mint": "66Du5mTGvQJTN99pniKQykZ9SH4wvZk3CWd4tFM6pump",
+      "pnl": -0.09997,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:04:37",
+      "mint": "4GRyMfVQmsqZ6gzb8UrNruk1CSJyaNba6n6iD8Lspump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:03:28",
+      "mint": "G96npjjbRF4cZ2npR4m5QpUEEoLnhQ5qM6zeMAJepump",
+      "pnl": -0.09999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:01:54",
+      "mint": "HHcC1fdzDjiAfUq6D2F3Yz7FWv4UKFG7tPLRhGnypump",
+      "pnl": -0.09833,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 15:01:24",
+      "mint": "HQfEEZEMYrjBpNsezAmcta1iQXTZhBczpHZmUWBjBcDb",
+      "pnl": -0.01637,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:59:39",
+      "mint": "HvYRataTA1fCcKSmW1TdNfVRz6BeXNfRVPLmUM3kpump",
+      "pnl": -0.0999,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:55:31",
+      "mint": "DbYQbtXSGqj1ZpV6KbjXLez92vi231wRMdRBdYvVpump",
+      "pnl": -0.09963,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:53:51",
+      "mint": "dmEs9SkJAbdYryPPnYn7rSQWjqMbGr67L4aowqRpump",
+      "pnl": -0.09998,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:51:37",
+      "mint": "BUjdV8iUZM6pHgze67rCV2Q77XpzTcNiUSZqSnaypump",
+      "pnl": -0.09949,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:50:29",
+      "mint": "BXknCFaLJHvWmGYmLKYiGTTq46zQodN4BG73Pidapump",
+      "pnl": -0.09899,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 14:49:07",
+      "mint": "A4UQFqD3W1JVeEzKjdYFRxma8J4V7j9RUh8QeAq3pump",
+      "pnl": -0.0944,
+      "esito": "❌ LOSS"
+    },
+    {
       "data": "17/08/2026, 10:26:56",
       "mint": "HL7nJmp4GsRJsQuMx2yhqwrEBEyZVVrLLsneEfhapump",
       "pnl": -0.09474,
@@ -191,8 +3059,74 @@
       "importoSol": 0.7,
       "pnlNetto": 0,
       "data": "12/08/2026, 20:20:16"
+    },
+    {
+      "data": "17/08/2026, 20:12:56",
+      "mint": "H2SSiZ3gszuFxi7xmRHem3mvyqtkqajdFXYbkVeopump",
+      "pnl_netto_usd": 0.1045,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:13:30",
+      "mint": "H2SSiZ3gszuFxi7xmRHem3mvyqtkqajdFXYbkVeopump",
+      "pnl_netto_usd": 0.1038,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:33:06",
+      "mint": "5HekJbFPUyzoFv5SHNeLg1zbJqG4GwVdaziWw7Aypump",
+      "pnl_netto_usd": -0.3231,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:33:32",
+      "mint": "Pzv6tL38pVRqoHs73oV8EWsHPnCTCn746KkpLyMpump",
+      "pnl_netto_usd": 0.1064,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:34:18",
+      "mint": "2AxgwM67U63UsgCXxpfw5BsZgZFtYHpBY7HyPE4dpump",
+      "pnl_netto_usd": 0.1674,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:38:30",
+      "mint": "9NE2n5eZh1hYmCM2vtZ5kqZXBeyL2B2KDFn8a7gkpump",
+      "pnl_netto_usd": 0.1237,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "17/08/2026, 20:38:43",
+      "mint": "9NE2n5eZh1hYmCM2vtZ5kqZXBeyL2B2KDFn8a7gkpump",
+      "pnl_netto_usd": -0.301,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "17/08/2026, 20:38:58",
+      "mint": "5mxHQ3fkrReifDUthdSaGpEQyucMJoKhYQ9c4eqQpump",
+      "pnl_netto_usd": 0.1296,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 13:47:40",
+      "mint": "6MRkLPAV588h7PTdPPPdWfE4Bg6RoMN8oJVFqCUipump",
+      "pnl_netto_usd": -0.3703,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 13:59:35",
+      "mint": "63rjTb53ncHrwCrJvRiCWHvN6Ktnzdnqbi8gTtLopump",
+      "pnl_netto_usd": 0.2669,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 14:08:10",
+      "mint": "7dgMCA8kVRyTH7p7sZ3oZJfZ6Wnq5WrsMPBTAhFhpump",
+      "pnl_netto_usd": 0.1441,
+      "esito": "✅ WIN"
     }
   ],
-  "bilancio": -2.025752625717252,
+  "bilancio": -17.509264620111388,
   "openPositions": {}
 }
