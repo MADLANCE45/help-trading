@@ -3,8 +3,12 @@ require('dotenv').config();
 const readline = require('readline');
 const fs = require('fs');
 const web3 = require('@solana/web3.js');
+const bs58 = require('bs58');
+const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } = require('@solana/spl-token');
 
-// Connessione Helius
+// ==========================================
+// 🔌 CONNESSIONE HELIUS E BLOCKCHAIN
+// ==========================================
 const HELIUS_API = process.env.HELIUS_API_KEY;
 if (!HELIUS_API) {
     console.error("❌ ERRORE: HELIUS_API_KEY non trovata nel .env!");
@@ -14,8 +18,6 @@ const connection = new web3.Connection(`https://mainnet.helius-rpc.com/?api-key=
     wsEndpoint: `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API}`,
     commitment: 'confirmed'
 });
-const bs58 = require('bs58');
-const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } = require('@solana/spl-token');
 
 // ==========================================
 // 🔫 ARMAMENTO DEL CECCHINO (WALLET)
@@ -24,27 +26,27 @@ if (!process.env.PRIVATE_KEY) {
     console.error("❌ ERRORE: PRIVATE_KEY non trovata nel .env!");
     process.exit(1);
 }
-// Decodifichiamo la tua chiave segreta
 const secretKey = bs58.decode(process.env.PRIVATE_KEY);
 const portafoglio = web3.Keypair.fromSecretKey(secretKey);
 
 console.log(`\n🎯 Cecchino armato. Indirizzo Operativo: ${portafoglio.publicKey.toBase58()}`);
-// IL VERO PROGRAM ID DI PUMP.FUN (Corretto!)
+
 const PUMP_FUN_PROGRAM_ID = new web3.PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 const PREZZO_SOL_USD = 150; 
 const FILE_PAPER = './paper_trading.json';
 
-// --- LA NUOVA MATEMATICA LOW-FEE ---
-const FEE_DI_RETE_TOTALE = 0.01; 
-const FEE_DEX_PERCENTUALE = 0.01; 
-const TARGET_PROFITTO_NETTO = 0.10; 
-const STOP_LOSS_NETTO = -0.30; 
+// ==========================================
+// ⚖️ CALIBRAZIONE PARAMETRI (AGGIORNATI)
+// ==========================================
+const FEE_DI_RETE_TOTALE = 0.03;    // Copre andata e ritorno
+const FEE_DEX_PERCENTUALE = 0.01;   
+const TARGET_PROFITTO_NETTO = 0.30; // Take profit più alto
+const STOP_LOSS_NETTO = -0.15;      // Stop loss più stretto
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-console.clear();
 console.log("\n=======================================================");
-console.log(" 🦅 [RADAR-QUANT] MODALITÀ AVVOLTOIO (LOW-FEE) 🦅");
+console.log(" 🦅 [RADAR-QUANT] MODALITÀ AVVOLTOIO (LOW-FEE & ANTI-MEV) 🦅");
 console.log("=======================================================\n");
 
 function getBondingCurvePDA(mintPubkey) {
@@ -82,7 +84,6 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
             return chiediAzione();
         }
 
-        // Interruttore Raydium al Byte 48
         const isMigrato = accountIniziale.data.readUInt8(48) === 1;
         if (isMigrato) {
             console.log(`\n⚠️ SCARTATO: Il token ha superato i 69k MC ed è migrato su Raydium!`);
@@ -91,10 +92,16 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
 
         console.log(`✅ [CONFERMATO] Cassa attiva! Inizio Fase 1: OSSERVAZIONE DEL FONDO...\n`);
 
+        // ==========================================
+        // 📊 VARIABILI RADAR + FILTRO VOLUMI
+        // ==========================================
         let stato = 'OSSERVAZIONE'; 
         let minimoLocale = Infinity;
         let prezzoAcquistoUsd = 0;
         let quantitaTokenAcquistati = 0;
+        
+        let prezzoPrecedente = 0;
+        let acquistiSani = 0; // Il nostro contatore di veri compratori
 
         const subscriptionId = connection.onAccountChange(
             cassaPDA,
@@ -108,26 +115,50 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
                 const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
 
                 if (stato === 'OSSERVAZIONE') {
+                    
+                    // 1. Contatore di Volume: Se il prezzo è salito rispetto a un istante fa, è un acquisto!
+                    if (prezzoAttualeUsd > prezzoPrecedente) {
+                        acquistiSani++;
+                    }
+                    prezzoPrecedente = prezzoAttualeUsd; // Aggiorniamo la memoria
+
+                    // 2. Tracciamento del Fondo: Se scendiamo ancora, la moneta sta crollando. Resettiamo tutto.
                     if (prezzoAttualeUsd < minimoLocale) {
                         minimoLocale = prezzoAttualeUsd;
+                        acquistiSani = 0; // Il contatore riparte da zero, niente false partenze.
                     }
 
                     const rimbalzoPerc = ((prezzoAttualeUsd - minimoLocale) / minimoLocale) * 100;
                     
-                    process.stdout.write(`\r🦅 [IN ATTESA] Minimo: $${minimoLocale.toFixed(6)} | Prezzo: $${prezzoAttualeUsd.toFixed(6)} | Rimbalzo: +${rimbalzoPerc.toFixed(2)}%   `);
+                    // Stampiamo a schermo anche i "Tick" di acquisto
+                    process.stdout.write(`\r🦅 [IN ATTESA] Minimo: $${minimoLocale.toFixed(6)} | Prezzo: $${prezzoAttualeUsd.toFixed(6)} | Rimbalzo: +${rimbalzoPerc.toFixed(2)}% | Tick Acquisto: ${acquistiSani}   `);
 
-                    // TRIGGER: +2% organico dal fondo
-                    if (rimbalzoPerc >= 2.0) {
-                        stato = 'IN_POSIZIONE';
+                    // ==========================================
+                    // 🛡️ TRIGGER DOPPIA CONFERMA (Prezzo + Volume)
+                    // ==========================================
+                    // Scatta solo se: Rimbalzo Sano E almeno 5 transazioni umane distinte
+                    if (rimbalzoPerc >= 2.0 && rimbalzoPerc <= 8.0 && acquistiSani >= 5) {
+                        stato = 'IN_TRANSAZIONE'; 
                         prezzoAcquistoUsd = prezzoAttualeUsd;
                         
                         let nettoInvestito = investimentoUSD - (investimentoUSD * FEE_DEX_PERCENTUALE);
                         quantitaTokenAcquistati = nettoInvestito / prezzoAcquistoUsd;
 
-                        console.log(`\n\n🚀 [RIMBALZO RILEVATO!] Bot esploso a mercato! Comprato a $${prezzoAcquistoUsd.toFixed(6)}`);
-                        // SPARA DAVVERO!
+                        console.log(`\n\n🚀 [CONFERMA VOLUMI: +${rimbalzoPerc.toFixed(2)}% con ${acquistiSani} tx] Bot a mercato a $${prezzoAcquistoUsd.toFixed(6)}`);
+                        
                         sparaAcquistoReale(tokenMint, investimentoUSD);
-                        console.log(`👀 Fase 2: Tracciamento PnL Netto per i 10 centesimi...`);
+                        
+                        console.log(`⏳ Attendo 5 secondi per la conferma on-chain...`);
+                        
+                        setTimeout(() => {
+                            stato = 'IN_POSIZIONE';
+                            console.log(`\n✅ [CONFERMATO] Token in canna. Inizio Tracciamento PnL Reale...`);
+                        }, 5000); 
+                    } 
+                    else if (rimbalzoPerc > 8.0) {
+                        // Trappola Pump anomalo: Resettiamo i target
+                        minimoLocale = prezzoAttualeUsd; 
+                        acquistiSani = 0;
                     }
                 } 
                 else if (stato === 'IN_POSIZIONE') {
@@ -138,22 +169,24 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
                     process.stdout.write(`\r📈 [TRADE LIVE] Valore: $${valoreLordo.toFixed(3)} | NETTO: $${pnlNetto.toFixed(3)}   `);
 
                     // TAKE PROFIT
-if (pnlNetto >= TARGET_PROFITTO_NETTO) {
-    connection.removeAccountChangeListener(subscriptionId);
-    console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto raggiunto! Sparo la VENDITA...`);
-    sparaVenditaReale(tokenMint); // <-- IL GRILLETTO
-    salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
-    chiediAzione();
-}
+                    if (pnlNetto >= TARGET_PROFITTO_NETTO) {
+                        stato = 'OPERAZIONE_CONCLUSA'; // 🔒 Blocca doppi spari
+                        connection.removeAccountChangeListener(subscriptionId);
+                        console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto raggiunto! Sparo la VENDITA...`);
+                        sparaVenditaReale(tokenMint);
+                        salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
+                        setTimeout(chiediAzione, 3000); 
+                    }
 
-// STOP LOSS
-if (pnlNetto <= STOP_LOSS_NETTO) {
-    connection.removeAccountChangeListener(subscriptionId);
-    console.log(`\n\n⚠️ [PARACADUTE] Falso allarme. Fuga d'emergenza!`);
-    sparaVenditaReale(tokenMint); // <-- IL GRILLETTO
-    salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
-    chiediAzione();
-}
+                    // STOP LOSS
+                    if (pnlNetto <= STOP_LOSS_NETTO) {
+                        stato = 'OPERAZIONE_CONCLUSA'; // 🔒 Blocca doppi spari
+                        connection.removeAccountChangeListener(subscriptionId);
+                        console.log(`\n\n⚠️ [PARACADUTE] Stop Loss colpito. Fuga d'emergenza!`);
+                        sparaVenditaReale(tokenMint);
+                        salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
+                        setTimeout(chiediAzione, 3000);
+                    }
                 }
             },
             'processed'
@@ -164,107 +197,76 @@ if (pnlNetto <= STOP_LOSS_NETTO) {
         chiediAzione();
     }
 }
+
 async function sparaAcquistoReale(tokenMint, investimentoUSD) {
-    // Calcoliamo quanti SOL sono il tuo investimento in dollari
     const investimentoSOL = parseFloat((investimentoUSD / PREZZO_SOL_USD).toFixed(5));
-    
-    console.log(`\n⚙️ [PUMP-PORTAL] Richiesta payload di esecuzione per ${investimentoSOL} SOL...`);
-    
-    try {
-        // 1. CHIEDIAMO A PUMP-PORTAL DI COSTRUIRE LA TRANSAZIONE
-        const response = await fetch("https://pumpportal.fun/api/trade-local", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                "publicKey": portafoglio.publicKey.toBase58(), // Il tuo Burner Wallet
-                "action": "buy",             // Azione: Compra
-                "mint": tokenMint,           // Il token bersaglio
-                "denominatedInSol": "true",  // Investiamo i SOL, non un numero di token
-                "amount": investimentoSOL,   // Quantità di SOL (es: 0.006 SOL)
-                "slippage": 15,              // Slippage al 15% (fondamentale per non farsi respingere la tx dal dump bot)
-                "priorityFee": 0.001,        // La nostra micro-fee (0.001 SOL)
-                "pool": "pump"               // Cassa Pump.fun
-            })
-        });
-
-        if (response.status !== 200) {
-            console.log(`❌ Errore API PumpPortal: ${response.statusText}`);
-            return;
-        }
-
-        // 2. RICEVIAMO IL PACCHETTO BINARIO (Buffer)
-        const data = await response.arrayBuffer();
-        const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
-
-        // 3. 🔏 LA FIRMA DIGITALE (Il timbro di autorizzazione del tuo PC)
-        transazioneV0.sign([portafoglio]);
-        console.log(`✅ [FIRMATO] Transazione crittografata. Fuoco su Helius!`);
-
-        // 4. 🚀 SPARIAMO ALLA BLOCKCHAIN (Modalità MEV)
-        const signature = await connection.sendTransaction(transazioneV0, {
-            skipPreflight: true, // Trucco HFT: salta i controlli locali, spara direttamente ai validatori
-            maxRetries: 2
-        });
-
-        console.log(`🔥 [ORDINE INVIATO] Bersaglio colpito! Traccia qui:`);
-        console.log(`👉 https://solscan.io/tx/${signature}`);
-        
-        // Da qui la palla passa alla logica di "Tracciamento PnL Netto"
-        
-    } catch (error) {
-        console.log(`❌ Errore nello sparo: ${error.message}`);
-    }
-}
-async function sparaVenditaReale(tokenMint) {
-    console.log(`\n⚙️ [PUMP-PORTAL] Generazione payload di VENDITA (100% + Recupero Affitto)...`);
+    console.log(`\n⚙️ [PUMP-PORTAL] Richiesta acquisto per ${investimentoSOL} SOL (Slippage: 3%, Fee: 0.0001)...`);
     
     try {
         const response = await fetch("https://pumpportal.fun/api/trade-local", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 "publicKey": portafoglio.publicKey.toBase58(),
-                "action": "sell",
+                "action": "buy",
                 "mint": tokenMint,
-                "denominatedInSol": "false", // Non usiamo SOL come riferimento
-                "amount": "100%",            // Vende l'intero bilancio del token
-                "slippage": 15,              // Tolleranza per uscire a tutti i costi
-                "priorityFee": 0.001,
+                "denominatedInSol": "true",
+                "amount": investimentoSOL,
+                "slippage": 3,              // FIX APPLICATO (Anti-MEV)
+                "priorityFee": 0.0001,      // FIX APPLICATO (Low Fee)
                 "pool": "pump"
             })
         });
 
-        if (response.status !== 200) {
-            console.log(`❌ Errore API PumpPortal: ${response.statusText}`);
-            return;
-        }
+        if (response.status !== 200) return console.log(`❌ Errore API: ${response.statusText}`);
 
         const data = await response.arrayBuffer();
         const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
-        
         transazioneV0.sign([portafoglio]);
-        console.log(`✅ [FIRMATO] Transazione di fuga pronta. Sgancio in corso...`);
-
-        const signature = await connection.sendTransaction(transazioneV0, {
-            skipPreflight: true,
-            maxRetries: 2
-        });
-
-        console.log(`🔥 [VENDITA ESEGUITA] Cassetto chiuso e fondi recuperati!`);
-        console.log(`👉 https://solscan.io/tx/${signature}`);
-
+        
+        const signature = await connection.sendTransaction(transazioneV0, { skipPreflight: true, maxRetries: 2 });
+        console.log(`🔥 [ORDINE INVIATO] 👉 https://solscan.io/tx/${signature}`);
     } catch (error) {
-        console.log(`❌ Errore nella vendita: ${error.message}`);
+        console.log(`❌ Errore Acq: ${error.message}`);
     }
 }
+
+async function sparaVenditaReale(tokenMint) {
+    console.log(`\n⚙️ [PUMP-PORTAL] Richiesta VENDITA 100% (Slippage: 3%, Fee: 0.0001)...`);
+    
+    try {
+        const response = await fetch("https://pumpportal.fun/api/trade-local", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                "publicKey": portafoglio.publicKey.toBase58(),
+                "action": "sell",
+                "mint": tokenMint,
+                "denominatedInSol": "false",
+                "amount": "100%",
+                "slippage": 3,              // FIX APPLICATO (Anti-MEV)
+                "priorityFee": 0.0001,      // FIX APPLICATO (Low Fee)
+                "pool": "pump"
+            })
+        });
+
+        if (response.status !== 200) return console.log(`❌ Errore API: ${response.statusText}`);
+
+        const data = await response.arrayBuffer();
+        const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
+        transazioneV0.sign([portafoglio]);
+        
+        const signature = await connection.sendTransaction(transazioneV0, { skipPreflight: true, maxRetries: 2 });
+        console.log(`🔥 [VENDITA ESEGUITA] 👉 https://solscan.io/tx/${signature}`);
+    } catch (error) {
+        console.log(`❌ Errore Vendita: ${error.message}`);
+    }
+}
+
 function chiediAzione() {
     rl.question("\n📝 Incolla l'indirizzo del Token (oppure 'exit'): ", (tokenMint) => {
         if(tokenMint.toLowerCase() === 'exit') process.exit(0);
-        rl.question("💰 Scegli importo (Es. '1' per 1$): ", (importo) => {
+        rl.question("💰 Scegli importo (Consigliato 2 o 3 per assorbire le fee): ", (importo) => {
             const investimento = parseFloat(importo);
             if(isNaN(investimento)) return chiediAzione();
             avviaStalkerReale(tokenMint, investimento);

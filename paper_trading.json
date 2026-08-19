@@ -3125,8 +3125,116 @@
       "mint": "7dgMCA8kVRyTH7p7sZ3oZJfZ6Wnq5WrsMPBTAhFhpump",
       "pnl_netto_usd": 0.1441,
       "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 14:18:07",
+      "mint": "DxGMpEZPTv1tJ1oqrqdyvLdxMokmgetiZPyMD6ANpump",
+      "pnl_netto_usd": -0.3709,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 14:30:39",
+      "mint": "DEhnJsfTNmahG1xdKsQiMepUwduwDtv4TPfRj87spump",
+      "pnl_netto_usd": 0.3909,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 14:39:17",
+      "mint": "626vx3BZjPyfKVJMDh9Qk4wqbNwQf8okf58Gv1irpump",
+      "pnl_netto_usd": 1.0855,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 14:41:33",
+      "mint": "DZCpV1b97r4w9CuYPKwfMVSuTwar2yCbvCqrrqDwpump",
+      "pnl_netto_usd": 1.3545,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 14:42:04",
+      "mint": "DZCpV1b97r4w9CuYPKwfMVSuTwar2yCbvCqrrqDwpump",
+      "pnl_netto_usd": -1.4385,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 14:43:21",
+      "mint": "APRq9wxDvk3fkaXFTXynYPEN5yRGDpHRY7S3ar9Dpump",
+      "pnl_netto_usd": -2.5385,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 14:58:15",
+      "mint": "cve3nmYdBLHXZaQDoqBB5XHHLUx4QCpABdyEgrzpump",
+      "pnl_netto_usd": -0.9176,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:00:26",
+      "mint": "NCCegAZcMJut4J9SCWfkVHga218yackwjFLGS2spump",
+      "pnl_netto_usd": -1.1286,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:01:35",
+      "mint": "NCCegAZcMJut4J9SCWfkVHga218yackwjFLGS2spump",
+      "pnl_netto_usd": -0.9851,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:05:01",
+      "mint": "FD86iRUUh9w274YJhf3Lk4egyg9r8BuoEpMC1SL2pump",
+      "pnl_netto_usd": -2.3158,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:15:38",
+      "mint": "5tLKKTRk4hidALHym2y1cjCwCzCdqT5hAVQWRhj9pump",
+      "pnl_netto_usd": 3.2969,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 15:18:12",
+      "mint": "5tLKKTRk4hidALHym2y1cjCwCzCdqT5hAVQWRhj9pump",
+      "pnl_netto_usd": 0.9591,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 15:23:32",
+      "mint": "3BaR9rsojprxbywKbszhZSy36YhkjUbEujgt44Ekpump",
+      "pnl_netto_usd": 0.5801,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 15:24:24",
+      "mint": "3BaR9rsojprxbywKbszhZSy36YhkjUbEujgt44Ekpump",
+      "pnl_netto_usd": -2.1101,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:25:03",
+      "mint": "4p7YTq6cmfjau1htMbMoVpfBnxLTb3Croii7FqdWpump",
+      "pnl_netto_usd": -2.4215,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 15:32:31",
+      "mint": "Bh1PHsiiKtW9Ntpk4eNwBTftYCu2eSmdBLx4dUA7pump",
+      "pnl_netto_usd": 5.2711,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 15:47:51",
+      "mint": "EfNUWDtM5WwSGfu6KPAFBK3F1dL4fKfWboAtyFo9pump",
+      "pnl_netto_usd": -0.1595,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 16:11:47",
+      "mint": "EFhDaqTHbhP4Nh5nLcM9peuTy1yBRhCjcRKZVqCcpump",
+      "pnl_netto_usd": -0.9941,
+      "esito": "❌ LOSS"
     }
   ],
-  "bilancio": -17.509264620111388,
+  "bilancio": -19.951454648521278,
   "openPositions": {}
 }
