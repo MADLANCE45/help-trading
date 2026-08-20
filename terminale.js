@@ -37,8 +37,8 @@ const FILE_PAPER = './paper_trading.json';
 
 const FEE_DI_RETE_TOTALE = 0.03;    
 const FEE_DEX_PERCENTUALE = 0.01;   
-const TARGET_PROFITTO_NETTO = 0.15; // 🎯 ABBASSATO! Scappiamo con i soldi appena vediamo 15 centesimi!
-const STOP_LOSS_NETTO = -0.10;  
+const TARGET_PROFITTO_NETTO = 0.20; // 🎯 +10% su un investimento da 2$
+const STOP_LOSS_NETTO = -0.15;      // ⚠️ Tagliamo subito se il trend è sbagliato
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -84,11 +84,19 @@ function avviaConfigurazioneBalene() {
 // 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
 // 🔒 LUCCHETTO: Memoria dei trade attivi per non comprare doppi!
 const tradeAttivi = new Set();
-
+let occupatoInTrade = false;
 // 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
 socket.on('golden_signal_found', async (segnale) => {
     if (tradeAttivi.has(segnale.mint)) return;
+    
+    // ⛔ Se stiamo già seguendo un trade, ignoriamo gli altri per non crashare Helius
+    if (occupatoInTrade) {
+        console.log(`⚠️ Skip: Balena mitragliatrice ignorata. Sono già in trade.`);
+        return;
+    }
+
     tradeAttivi.add(segnale.mint); 
+    occupatoInTrade = true; // 🔴 Accendo il semaforo rosso
     
     console.log(`\n\n🎯 [COPY-BUY TRIGGER] La balena ha colpito! Token: ${segnale.mint}`);
     
@@ -96,7 +104,8 @@ socket.on('golden_signal_found', async (segnale) => {
     const isClean = await scudoGroqFlash(segnale.mint);
     if (!isClean) {
         console.log(`⛔ [BLOCCO GROQ] Il contratto non ha superato l'ispezione AI. Trade annullato.`);
-        tradeAttivi.delete(segnale.mint); // Sblocco il lucchetto per le prossime
+        tradeAttivi.delete(segnale.mint); 
+        occupatoInTrade = false; // 🟢 Spegno il semaforo per sbloccare la caccia!
         return;
     }
 
@@ -117,67 +126,102 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
         const isMigrato = accountIniziale.data.readUInt8(48) === 1;
         if (isMigrato) {
             console.log(`⚠️ Skip: Token migrato su Raydium.`);
+            tradeAttivi.delete(tokenMint);
             return;
         }
 
-        // SPARIAMO SUBITO ALLA CIECA
-        // SPARIAMO SUBITO ALLA CIECA
-        // SPARIAMO SUBITO ALLA CIECA
-        sparaAcquistoReale(tokenMint, investimentoUSD);
+        // 🧮 CALCOLO MARKET CAP PREVENTIVO
+        const vTokenRaw = accountIniziale.data.readBigUInt64LE(8).toString();
+        const vSolRaw = accountIniziale.data.readBigUInt64LE(16).toString();
+        const vToken = Number(vTokenRaw) / 1000000;
+        const vSol = Number(vSolRaw) / 1000000000;
+        
+        const prezzoInSol = vSol / vToken;
+        const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
+        
+        // Su Pump.fun la supply totale è sempre 1 Miliardo di token
+        const marketCapUsd = prezzoAttualeUsd * 1000000000; 
+
+        console.log(`📊 Analisi pre-acquisto... Market Cap stimato: $${marketCapUsd.toFixed(0)}`);
+
+        // ⛔ FILTRO: Se il MC è sotto i 4.000$, non entriamo
+        if (marketCapUsd < 4000) {
+            console.log(`⛔ [BLOCCO] Market Cap troppo basso ($${marketCapUsd.toFixed(0)}). Token scartato.`);
+            tradeAttivi.delete(tokenMint);
+            return;
+        }
+
+        // 🚀 SPARIAMO E ATTENDIAMO LA FIRMA (Solo se ha superato il filtro MC)
+        const firmaAcquisto = await sparaAcquistoReale(tokenMint, investimentoUSD);
+        
+        if (!firmaAcquisto) {
+            console.log(`⚠️ [ERRORE API] Impossibile inviare la transazione. Trade annullato.`);
+            tradeAttivi.delete(tokenMint); 
+            return;
+        }
 
         let quantitaTokenAcquistati = 0;
         let tradeFallitoSuSolana = false; 
 
-        // 🚨 RICERCA OSTINATA DEI TOKEN (Polling Anti-Ritardo RPC)
+        // 🚨 RICERCA OSTINATA DEI TOKEN (60 Secondi di pazienza)
+        // 🚨 RICERCA OSTINATA DEI TOKEN (Versione con Radar Avanzato)
         const cercaToken = async () => {
             const mintPubKey = new web3.PublicKey(tokenMint);
-            const ata = await getAssociatedTokenAddress(mintPubKey, portafoglio.publicKey);
+            process.stdout.write(`\n⏳ Attesa aggiornamento nodo RPC per confermare i token in cassa...\n`);
             
-            for (let i = 1; i <= 12; i++) {
+            for (let i = 1; i <= 20; i++) {
                 try {
-                    const bal = await connection.getTokenAccountBalance(ata);
-                    if (bal.value.uiAmount > 0) {
-                        quantitaTokenAcquistati = bal.value.uiAmount;
-                        console.log(`\n📦 [INVENTARIO VERO] Ottenuti esattamente ${quantitaTokenAcquistati} token netti (Trovati al tentativo ${i}).`);
-                        return; // Token trovati, usciamo dalla ricerca!
+                    // Usiamo un metodo di lettura superiore che non va in crash se la cassa è troppo nuova
+                    const accounts = await connection.getParsedTokenAccountsByOwner(portafoglio.publicKey, { mint: mintPubKey });
+                    
+                    if (accounts.value.length > 0) {
+                        const amount = accounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+                        if (amount > 0) {
+                            quantitaTokenAcquistati = amount;
+                            console.log(`\n📦 [INVENTARIO VERO] Ottenuti esattamente ${quantitaTokenAcquistati} token netti (Tentativo ${i}).`);
+                            return; 
+                        }
                     }
                 } catch(e) {
-                    // Il nodo RPC è in ritardo. Restiamo in silenzio e riproviamo.
+                    // ORA STAMPIAMO L'ERRORE PER VEDERE SE HELIUS CI STA SABOTANDO
+                    console.log(`\n⚠️ [DEBUG NODO RPC] Errore di lettura: ${e.message}`);
                 }
-                // Aspetta 1 secondo esatto prima di ritentare
-                await new Promise(resolve => setTimeout(resolve, 1000)); 
+                
+                await new Promise(resolve => setTimeout(resolve, 3000)); 
             }
             
-            // Se dopo 12 secondi (12 tentativi) non c'è traccia dei token, allora è fallito davvero
+            // Se fallisce per 60 secondi
             tradeFallitoSuSolana = true;
-            console.log(`\n⚠️ [ERRORE LETTURA] Nessun token ricevuto dopo 12s. Annullamento trade...`);
-            tradeAttivi.delete(tokenMint); 
+            occupatoInTrade = false; // 🟢 ECCO IL TASTO DI SBLOCCO! Semaforo verde!
+            
+            console.log(`\n⚠️ [ERRORE LETTURA] Nessun token ricevuto dopo 60s. La rete ha bocciato l'acquisto. Blacklist.`);
             if (typeof subscriptionId !== 'undefined') connection.removeAccountChangeListener(subscriptionId);
         };
         
-        cercaToken(); // Spara la ricerca in background
+        cercaToken(); // Avvia la ricerca in background
 
         const subscriptionId = connection.onAccountChange(
             cassaPDA,
             (accountInfo, context) => {
-                // 🛑 Se il trade è fallito, interrompiamo immediatamente ogni calcolo
+                // Se il trade è fallito, interrompiamo immediatamente ogni calcolo
                 if (tradeFallitoSuSolana) return; 
-
-                // Se l'ispezione non è finita, aspettiamo
-                if (quantitaTokenAcquistati === 0) {
-                    process.stdout.write(`\r⏳ Calcolo slippage e attesa token reali in wallet...   `);
-                    return;
-                }
+                if (quantitaTokenAcquistati === 0) return;
 
                 const data = accountInfo.data;
                 if (data.length < 49) return;
 
-                const virtualTokenReserves = Number(data.readBigUInt64LE(8));
-                const virtualSolReserves = Number(data.readBigUInt64LE(16));
-                const prezzoInSol = (virtualSolReserves / 1e9) / (virtualTokenReserves / 1e6);
+                // 🧮 FIX MATEMATICO ASSOLUTO: Stringify per proteggerci dal bug di Node.js
+                const vTokenRaw = data.readBigUInt64LE(8).toString();
+                const vSolRaw = data.readBigUInt64LE(16).toString();
+                
+                // Divisione sicura per i decimali corretti
+                const vToken = Number(vTokenRaw) / 1000000;      // 1e6 decimali per i token Pump
+                const vSol = Number(vSolRaw) / 1000000000;       // 1e9 decimali per i SOL
+
+                const prezzoInSol = vSol / vToken;
                 const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
 
-                // 🧮 MATEMATICA REALE
+                // 🧮 CALCOLO DEL PROFITTO REALE
                 let valoreLordo = quantitaTokenAcquistati * prezzoAttualeUsd;
                 let feeUscita = valoreLordo * FEE_DEX_PERCENTUALE;
                 let pnlNetto = (valoreLordo - investimentoUSD) - FEE_DI_RETE_TOTALE - feeUscita;
@@ -189,6 +233,7 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
                     console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto Reale! Vendo e chiudo!`);
                     sparaVenditaReale(tokenMint);
                     salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
+                    occupatoInTrade = false; // 🟢 SBLOCCO DOPO LA VITTORIA
                 }
 
                 if (pnlNetto <= STOP_LOSS_NETTO) {
@@ -196,6 +241,7 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
                     console.log(`\n\n⚠️ [PARACADUTE] Stop Loss Reale. Fuga d'emergenza!`);
                     sparaVenditaReale(tokenMint);
                     salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
+                    occupatoInTrade = false; // 🟢 SBLOCCO DOPO LA SCONFITTA
                 }
             },
             'processed'
@@ -235,13 +281,13 @@ async function sparaAcquistoReale(tokenMint, investimentoUSD) {
                 "mint": tokenMint,
                 "denominatedInSol": "true",
                 "amount": investimentoSOL,
-                "slippage": 7,              
-                "priorityFee": 0.0003,      
+                "slippage": 5,              
+                "priorityFee": 0.001,   
                 "pool": "pump"
             })
         });
 
-        if (response.status !== 200) return;
+        if (response.status !== 200) return null; // Restituisce null se fallisce l'API
 
         const data = await response.arrayBuffer();
         const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
@@ -249,11 +295,11 @@ async function sparaAcquistoReale(tokenMint, investimentoUSD) {
         
         const signature = await connection.sendTransaction(transazioneV0, { skipPreflight: true, maxRetries: 2 });
         console.log(`🔥 [COPIA-ACQUISTO] 👉 https://solscan.io/tx/${signature}`);
-    } catch (error) {}
+        return signature; // 👈 RESTITUISCE LA FIRMA AL BOT
+    } catch (error) {
+        return null;
+    }
 }
-// ==========================================
-// 🔥 AUTO-INCENERITORE (RECUPERO AFFITTO)
-// ==========================================
 // ==========================================
 // 🔥 AUTO-INCENERITORE 2.0 (BURN & CLOSE)
 // ==========================================
@@ -361,6 +407,6 @@ async function sparaVenditaReale(tokenMint) {
         console.log(`🔥 [COPIA-VENDITA] 👉 https://solscan.io/tx/${signature}`);
         
         // 🧹 AZIONA L'INCENERITORE!
-        autoInceneritore(tokenMint);
+        //autoInceneritore(tokenMint);
     } catch (error) {}
 }
