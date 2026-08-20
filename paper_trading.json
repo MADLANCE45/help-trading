@@ -3233,8 +3233,44 @@
       "mint": "EFhDaqTHbhP4Nh5nLcM9peuTy1yBRhCjcRKZVqCcpump",
       "pnl_netto_usd": -0.9941,
       "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 19:34:08",
+      "mint": "7LdgNnfcVSsZC5ZHy97sB6zuypVVUW1pux4SR1xppump",
+      "pnl_netto_usd": -1.8113,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 19:51:52",
+      "mint": "GMoG2sS1d6rj3kkTZqvX4zkPbTxsr4ov8JJ8MVgHpump",
+      "pnl_netto_usd": -0.9272,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 21:31:28",
+      "mint": "DmpG7Sjk5J7LmoYyGqxP35Gj2UQksTttTRcewjrApump",
+      "pnl_netto_usd": -1.1136,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 22:24:01",
+      "mint": "CW72nnAUKTLh5jmhLXhaGYJYt8seUAQFMcWcyHu7pump",
+      "pnl_netto_usd": -1.7809,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "19/08/2026, 22:24:49",
+      "mint": "FguDVU9DKvVNXdo29HruXWyz7HwKUaNvQGd3VP4Bpump",
+      "pnl_netto_usd": 1.0731,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "19/08/2026, 22:27:44",
+      "mint": "24HMcvcptzBdDYztGedkXVa9iRe9bNsvazS4CVKVpump",
+      "pnl_netto_usd": 2.0368,
+      "esito": "✅ WIN"
     }
   ],
-  "bilancio": -19.951454648521278,
+  "bilancio": -22.47456461519852,
   "openPositions": {}
 }

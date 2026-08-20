@@ -95,13 +95,35 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
         // ==========================================
         // 📊 VARIABILI RADAR + FILTRO VOLUMI
         // ==========================================
+        // ==========================================
+        // 📊 VARIABILI RADAR + FILTRO VOLUMI
+        // ==========================================
         let stato = 'OSSERVAZIONE'; 
         let minimoLocale = Infinity;
         let prezzoAcquistoUsd = 0;
         let quantitaTokenAcquistati = 0;
         
         let prezzoPrecedente = 0;
-        let acquistiSani = 0; // Il nostro contatore di veri compratori
+        let acquistiSani = 0;
+
+        // ⏱️ TIMER DI NOIA: Se non spara in 30 sec, annulla tutto
+        let timerNoia;
+        function resettaTimer() {
+            if (timerNoia) clearTimeout(timerNoia);
+            timerNoia = setTimeout(() => {
+                if (stato === 'OSSERVAZIONE') {
+                    console.log(`\n\n🥱 [TIMEOUT] Nessun volume per 30 secondi. Token morto, abbandono...`);
+                    // Rimuove l'ascolto per non sprecare risorse
+                    if (typeof subscriptionId !== 'undefined') {
+                        connection.removeAccountChangeListener(subscriptionId);
+                    }
+                    chiediAzione(); // Ti chiede un nuovo token in automatico
+                }
+            }, 30000); // 30.000 millisecondi = 30 secondi
+        }
+        
+        // Facciamo partire il timer non appena incolliamo il token
+        resettaTimer();
 
         const subscriptionId = connection.onAccountChange(
             cassaPDA,
@@ -111,6 +133,14 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
 
                 const virtualTokenReserves = Number(data.readBigUInt64LE(8));
                 const virtualSolReserves = Number(data.readBigUInt64LE(16));
+                
+                // 🛡️ SCUDO ANTI-MIGRAZIONE E ANTI-NaN
+                if (virtualTokenReserves === 0) {
+                    console.log(`\n\n⚠️ [ATTENZIONE] Il token ha raggiunto il 100% ed è migrato su Raydium! Abbandonare il bersaglio.`);
+                    connection.removeAccountChangeListener(subscriptionId);
+                    return chiediAzione();
+                }
+
                 const prezzoInSol = (virtualSolReserves / 1e9) / (virtualTokenReserves / 1e6);
                 const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
 
@@ -119,6 +149,7 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
                     // 1. Contatore di Volume: Se il prezzo è salito rispetto a un istante fa, è un acquisto!
                     if (prezzoAttualeUsd > prezzoPrecedente) {
                         acquistiSani++;
+                        resettaTimer();
                     }
                     prezzoPrecedente = prezzoAttualeUsd; // Aggiorniamo la memoria
 
@@ -137,7 +168,8 @@ async function avviaStalkerReale(tokenMint, investimentoUSD) {
                     // 🛡️ TRIGGER DOPPIA CONFERMA (Prezzo + Volume)
                     // ==========================================
                     // Scatta solo se: Rimbalzo Sano E almeno 5 transazioni umane distinte
-                    if (rimbalzoPerc >= 2.0 && rimbalzoPerc <= 8.0 && acquistiSani >= 5) {
+                    if (rimbalzoPerc >= 2.0 && rimbalzoPerc <= 8.0 && acquistiSani >= 3) {
+                        clearTimeout(timerNoia);
                         stato = 'IN_TRANSAZIONE'; 
                         prezzoAcquistoUsd = prezzoAttualeUsd;
                         
@@ -212,8 +244,8 @@ async function sparaAcquistoReale(tokenMint, investimentoUSD) {
                 "mint": tokenMint,
                 "denominatedInSol": "true",
                 "amount": investimentoSOL,
-                "slippage": 3,              // FIX APPLICATO (Anti-MEV)
-                "priorityFee": 0.0001,      // FIX APPLICATO (Low Fee)
+                "slippage": 7,              // <-- ALZATO PER EVITARE TRANSAZIONI FALLITE
+                "priorityFee": 0.0003,      // <-- ALZATA PER SALTARE LA CODA DEI BOT
                 "pool": "pump"
             })
         });
