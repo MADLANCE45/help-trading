@@ -4,8 +4,8 @@ const readline = require('readline');
 const fs = require('fs');
 const web3 = require('@solana/web3.js');
 const bs58 = require('bs58');
-const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } = require('@solana/spl-token');
-
+const { io } = require("socket.io-client"); 
+const { getAssociatedTokenAddress, createCloseAccountInstruction, createBurnInstruction, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
 // ==========================================
 // 🔌 CONNESSIONE HELIUS E BLOCKCHAIN
 // ==========================================
@@ -35,19 +35,175 @@ const PUMP_FUN_PROGRAM_ID = new web3.PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ
 const PREZZO_SOL_USD = 150; 
 const FILE_PAPER = './paper_trading.json';
 
-// ==========================================
-// ⚖️ CALIBRAZIONE PARAMETRI (AGGIORNATI)
-// ==========================================
-const FEE_DI_RETE_TOTALE = 0.03;    // Copre andata e ritorno
+const FEE_DI_RETE_TOTALE = 0.03;    
 const FEE_DEX_PERCENTUALE = 0.01;   
-const TARGET_PROFITTO_NETTO = 0.30; // Take profit più alto
-const STOP_LOSS_NETTO = -0.15;      // Stop loss più stretto
+const TARGET_PROFITTO_NETTO = 0.15; // 🎯 ABBASSATO! Scappiamo con i soldi appena vediamo 15 centesimi!
+const STOP_LOSS_NETTO = -0.10;  
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-console.log("\n=======================================================");
-console.log(" 🦅 [RADAR-QUANT] MODALITÀ AVVOLTOIO (LOW-FEE & ANTI-MEV) 🦅");
-console.log("=======================================================\n");
+// ==========================================
+// 🌐 CONNESSIONE AL SERVER LOCALE (INDEX.JS)
+// ==========================================
+const SERVER_URL = "http://localhost:3000"; 
+const socket = io(SERVER_URL, {
+    transports: ['websocket']
+});
+
+socket.on("connect", () => {
+    console.log(`\n🟢 [COPY-TRADER] Connesso al Radar di Spionaggio Balene (Porta 3000)`);
+    avviaConfigurazioneBalene();
+});
+
+socket.on("connect_error", (err) => {
+    console.log(`⚠️ [ATTENZIONE] Impossibile connettersi al server locale (${SERVER_URL}). Assicurati di aver avviato 'node index.js' in un altro terminale!`);
+});
+
+function avviaConfigurazioneBalene() {
+    console.log("\n-------------------------------------------------------");
+    rl.question("🐋 Inserisci l'indirizzo del wallet da COPIARE (o premi invio per usare le balene di default): ", (risposta) => {
+        let targetWallet = risposta.trim();
+        
+        // Metti qui i wallet che vuoi copiare di default
+        let listaBalene = [
+            "38HGfTmj2y3Q3PPWpsfrMVHxdwvJJQvDP1HuT5DyjHQV" 
+        ];
+
+        if (targetWallet.length >= 32 && targetWallet.length <= 44) {
+            listaBalene = [targetWallet];
+            console.log(`🎯 Nuovo bersaglio acquisito in copia: ${targetWallet}`);
+        } else {
+            console.log(`🤖 Uso la flotta di balene autonome pre-caricate nel sistema.`);
+        }
+
+        socket.emit('imposta_wallet_spia', listaBalene);
+        console.log(`📡 Stalker attivo! In attesa che la balena compri un token...`);
+    });
+}
+
+// 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
+// 🔒 LUCCHETTO: Memoria dei trade attivi per non comprare doppi!
+const tradeAttivi = new Set();
+
+// 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
+socket.on('golden_signal_found', async (segnale) => {
+    if (tradeAttivi.has(segnale.mint)) return;
+    tradeAttivi.add(segnale.mint); 
+    
+    console.log(`\n\n🎯 [COPY-BUY TRIGGER] La balena ha colpito! Token: ${segnale.mint}`);
+    
+    // 🧠 ATTIVAZIONE SCUDO AI ISTANTANEO
+    const isClean = await scudoGroqFlash(segnale.mint);
+    if (!isClean) {
+        console.log(`⛔ [BLOCCO GROQ] Il contratto non ha superato l'ispezione AI. Trade annullato.`);
+        tradeAttivi.delete(segnale.mint); // Sblocco il lucchetto per le prossime
+        return;
+    }
+
+    avviaStalkerCopia(segnale.mint, 2.0); 
+});
+
+async function avviaStalkerCopia(tokenMint, investimentoUSD) {
+    try {
+        const cassaPDA = getBondingCurvePDA(new web3.PublicKey(tokenMint));
+        console.log(`\n🟢 [COPY-EXECUTION] Entrata automatica su: ${tokenMint.substring(0,8)}...`);
+        
+        const accountIniziale = await connection.getAccountInfo(cassaPDA, 'confirmed');
+        if (!accountIniziale || accountIniziale.data.length < 49) {
+            console.log(`⚠️ Skip: Cassa non valida o token già migrato.`);
+            return;
+        }
+
+        const isMigrato = accountIniziale.data.readUInt8(48) === 1;
+        if (isMigrato) {
+            console.log(`⚠️ Skip: Token migrato su Raydium.`);
+            return;
+        }
+
+        // SPARIAMO SUBITO ALLA CIECA
+        // SPARIAMO SUBITO ALLA CIECA
+        // SPARIAMO SUBITO ALLA CIECA
+        sparaAcquistoReale(tokenMint, investimentoUSD);
+
+        let quantitaTokenAcquistati = 0;
+        let tradeFallitoSuSolana = false; 
+
+        // 🚨 RICERCA OSTINATA DEI TOKEN (Polling Anti-Ritardo RPC)
+        const cercaToken = async () => {
+            const mintPubKey = new web3.PublicKey(tokenMint);
+            const ata = await getAssociatedTokenAddress(mintPubKey, portafoglio.publicKey);
+            
+            for (let i = 1; i <= 12; i++) {
+                try {
+                    const bal = await connection.getTokenAccountBalance(ata);
+                    if (bal.value.uiAmount > 0) {
+                        quantitaTokenAcquistati = bal.value.uiAmount;
+                        console.log(`\n📦 [INVENTARIO VERO] Ottenuti esattamente ${quantitaTokenAcquistati} token netti (Trovati al tentativo ${i}).`);
+                        return; // Token trovati, usciamo dalla ricerca!
+                    }
+                } catch(e) {
+                    // Il nodo RPC è in ritardo. Restiamo in silenzio e riproviamo.
+                }
+                // Aspetta 1 secondo esatto prima di ritentare
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
+            }
+            
+            // Se dopo 12 secondi (12 tentativi) non c'è traccia dei token, allora è fallito davvero
+            tradeFallitoSuSolana = true;
+            console.log(`\n⚠️ [ERRORE LETTURA] Nessun token ricevuto dopo 12s. Annullamento trade...`);
+            tradeAttivi.delete(tokenMint); 
+            if (typeof subscriptionId !== 'undefined') connection.removeAccountChangeListener(subscriptionId);
+        };
+        
+        cercaToken(); // Spara la ricerca in background
+
+        const subscriptionId = connection.onAccountChange(
+            cassaPDA,
+            (accountInfo, context) => {
+                // 🛑 Se il trade è fallito, interrompiamo immediatamente ogni calcolo
+                if (tradeFallitoSuSolana) return; 
+
+                // Se l'ispezione non è finita, aspettiamo
+                if (quantitaTokenAcquistati === 0) {
+                    process.stdout.write(`\r⏳ Calcolo slippage e attesa token reali in wallet...   `);
+                    return;
+                }
+
+                const data = accountInfo.data;
+                if (data.length < 49) return;
+
+                const virtualTokenReserves = Number(data.readBigUInt64LE(8));
+                const virtualSolReserves = Number(data.readBigUInt64LE(16));
+                const prezzoInSol = (virtualSolReserves / 1e9) / (virtualTokenReserves / 1e6);
+                const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
+
+                // 🧮 MATEMATICA REALE
+                let valoreLordo = quantitaTokenAcquistati * prezzoAttualeUsd;
+                let feeUscita = valoreLordo * FEE_DEX_PERCENTUALE;
+                let pnlNetto = (valoreLordo - investimentoUSD) - FEE_DI_RETE_TOTALE - feeUscita;
+
+                process.stdout.write(`\r📈 [COPY TRADE] Valore Reale: $${valoreLordo.toFixed(3)} | NETTO: $${pnlNetto.toFixed(3)}   `);
+
+                if (pnlNetto >= TARGET_PROFITTO_NETTO) {
+                    connection.removeAccountChangeListener(subscriptionId);
+                    console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto Reale! Vendo e chiudo!`);
+                    sparaVenditaReale(tokenMint);
+                    salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
+                }
+
+                if (pnlNetto <= STOP_LOSS_NETTO) {
+                    connection.removeAccountChangeListener(subscriptionId);
+                    console.log(`\n\n⚠️ [PARACADUTE] Stop Loss Reale. Fuga d'emergenza!`);
+                    sparaVenditaReale(tokenMint);
+                    salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
+                }
+            },
+            'processed'
+        );
+    } catch (error) {
+        console.log(`\n❌ Errore Copy-Trade: ${error.message}`);
+    }
+}
 
 function getBondingCurvePDA(mintPubkey) {
     const [pda] = web3.PublicKey.findProgramAddressSync(
@@ -67,173 +223,8 @@ function salvaPaperTrading(tokenMint, pnlNetto, esito) {
     fs.writeFileSync(FILE_PAPER, JSON.stringify(paperData, null, 2));
 }
 
-async function avviaStalkerReale(tokenMint, investimentoUSD) {
-    try {
-        const cassaPDA = getBondingCurvePDA(new web3.PublicKey(tokenMint));
-        console.log(`\n🟢 [EXECUTION] Token: ${tokenMint.substring(0,8)}...`);
-        
-        const accountIniziale = await connection.getAccountInfo(cassaPDA, 'confirmed');
-        
-        if (!accountIniziale) {
-            console.log(`\n⚠️ SCARTATO: Cassa inesistente. Il token è un Fake, oppure è già migrato su Raydium!`);
-            return chiediAzione();
-        }
-
-        if (accountIniziale.data.length < 49) {
-            console.log(`\n⚠️ ERRORE: Dati corrotti. Non è una Bonding Curve di Pump.fun.`);
-            return chiediAzione();
-        }
-
-        const isMigrato = accountIniziale.data.readUInt8(48) === 1;
-        if (isMigrato) {
-            console.log(`\n⚠️ SCARTATO: Il token ha superato i 69k MC ed è migrato su Raydium!`);
-            return chiediAzione();
-        }
-
-        console.log(`✅ [CONFERMATO] Cassa attiva! Inizio Fase 1: OSSERVAZIONE DEL FONDO...\n`);
-
-        // ==========================================
-        // 📊 VARIABILI RADAR + FILTRO VOLUMI
-        // ==========================================
-        // ==========================================
-        // 📊 VARIABILI RADAR + FILTRO VOLUMI
-        // ==========================================
-        let stato = 'OSSERVAZIONE'; 
-        let minimoLocale = Infinity;
-        let prezzoAcquistoUsd = 0;
-        let quantitaTokenAcquistati = 0;
-        
-        let prezzoPrecedente = 0;
-        let acquistiSani = 0;
-
-        // ⏱️ TIMER DI NOIA: Se non spara in 30 sec, annulla tutto
-        let timerNoia;
-        function resettaTimer() {
-            if (timerNoia) clearTimeout(timerNoia);
-            timerNoia = setTimeout(() => {
-                if (stato === 'OSSERVAZIONE') {
-                    console.log(`\n\n🥱 [TIMEOUT] Nessun volume per 30 secondi. Token morto, abbandono...`);
-                    // Rimuove l'ascolto per non sprecare risorse
-                    if (typeof subscriptionId !== 'undefined') {
-                        connection.removeAccountChangeListener(subscriptionId);
-                    }
-                    chiediAzione(); // Ti chiede un nuovo token in automatico
-                }
-            }, 30000); // 30.000 millisecondi = 30 secondi
-        }
-        
-        // Facciamo partire il timer non appena incolliamo il token
-        resettaTimer();
-
-        const subscriptionId = connection.onAccountChange(
-            cassaPDA,
-            (accountInfo, context) => {
-                const data = accountInfo.data;
-                if (data.length < 49) return;
-
-                const virtualTokenReserves = Number(data.readBigUInt64LE(8));
-                const virtualSolReserves = Number(data.readBigUInt64LE(16));
-                
-                // 🛡️ SCUDO ANTI-MIGRAZIONE E ANTI-NaN
-                if (virtualTokenReserves === 0) {
-                    console.log(`\n\n⚠️ [ATTENZIONE] Il token ha raggiunto il 100% ed è migrato su Raydium! Abbandonare il bersaglio.`);
-                    connection.removeAccountChangeListener(subscriptionId);
-                    return chiediAzione();
-                }
-
-                const prezzoInSol = (virtualSolReserves / 1e9) / (virtualTokenReserves / 1e6);
-                const prezzoAttualeUsd = prezzoInSol * PREZZO_SOL_USD;
-
-                if (stato === 'OSSERVAZIONE') {
-                    
-                    // 1. Contatore di Volume: Se il prezzo è salito rispetto a un istante fa, è un acquisto!
-                    if (prezzoAttualeUsd > prezzoPrecedente) {
-                        acquistiSani++;
-                        resettaTimer();
-                    }
-                    prezzoPrecedente = prezzoAttualeUsd; // Aggiorniamo la memoria
-
-                    // 2. Tracciamento del Fondo: Se scendiamo ancora, la moneta sta crollando. Resettiamo tutto.
-                    if (prezzoAttualeUsd < minimoLocale) {
-                        minimoLocale = prezzoAttualeUsd;
-                        acquistiSani = 0; // Il contatore riparte da zero, niente false partenze.
-                    }
-
-                    const rimbalzoPerc = ((prezzoAttualeUsd - minimoLocale) / minimoLocale) * 100;
-                    
-                    // Stampiamo a schermo anche i "Tick" di acquisto
-                    process.stdout.write(`\r🦅 [IN ATTESA] Minimo: $${minimoLocale.toFixed(6)} | Prezzo: $${prezzoAttualeUsd.toFixed(6)} | Rimbalzo: +${rimbalzoPerc.toFixed(2)}% | Tick Acquisto: ${acquistiSani}   `);
-
-                    // ==========================================
-                    // 🛡️ TRIGGER DOPPIA CONFERMA (Prezzo + Volume)
-                    // ==========================================
-                    // Scatta solo se: Rimbalzo Sano E almeno 5 transazioni umane distinte
-                    if (rimbalzoPerc >= 2.0 && rimbalzoPerc <= 8.0 && acquistiSani >= 3) {
-                        clearTimeout(timerNoia);
-                        stato = 'IN_TRANSAZIONE'; 
-                        prezzoAcquistoUsd = prezzoAttualeUsd;
-                        
-                        let nettoInvestito = investimentoUSD - (investimentoUSD * FEE_DEX_PERCENTUALE);
-                        quantitaTokenAcquistati = nettoInvestito / prezzoAcquistoUsd;
-
-                        console.log(`\n\n🚀 [CONFERMA VOLUMI: +${rimbalzoPerc.toFixed(2)}% con ${acquistiSani} tx] Bot a mercato a $${prezzoAcquistoUsd.toFixed(6)}`);
-                        
-                        sparaAcquistoReale(tokenMint, investimentoUSD);
-                        
-                        console.log(`⏳ Attendo 5 secondi per la conferma on-chain...`);
-                        
-                        setTimeout(() => {
-                            stato = 'IN_POSIZIONE';
-                            console.log(`\n✅ [CONFERMATO] Token in canna. Inizio Tracciamento PnL Reale...`);
-                        }, 5000); 
-                    } 
-                    else if (rimbalzoPerc > 8.0) {
-                        // Trappola Pump anomalo: Resettiamo i target
-                        minimoLocale = prezzoAttualeUsd; 
-                        acquistiSani = 0;
-                    }
-                } 
-                else if (stato === 'IN_POSIZIONE') {
-                    let valoreLordo = quantitaTokenAcquistati * prezzoAttualeUsd;
-                    let feeUscita = valoreLordo * FEE_DEX_PERCENTUALE;
-                    let pnlNetto = (valoreLordo - investimentoUSD) - FEE_DI_RETE_TOTALE - feeUscita;
-
-                    process.stdout.write(`\r📈 [TRADE LIVE] Valore: $${valoreLordo.toFixed(3)} | NETTO: $${pnlNetto.toFixed(3)}   `);
-
-                    // TAKE PROFIT
-                    if (pnlNetto >= TARGET_PROFITTO_NETTO) {
-                        stato = 'OPERAZIONE_CONCLUSA'; // 🔒 Blocca doppi spari
-                        connection.removeAccountChangeListener(subscriptionId);
-                        console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto raggiunto! Sparo la VENDITA...`);
-                        sparaVenditaReale(tokenMint);
-                        salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
-                        setTimeout(chiediAzione, 3000); 
-                    }
-
-                    // STOP LOSS
-                    if (pnlNetto <= STOP_LOSS_NETTO) {
-                        stato = 'OPERAZIONE_CONCLUSA'; // 🔒 Blocca doppi spari
-                        connection.removeAccountChangeListener(subscriptionId);
-                        console.log(`\n\n⚠️ [PARACADUTE] Stop Loss colpito. Fuga d'emergenza!`);
-                        sparaVenditaReale(tokenMint);
-                        salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
-                        setTimeout(chiediAzione, 3000);
-                    }
-                }
-            },
-            'processed'
-        );
-
-    } catch (error) {
-        console.log(`\n❌ Errore: ${error.message}`);
-        chiediAzione();
-    }
-}
-
 async function sparaAcquistoReale(tokenMint, investimentoUSD) {
     const investimentoSOL = parseFloat((investimentoUSD / PREZZO_SOL_USD).toFixed(5));
-    console.log(`\n⚙️ [PUMP-PORTAL] Richiesta acquisto per ${investimentoSOL} SOL (Slippage: 3%, Fee: 0.0001)...`);
-    
     try {
         const response = await fetch("https://pumpportal.fun/api/trade-local", {
             method: "POST",
@@ -244,28 +235,106 @@ async function sparaAcquistoReale(tokenMint, investimentoUSD) {
                 "mint": tokenMint,
                 "denominatedInSol": "true",
                 "amount": investimentoSOL,
-                "slippage": 7,              // <-- ALZATO PER EVITARE TRANSAZIONI FALLITE
-                "priorityFee": 0.0003,      // <-- ALZATA PER SALTARE LA CODA DEI BOT
+                "slippage": 7,              
+                "priorityFee": 0.0003,      
                 "pool": "pump"
             })
         });
 
-        if (response.status !== 200) return console.log(`❌ Errore API: ${response.statusText}`);
+        if (response.status !== 200) return;
 
         const data = await response.arrayBuffer();
         const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
         transazioneV0.sign([portafoglio]);
         
         const signature = await connection.sendTransaction(transazioneV0, { skipPreflight: true, maxRetries: 2 });
-        console.log(`🔥 [ORDINE INVIATO] 👉 https://solscan.io/tx/${signature}`);
+        console.log(`🔥 [COPIA-ACQUISTO] 👉 https://solscan.io/tx/${signature}`);
+    } catch (error) {}
+}
+// ==========================================
+// 🔥 AUTO-INCENERITORE (RECUPERO AFFITTO)
+// ==========================================
+// ==========================================
+// 🔥 AUTO-INCENERITORE 2.0 (BURN & CLOSE)
+// ==========================================
+async function autoInceneritore(tokenMint) {
+    console.log(`\n🧹 [INCENERITORE 2.0] Attesa di 15s per l'assestamento della blockchain...`);
+    
+    setTimeout(async () => {
+        try {
+            const mintPubKey = new web3.PublicKey(tokenMint);
+            const ata = await getAssociatedTokenAddress(mintPubKey, portafoglio.publicKey);
+            
+            // 1. Controlliamo se la cassa esiste e quanta "polvere" c'è dentro
+            const accountInfo = await connection.getTokenAccountBalance(ata);
+            const amountRaw = accountInfo.value.amount; // Ammontare grezzo in stringa
+            
+            const tx = new web3.Transaction();
+
+            // 2. Se c'è polvere (rimasugli), aggiungiamo l'istruzione per BRUCIARLA
+            if (amountRaw !== "0") {
+                console.log(`🔥 [BURN] Trovata polvere da svuotare (${accountInfo.value.uiAmount} token). Polverizzazione in corso...`);
+                tx.add(
+                    createBurnInstruction(
+                        ata,
+                        mintPubKey,
+                        portafoglio.publicKey,
+                        BigInt(amountRaw), // Usiamo BigInt per sicurezza sui decimali enormi di Solana
+                        [],
+                        TOKEN_PROGRAM_ID
+                    )
+                );
+            }
+
+            // 3. Aggiungiamo l'istruzione per CHIUDERE la cassa ormai a zero e riprendere i SOL
+            tx.add(
+                createCloseAccountInstruction(ata, portafoglio.publicKey, portafoglio.publicKey, [], TOKEN_PROGRAM_ID)
+            );
+            
+            // 4. Spara l'esecuzione combinata
+            const signature = await connection.sendTransaction(tx, [portafoglio], { skipPreflight: true });
+            console.log(`\n💰 [AFFITTO RECUPERATO] Cassa distrutta con successo! +0.002 SOL nel wallet. 👉 https://solscan.io/tx/${signature}`);
+
+        } catch (error) {
+            console.log(`\n⚠️ [INCENERITORE FALLITO] Non ho potuto bruciare la cassa. Motivo: ${error.message}`);
+        }
+    }, 15000); // Alzato a 15 secondi per assicurarci che la vendita precedente sia confermata al 100%
+
+}
+// ==========================================
+// ⚡ GROQ FLASH: PREDATORE DI SCAM ISTANTANEO
+// ==========================================
+async function scudoGroqFlash(tokenMint) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) return true; // Bypass se manca la chiave nel .env
+    
+    try {
+        const start = Date.now();
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [{ 
+                    role: "system", 
+                    content: `Sei un filtro HFT. Un trader istituzionale sta per copiare un acquisto sul contratto: ${tokenMint}. Se riconosci pattern malevoli, dev seriali o stringhe sospette, rispondi ESATTAMENTE e SOLO con 'SCAM'. Altrimenti rispondi 'CLEAN'. Nessuna punteggiatura aggiuntiva.` 
+                }],
+                max_tokens: 3, // Cruciale: limita l'output per essere un proiettile
+                temperature: 0.1
+            })
+        });
+        
+        const data = await response.json();
+        const ms = Date.now() - start;
+        const verdetto = data.choices[0].message.content.trim().toUpperCase();
+        
+        console.log(`⚡ [GROQ FLASH] Analisi neurale in ${ms}ms: ${verdetto}`);
+        return verdetto.includes("CLEAN");
     } catch (error) {
-        console.log(`❌ Errore Acq: ${error.message}`);
+        return true; // Se l'API lagga, non bloccare il trade e prosegui
     }
 }
-
 async function sparaVenditaReale(tokenMint) {
-    console.log(`\n⚙️ [PUMP-PORTAL] Richiesta VENDITA 100% (Slippage: 3%, Fee: 0.0001)...`);
-    
     try {
         const response = await fetch("https://pumpportal.fun/api/trade-local", {
             method: "POST",
@@ -276,34 +345,22 @@ async function sparaVenditaReale(tokenMint) {
                 "mint": tokenMint,
                 "denominatedInSol": "false",
                 "amount": "100%",
-                "slippage": 3,              // FIX APPLICATO (Anti-MEV)
-                "priorityFee": 0.0001,      // FIX APPLICATO (Low Fee)
+                "slippage": 7,              
+                "priorityFee": 0.0003,      
                 "pool": "pump"
             })
         });
 
-        if (response.status !== 200) return console.log(`❌ Errore API: ${response.statusText}`);
+        if (response.status !== 200) return;
 
         const data = await response.arrayBuffer();
         const transazioneV0 = VersionedTransaction.deserialize(new Uint8Array(data));
         transazioneV0.sign([portafoglio]);
         
         const signature = await connection.sendTransaction(transazioneV0, { skipPreflight: true, maxRetries: 2 });
-        console.log(`🔥 [VENDITA ESEGUITA] 👉 https://solscan.io/tx/${signature}`);
-    } catch (error) {
-        console.log(`❌ Errore Vendita: ${error.message}`);
-    }
+        console.log(`🔥 [COPIA-VENDITA] 👉 https://solscan.io/tx/${signature}`);
+        
+        // 🧹 AZIONA L'INCENERITORE!
+        autoInceneritore(tokenMint);
+    } catch (error) {}
 }
-
-function chiediAzione() {
-    rl.question("\n📝 Incolla l'indirizzo del Token (oppure 'exit'): ", (tokenMint) => {
-        if(tokenMint.toLowerCase() === 'exit') process.exit(0);
-        rl.question("💰 Scegli importo (Consigliato 2 o 3 per assorbire le fee): ", (importo) => {
-            const investimento = parseFloat(importo);
-            if(isNaN(investimento)) return chiediAzione();
-            avviaStalkerReale(tokenMint, investimento);
-        });
-    });
-}
-
-chiediAzione();

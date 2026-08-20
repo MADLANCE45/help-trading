@@ -64,6 +64,42 @@ document.addEventListener('DOMContentLoaded', () => {
    window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
     let processedSigs = new Set(); // Per il Tab 3 Spy
+    // =========================================================
+    // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
+    // =========================================================
+    let timerNoiaExtension;
+
+    function resettaTimerNoia() {
+        if (timerNoiaExtension) clearTimeout(timerNoiaExtension);
+        
+        // Impostiamo il timer a 25 secondi
+        timerNoiaExtension = setTimeout(() => {
+            console.log("🥱 [TIMEOUT] Nessun volume per 25 secondi. Token morto!");
+            
+            const hudHeader = document.getElementById('hud-header');
+            if (hudHeader) {
+                hudHeader.style.background = '#4a0000'; // Rosso scuro
+                hudHeader.style.borderBottom = '3px solid #ff4d4d';
+                hudHeader.style.animation = 'pulseRed 1s infinite';
+                hudHeader.innerHTML = `
+                    <div style="width: 100%; text-align: center;">
+                        <div style="font-size: 1.2em; font-weight: 900; color: #ff4d4d; letter-spacing: 2px;">💀 TOKEN MORTO 💀</div>
+                        <div style="font-size: 0.75em; color: #fff; margin-top: 4px;">Zero volumi da 25s. Cambia moneta!</div>
+                    </div>
+                `;
+            }
+
+            const simStatus = document.getElementById('paper-trade-status');
+            if (simStatus) {
+                simStatus.innerHTML = `<span style="color: #ff4d4d; font-weight:bold;">❌ Abbandonare il bersaglio.</span>`;
+            }
+            
+            // Opzionale: Suono di errore quando muore
+            const audio = new Audio('https://www.soundjay.com/buttons/beep-07.mp3');
+            audio.play().catch(() => {});
+
+        }, 25000); // 25.000 ms = 25 secondi
+    }
 
     // =========================================================
     // AVVIO PRINCIPALE
@@ -86,7 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live)
+           // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live)
             costruisciInterfacciaLive(tokenMint);
+
+            // ⏱️ AVVIA IL CONTO ALLA ROVESCIA
+            resettaTimerNoia();
 
             // ⏳ STEP 2: RICERCA IN BACKGROUND (Analisi on-chain differita)
             fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
@@ -337,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.off('nuovo_trade_live');
         socket.on('nuovo_trade_live', (trade) => {
             // 🔥 MOTORE P&L COLLEGATO AL NASTRO LIVE (Zero API)
+            resettaTimerNoia();
             if (window.paperPosition && window.paperPosition.active) {
                 const isBuyTrade = trade.tipo.includes("BUY");
                 const tradeSize = parseFloat(trade.sol);

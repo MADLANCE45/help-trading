@@ -989,54 +989,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     avviaAscoltoLive(tokenMint);
     
-// =====================================================================
 // 💸 DATABASE LOCALE: LIVE PAPER TRADING SIMULATOR (ZERO-AI)
-// =====================================================================
-const dbPath = path.join(__dirname, 'paper_trading.json');
-
-function getPaperTrades() {
-    if (!fs.existsSync(dbPath)) {
-        fs.writeFileSync(dbPath, JSON.stringify({ trades: [], openPositions: {}, bilancio: 0 }));
-    }
-    const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    if (!db.openPositions) db.openPositions = {}; // Sicurezza
-    return db;
-}
-
-// Lettura Storico
-app.get('/api/paper-trading', (req, res) => {
-    try { res.json(getPaperTrades()); } catch (e) { res.status(500).json({ error: "Errore lettura DB" }); }
-});
-
-// ⚡ Endpoint per tracciare il PnL in tempo reale
-app.get('/api/paper-trading/live/:tokenMint', async (req, res) => {
-    try {
-        const db = getPaperTrades();
-        const posizione = db.openPositions[req.params.tokenMint];
-        if (!posizione) return res.json({ aperta: false });
-
-        // Pesca il prezzo live direttamente da DexScreener (Super Veloce, Costo 0)
-        let currentPrice = 0;
-        const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${req.params.tokenMint}`);
-        const dexData = await dexRes.json();
-        if (dexData.pairs && dexData.pairs.length > 0) {
-            currentPrice = parseFloat(dexData.pairs[0].priceUsd);
-        }
-
-        if (currentPrice > 0) {
-            const moltiplicatore = currentPrice / posizione.prezzoEntrata;
-            const controvalore = posizione.importoSol * moltiplicatore;
-            const pnlNetto = controvalore - posizione.importoSol;
-            const pnlPct = ((moltiplicatore - 1) * 100).toFixed(2);
-            
-            return res.json({ aperta: true, pnl: pnlNetto, pct: pnlPct });
-        }
-        res.json({ aperta: true, pnl: 0, pct: 0 });
-    } catch(e) {
-        res.json({ aperta: false });
-    }
-});
-
 // Apertura / Chiusura Posizione
 // Apertura / Chiusura Posizione
 // Apertura / Chiusura Posizione
@@ -1044,21 +997,12 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     try {
         const { tokenMint, azione, pnlNetto } = req.body;
         const db = getPaperTrades();
-
         let resMsg = "";
 
         if (azione === "EXIT") {
             const pnl = parseFloat(pnlNetto) || 0;
             db.bilancio += pnl; // Aggiorna la cassa totale
-            
-            // Salva lo storico
-            db.trades.unshift({
-                id: Date.now(),
-                token: tokenMint,
-                pnlSol: pnl,
-                data: new Date().toLocaleString('it-IT')
-            });
-
+            db.trades.unshift({ id: Date.now(), token: tokenMint, pnlSol: pnl, data: new Date().toLocaleString('it-IT') });
             if (db.trades.length > 50) db.trades.length = 50; // Max 50 trade
             resMsg = `Uscita: ${pnl > 0 ? '+' : ''}${pnl.toFixed(3)} SOL`;
         }
@@ -1875,7 +1819,12 @@ function avviaAscoltoBersaglio(walletAddress) {
 
                 if (isBuy) {
                     console.log(`\n🕵️ [TARGET ACQUISITO] La Balena ${walletAddress.substring(0,6)} ha COMPRATO ${tokenMint.substring(0,6)}...`);
-                    await valutaEsplosivitaToken(tokenMint, walletAddress);
+                    
+                    // 🔥 BYPASS TOTALE: Spara al terminale all'istante senza aspettare analisi!
+                    io.emit('golden_signal_found', { mint: tokenMint });
+                    
+                    // (Lasciamo l'analisi in background solo per scriverla nei log)
+                    valutaEsplosivitaToken(tokenMint, walletAddress);
                 } else {
                     // 🚨 LA BALENA STA VENDENDO! Dobbiamo controllare se siamo dentro!
                     if (posizioniAperte.has(trackerKey)) {
