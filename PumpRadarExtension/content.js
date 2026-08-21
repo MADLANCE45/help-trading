@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         extraHeaders: { "ngrok-skip-browser-warning": "true" }
     });
     socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
+    
     // =========================================================
     // 🚀 RICEZIONE SEGNALI DAL CACCIATORE ALGORITMICO GLOBALE
     // =========================================================
@@ -16,39 +17,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!alertBox) {
             alertBox = document.createElement('div');
             alertBox.id = 'golden-alert-box';
+            // 🔥 IL FIX GRAFICO: Centrato, largo il giusto, margini corretti (Respiro Lento 3s)
             alertBox.style.cssText = `
-                position: fixed; bottom: 20px; right: 20px; background: #12151f;
-                border: 2px solid #ffaa00; box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
-                padding: 15px; border-radius: 8px; z-index: 999999; color: white;
-                font-family: monospace; animation: pulseRed 1s infinite; min-width: 300px;
+                position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                width: 90%; max-width: 320px; background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%);
+                border: 1px solid #ffaa00; box-shadow: 0 10px 25px rgba(0,0,0,0.9), 0 0 15px rgba(255, 170, 0, 0.3);
+                padding: 12px; border-radius: 10px; z-index: 999999; color: white;
+                font-family: 'Segoe UI', Tahoma, sans-serif; box-sizing: border-box;
+                animation: pulseGlow 3s infinite;
             `;
             document.body.appendChild(alertBox);
         }
 
         alertBox.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ffaa00; padding-bottom:8px; margin-bottom:8px;">
-                <span style="color:#ffaa00; font-weight:900; font-size:1.1em;">🚨 ALGORITMO MATCH!</span>
-                <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">X</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255, 170, 0, 0.3); padding-bottom:8px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap: 8px;">
+                    <span style="font-size: 1.2em;">🚨</span>
+                    <span style="color:#ffaa00; font-weight:900; font-size:1em; letter-spacing: 1px;">ALGORITMO MATCH!</span>
+                </div>
+                <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">✕</button>
             </div>
             
-            <div style="font-size: 0.9em; line-height: 1.5; margin-bottom: 10px;">
-                <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Ratio Buy/Sell:</span> <span style="color:#00e676; font-weight:bold;">${segnale.ratio}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Organic U-Index:</span> <span style="color:#00e676; font-weight:bold;">${segnale.uIndex}%</span></div>
+            <div style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 8px; margin-bottom: 10px; font-family: monospace; font-size: 0.85em;">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Ratio Buy/Sell:</span> <span style="color:#00e676; font-weight:bold;">${segnale.ratio}</span></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Organic U-Index:</span> <span style="color:#00e676; font-weight:bold;">${segnale.uIndex}%</span></div>
                 <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol Entrata:</span> <span style="color:#fff; font-weight:bold;">${segnale.buyVol} SOL</span></div>
             </div>
 
-            <div style="background: #050608; padding: 8px; border-radius: 4px; margin-bottom: 12px; border: 1px solid #2d3142; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-family: monospace; font-size: 0.75em; color: #00ffcc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;" title="${segnale.mint}">${segnale.mint}</span>
-                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75em; font-weight: bold; flex-shrink: 0;">📋 Copia</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; flex: 1; transition: 0.2s;">📋 Copia Mint</button>
+                <a href="https://pump.fun/${segnale.mint}" target="_blank" style="flex: 2; text-align:center; background: linear-gradient(90deg, #ffaa00, #ff8c00); color:#000; text-decoration:none; padding:8px; border-radius:6px; font-weight:900; font-size: 0.85em; letter-spacing:1px; box-shadow: 0 4px 10px rgba(255, 170, 0, 0.3);">
+                    💊 APRI PUMP.FUN
+                </a>
             </div>
-
-            <a href="https://axiom.trade/token/${segnale.mint}" target="_blank" style="display:block; text-align:center; background:#ffaa00; color:#000; text-decoration:none; padding:8px; border-radius:4px; font-weight:900; letter-spacing:1px; transition:0.2s;">
-                ⚡ APRI SU AXIOM
-            </a>
         `;
         
-        const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
-        audio.play().catch(() => {});
+        console.log("🔔 BEEP! (Allarme visivo attivato)");
 
         document.getElementById('close-golden-alert').addEventListener('click', () => alertBox.remove());
 
@@ -56,14 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(segnale.mint).then(() => {
                 copyBtn.innerText = "✅ Copiato!"; copyBtn.style.background = "#00e676"; copyBtn.style.color = "#000";
-                setTimeout(() => { copyBtn.innerText = "📋 Copia"; copyBtn.style.background = "#2a2d3d"; copyBtn.style.color = "#fff"; }, 2000);
+                setTimeout(() => { copyBtn.innerText = "📋 Copia Mint"; copyBtn.style.background = "#2a2d3d"; copyBtn.style.color = "#fff"; }, 2000);
             });
         });
     });
+
     let orderFlowWindow = [];
-   window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
+    window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
-    let processedSigs = new Set(); // Per il Tab 3 Spy
+    let processedSigs = new Set(); 
+
     // =========================================================
     // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
     // =========================================================
@@ -80,7 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hudHeader) {
                 hudHeader.style.background = '#4a0000'; // Rosso scuro
                 hudHeader.style.borderBottom = '3px solid #ff4d4d';
-                hudHeader.style.animation = 'pulseRed 1s infinite';
+                // Respiro meno fastidioso
+                hudHeader.style.animation = 'pulseRed 2.5s infinite';
                 hudHeader.innerHTML = `
                     <div style="width: 100%; text-align: center;">
                         <div style="font-size: 1.2em; font-weight: 900; color: #ff4d4d; letter-spacing: 2px;">💀 TOKEN MORTO 💀</div>
@@ -94,18 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 simStatus.innerHTML = `<span style="color: #ff4d4d; font-weight:bold;">❌ Abbandonare il bersaglio.</span>`;
             }
             
-            // Opzionale: Suono di errore quando muore
-            const audio = new Audio('https://www.soundjay.com/buttons/beep-07.mp3');
-            audio.play().catch(() => {});
+            console.log("💀 BEEP! Token morto (Allarme visivo)");
 
-        }, 25000); // 25.000 ms = 25 secondi
+        }, 25000); 
     }
 
     // =========================================================
-    // AVVIO PRINCIPALE
-    // =========================================================
-    // =========================================================
-    // AVVIO PRINCIPALE
+    // AVVIO PRINCIPALE (CON MEMORIA ISTANTANEA ANTI-ATTESA)
     // =========================================================
     function avviaRadar() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -122,29 +124,52 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live)
-           // 🚀 STEP 1: CARICAMENTO ISTANTANEO (Apre UI Live)
             costruisciInterfacciaLive(tokenMint);
-
-            // ⏱️ AVVIA IL CONTO ALLA ROVESCIA
             resettaTimerNoia();
 
-            // ⏳ STEP 2: RICERCA IN BACKGROUND (Analisi on-chain differita)
-            fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) throw new Error(data.error);
+            // 💾 STEP 2: CONTROLLO MEMORIA (Evita i 30 secondi di attesa se hai già scansionato)
+            chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
                 
-                // 1. Popola i dati statici (Rete Sybil, Fedina Dev, ecc.)
-                popolaInterfacciaStatica(data, tokenMint);
-                
-                // ⚖️ 2. SOLO ORA SVEGLIAMO GEMINI (I dati sono pronti!)
-                avviaLaboratorioGemini(tokenMint);
-            })
-            .catch(err => {
-                const staticBox = document.getElementById('static-analysis-box');
-                if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center; margin-bottom: 15px;">⚠️ Errore Analisi Statica: ${err.message}</div>`;
+                if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan) {
+                    console.log("💾 Memoria trovata! Ricarico l'interfaccia all'istante...");
+                    
+                    // Disegna i dati all'istante (Niente attese!)
+                    popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
+                    
+                    // SVEGLIA IL GIUDICE SUPREMO DALLA MEMORIA!
+                    avviaLaboratorioGemini(tokenMint); 
+                    
+                    // Lancia una chiamata silenziosa in background solo per riaprire il canale WSS
+                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    }).catch(() => {});
+
+                } else {
+                    // ⏳ STEP 3: NESSUNA MEMORIA. PRIMA SCANSIONE REALE (Ci vorrà qualche secondo)
+                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                        headers: { "ngrok-skip-browser-warning": "true" }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) throw new Error(data.error);
+                        
+                        // 🔥 SALVA IN MEMORIA PER LA PROSSIMA VOLTA CHE CHIUDI/APRI
+                        chrome.storage.local.set({
+                            ultimoTokenScansionato: tokenMint,
+                            ultimoRisultatoScan: data
+                        });
+                        
+                        // 1. Popola i dati statici 
+                        popolaInterfacciaStatica(data, tokenMint);
+                        
+                        // 2. Sveglia il Giudice Groq
+                        avviaLaboratorioGemini(tokenMint);
+                    })
+                    .catch(err => {
+                        const staticBox = document.getElementById('static-analysis-box');
+                        if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center; margin-bottom: 15px;">⚠️ Errore Analisi Statica: ${err.message}</div>`;
+                    });
+                }
             });
         });
     }
@@ -230,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${liveTapeHTML}
 
                         <!-- BOX SPY SOTTO AL RADAR -->
-                        ${spyBoxHTML}
+                        <div id="static-analysis-box">
 
                         <!-- CONTENITORE DATI STATICI -->
                         <div id="static-analysis-box">
@@ -254,13 +279,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
                         <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">🚨 LIVE SPY FEED</h3></div>
+                        
+                        ${spyBoxHTML}
+
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
                             <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti...</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- BOTTOM TABS -->
+                
+                <!-- BOTTOM TABS (I 3 bottoni in basso) -->
                 <div style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
                         <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Radar</span>
@@ -504,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         📉 ${data.messaggio}
                     </div>
                     <div style="display: flex; gap: 10px; border-top: 1px solid #ff4444; padding-top: 6px;">
-                        <a href="https://axiom.trade/token/${tokenMint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.85em; font-weight:bold;">🦍 Axiom</a>
+                        <a href="https://pump.fun/${tokenMint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.85em; font-weight:bold;">💊 Pump.fun</a>
                         <a href="https://dexscreener.com/solana/${tokenMint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.85em; font-weight:bold;">🦅 DexScreener</a>
                     </div>
                 `;
@@ -600,8 +629,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button id="${copyBtnId}" data-mint="${data.mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; padding:4px 8px; border-radius:4px; font-size:0.75em; font-weight:bold; cursor:pointer; transition:0.2s;">
                                 📋 Copia
                             </button>
-                            <a href="https://axiom.trade/token/${data.mint}" target="_blank" style="background:#b366ff; border:1px solid #9933ff; color:#000; padding:4px 8px; border-radius:4px; font-size:0.75em; text-decoration:none; font-weight:bold; cursor:pointer;">
-                                Axiom
+                            <a href="https://pump.fun/${data.mint}" target="_blank" style="background:#b366ff; border:1px solid #9933ff; color:#000; padding:4px 8px; border-radius:4px; font-size:0.75em; text-decoration:none; font-weight:bold; cursor:pointer;">
+                                PUMP.FUN
                             </a>
                         </div>
                     </div>
@@ -667,13 +696,18 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>`;
 
         if (data.advice) {
+            const devColor = data.advice.devStatus.includes('SERIAL') ? '#ff3366' : (data.advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00ffcc');
+            const bundleColor = data.advice.topHoldersStatus.includes('ATTENZIONE') || data.advice.topHoldersStatus.includes('Rischio') ? '#ffaa00' : '#00ffcc';
+            
             reportHTML += `
-                <div style="background: rgba(18, 21, 31, 0.6); padding: 12px; border-radius: 8px; border: 1px solid #1a1c29; font-size: 0.85em; margin-bottom: 15px; font-family: monospace;">
-                    <div style="margin-bottom: 10px; border-left: 3px solid ${data.advice.devStatus.includes('SERIAL') ? '#ff3366' : (data.advice.devStatus.includes('FRESH') ? '#ffaa00' : '#00ffcc')}; padding-left: 10px; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 0 4px 4px 0;">
-                        <span style="color: #888; font-size: 0.8em; text-transform: uppercase;">[Dev_History]:</span> <span style="color: #e0e0e0; font-weight: bold;">${data.advice.devStatus}</span>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 15px;">
+                    <div style="background: linear-gradient(90deg, ${devColor}20, transparent); border-left: 4px solid ${devColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
+                        <div style="font-size: 0.7em; color: ${devColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">👨‍💻 Storico Sviluppatore</div>
+                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${data.advice.devStatus}</div>
                     </div>
-                    <div style="border-left: 3px solid #ffaa00; padding-left: 10px; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 0 4px 4px 0;">
-                        <span style="color: #888; font-size: 0.8em; text-transform: uppercase;">[Bundle_Shield]:</span> <span style="color: #e0e0e0; font-weight: bold;">${data.advice.topHoldersStatus}</span>
+                    <div style="background: linear-gradient(90deg, ${bundleColor}20, transparent); border-left: 4px solid ${bundleColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
+                        <div style="font-size: 0.7em; color: ${bundleColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">🛡️ Analisi Supply</div>
+                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${data.advice.topHoldersStatus}</div>
                     </div>
                 </div>`;
         }
@@ -1060,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             ${contentHTML}
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                <a href="https://axiom.trade/token/${data.mint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦍 Axiom</a>
+                <a href="https://pump.fun/${data.mint}" target="_blank" style="text-align:center; background:#222; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦍 Axiom</a>
                 <a href="https://dexscreener.com/solana/${data.mint}" target="_blank" style="text-align:center; background:#1e2130; border: 1px solid #444; color:#fff; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">🦅 DexScreener</a>
             </div>
         `;

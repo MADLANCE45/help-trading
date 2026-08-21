@@ -1,18 +1,76 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
 
-    // --- 1. PUMP RADAR (Analisi Moneta) ---
+    // ==========================================
+    // 🛠️ FUNZIONE DI DISEGNO (Riutilizzabile)
+    // ==========================================
+    function disegnaInterfacciaRadar(tokenMint, data) {
+        const score = data.score || 0;
+        const rischio = data.rischio || "N/A";
+        const dumper = data.dumperTrovati || "0";
+        const devWallet = data.devWallet || "Sconosciuto";
+        const devAge = data.devAgeDays !== undefined && data.devAgeDays !== "N/A" ? `${data.devAgeDays} giorni` : "N/A";
+        const colorClass = score >= 50 ? 'danger' : 'safe';
+
+        let logHTML = "";
+        if (data.dettagli && data.dettagli.length > 0) {
+            logHTML = "<ul style='padding-left: 20px; font-size: 0.9em; margin-top: 5px;'>" + 
+                      data.dettagli.map(log => `<li style="margin-bottom: 4px;">${log}</li>`).join("") + 
+                      "</ul>";
+        }
+
+        contentDiv.innerHTML = `
+            <div class="token-mint">Target: ${tokenMint}</div>
+            <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
+            <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
+            <div style="margin-bottom: 10px;"><strong>Dev Wallet:</strong> <span style="font-size: 0.8em; word-break: break-all;">${devWallet}</span></div>
+            <div style="margin-bottom: 10px;"><strong>Età Wallet Dev:</strong> ${devAge}</div>
+            <div style="margin-bottom: 10px;"><strong>Dumper Trovati:</strong> ${dumper}</div>
+            
+            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444;">
+                <strong>Dettagli Analisi:</strong>
+                ${logHTML}
+            </div>
+        `;
+    }
+
+    // ==========================================
+    // 💾 1. RECUPERO MEMORIA E RIATTIVAZIONE LIVE
+    // ==========================================
+    chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
+        if (memoria.ultimoTokenScansionato) {
+            console.log("Memoria ripristinata! Riattivo il Live Tape...");
+            
+            // 1. Ridisegna istantaneamente l'interfaccia vecchia senza far aspettare l'utente
+            if (memoria.ultimoRisultatoScan) {
+                disegnaInterfacciaRadar(memoria.ultimoTokenScansionato, memoria.ultimoRisultatoScan);
+            }
+            
+            // 2. Riavvia la chiamata al server in background per RICONNETTERE IL WEBSOCKET e far ripartire le transazioni
+            fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${memoria.ultimoTokenScansionato}`, {
+                headers: { "ngrok-skip-browser-warning": "true" }
+            }).then(res => res.json()).then(data => {
+                if (!data.error) {
+                    // Aggiorna la memoria con i dati freschi
+                    chrome.storage.local.set({ ultimoRisultatoScan: data });
+                    disegnaInterfacciaRadar(memoria.ultimoTokenScansionato, data);
+                }
+            }).catch(e => console.log("Errore riavvio background:", e));
+        }
+    });
+
+    // ==========================================
+    // 📡 2. PUMP RADAR (Analisi Moneta Live)
+    // ==========================================
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
         if (!tabs || tabs.length === 0) {
-            contentDiv.innerHTML = '<p>❌ Errore: Impossibile leggere la scheda attiva.</p>';
+            if (!contentDiv.innerHTML.includes("Target:")) contentDiv.innerHTML = '<p>❌ Errore: Impossibile leggere la scheda attiva.</p>';
             return;
         }
         
         const url = tabs[0].url;
-        
-        // Verifichiamo di essere su Pump.fun
         if (!url || !url.includes('pump.fun')) {
-            contentDiv.innerHTML = '<p>Apri la pagina di un token su Pump.fun per usare il radar.</p>';
+            if (!contentDiv.innerHTML.includes("Target:")) contentDiv.innerHTML = '<p>Apri la pagina di un token su Pump.fun per usare il radar.</p>';
             return;
         }
 
@@ -21,18 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
             const tokenMint = pathParts[pathParts.length - 1];
 
-            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                contentDiv.innerHTML = '<p>Nessun token rilevato. Entra nella pagina specifica di una coin.</p>';
-                return;
-            }
+            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
 
-            contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>⏳ Scansione in corso...</p>`;
+            // Se stiamo già guardando questo token dalla cache, mostriamo solo un piccolo loader invece di sbiancare tutto
+            if (contentDiv.innerHTML.includes(tokenMint)) {
+                contentDiv.innerHTML += `<p style="font-size: 0.8em; color: #aaa;">🔄 Aggiornamento in background...</p>`;
+            } else {
+                contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>⏳ Scansione in corso...</p>`;
+            }
 
             // Chiamata al server Node.js
             const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
-                headers: {
-                    "ngrok-skip-browser-warning": "true"
-                }
+                headers: { "ngrok-skip-browser-warning": "true" }
             });
             const data = await response.json();
             
@@ -41,40 +99,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Estrazione dati
-            const score = data.score || 0;
-            const rischio = data.rischio || "N/A";
-            const dumper = data.dumperTrovati || "0";
-            const devWallet = data.devWallet || "Sconosciuto";
-            const devAge = data.devAgeDays !== undefined && data.devAgeDays !== "N/A" ? `${data.devAgeDays} giorni` : "N/A";
-            const colorClass = score >= 50 ? 'danger' : 'safe';
+            // 🔥 SALVATAGGIO IN MEMORIA AGGIUNTO! 
+            chrome.storage.local.set({
+                ultimoTokenScansionato: tokenMint,
+                ultimoRisultatoScan: data
+            });
 
-            let logHTML = "";
-            if (data.dettagli && data.dettagli.length > 0) {
-                logHTML = "<ul style='padding-left: 20px; font-size: 0.9em; margin-top: 5px;'>" + 
-                          data.dettagli.map(log => `<li style="margin-bottom: 4px;">${log}</li>`).join("") + 
-                          "</ul>";
-            }
+            // Disegna i nuovi dati a schermo
+            disegnaInterfacciaRadar(tokenMint, data);
 
-            // Stampa dell'interfaccia Radar (ora è unica e non si sovrascrive)
-            contentDiv.innerHTML = `
-                <div class="token-mint">Target: ${tokenMint}</div>
-                <div style="margin-bottom: 10px;"><strong>Status:</strong> <span class="${colorClass}">${rischio}</span></div>
-                <div style="margin-bottom: 10px;"><strong>Rischio:</strong> <span class="score ${colorClass}">${score}/100</span></div>
-                <div style="margin-bottom: 10px;"><strong>Dev Wallet:</strong> <span style="font-size: 0.8em; word-break: break-all;">${devWallet}</span></div>
-                <div style="margin-bottom: 10px;"><strong>Età Wallet Dev:</strong> ${devAge}</div>
-                <div style="margin-bottom: 10px;"><strong>Dumper Trovati:</strong> ${dumper}</div>
-                
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #444;">
-                    <strong>Dettagli Analisi:</strong>
-                    ${logHTML}
-                </div>
-            `;
-            
         } catch (error) {
             contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione a Ngrok: ${error.message}</p>`;
         }
     });
+
+    // ... [QUI INIZIA IL TUO CODICE DELLO SMART MONEY TRACKER: const trackerHTML = `... ]
 
     // --- 2. SMART MONEY TRACKER (Grafica Portafogli) ---
     const trackerHTML = `

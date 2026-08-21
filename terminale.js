@@ -36,9 +36,9 @@ const PREZZO_SOL_USD = 150;
 const FILE_PAPER = './paper_trading.json';
 
 const FEE_DI_RETE_TOTALE = 0.03;    
-const FEE_DEX_PERCENTUALE = 0.01;   
-const TARGET_PROFITTO_NETTO = 0.20; // 🎯 +10% su un investimento da 2$
-const STOP_LOSS_NETTO = -0.15;      // ⚠️ Tagliamo subito se il trend è sbagliato
+const FEE_DEX_PERCENTUALE = 0.01;
+const TARGET_PROFITTO_NETTO = 0.45;
+const STOP_LOSS_NETTO = -1.50;   // ⚠️ Tagliamo subito se il trend è sbagliato
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -86,30 +86,22 @@ function avviaConfigurazioneBalene() {
 const tradeAttivi = new Set();
 let occupatoInTrade = false;
 // 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
+// 🧠 QUANDO LA BALENA COMPRA, NOI COMPRIAMO
 socket.on('golden_signal_found', async (segnale) => {
     if (tradeAttivi.has(segnale.mint)) return;
     
-    // ⛔ Se stiamo già seguendo un trade, ignoriamo gli altri per non crashare Helius
     if (occupatoInTrade) {
         console.log(`⚠️ Skip: Balena mitragliatrice ignorata. Sono già in trade.`);
         return;
     }
 
     tradeAttivi.add(segnale.mint); 
-    occupatoInTrade = true; // 🔴 Accendo il semaforo rosso
+    occupatoInTrade = true; // 🔴 Semaforo rosso
     
     console.log(`\n\n🎯 [COPY-BUY TRIGGER] La balena ha colpito! Token: ${segnale.mint}`);
     
-    // 🧠 ATTIVAZIONE SCUDO AI ISTANTANEO
-    const isClean = await scudoGroqFlash(segnale.mint);
-    if (!isClean) {
-        console.log(`⛔ [BLOCCO GROQ] Il contratto non ha superato l'ispezione AI. Trade annullato.`);
-        tradeAttivi.delete(segnale.mint); 
-        occupatoInTrade = false; // 🟢 Spegno il semaforo per sbloccare la caccia!
-        return;
-    }
-
-    avviaStalkerCopia(segnale.mint, 2.0); 
+    // Niente più Groq qui! Passiamo subito alla funzione principale
+    avviaStalkerCopia(segnale.mint, 8.0);
 });
 
 async function avviaStalkerCopia(tokenMint, investimentoUSD) {
@@ -141,17 +133,20 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
         
         // Su Pump.fun la supply totale è sempre 1 Miliardo di token
         const marketCapUsd = prezzoAttualeUsd * 1000000000; 
-
         console.log(`📊 Analisi pre-acquisto... Market Cap stimato: $${marketCapUsd.toFixed(0)}`);
 
-        // ⛔ FILTRO: Se il MC è sotto i 4.000$, non entriamo
-        if (marketCapUsd < 4000) {
-            console.log(`⛔ [BLOCCO] Market Cap troppo basso ($${marketCapUsd.toFixed(0)}). Token scartato.`);
+        // 🧠 INTERROGAZIONE DEL GIUDICE SUPREMO
+        const giudizio = await scudoGroqFlash(tokenMint, marketCapUsd);
+        
+        if (!giudizio.isClean) {
+            console.log(`⛔ [BLOCCO GIUDICE] Trade annullato.`);
             tradeAttivi.delete(tokenMint);
+            occupatoInTrade = false; // 🟢 Semaforo Verde
             return;
         }
 
-        // 🚀 SPARIAMO E ATTENDIAMO LA FIRMA (Solo se ha superato il filtro MC)
+        // Se Groq dà il via libera, spariamo!
+        // 🚀 SPARIAMO E ATTENDIAMO LA FIRMA
         const firmaAcquisto = await sparaAcquistoReale(tokenMint, investimentoUSD);
         
         if (!firmaAcquisto) {
@@ -163,15 +158,20 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
         let quantitaTokenAcquistati = 0;
         let tradeFallitoSuSolana = false; 
 
+        let profittoMassimoRaggiunto = -999;
+        let inFaseDiPompaggio = false;
+        const TOLLERANZA_CROLLO = 0.25; 
+
         // 🚨 RICERCA OSTINATA DEI TOKEN (60 Secondi di pazienza)
         // 🚨 RICERCA OSTINATA DEI TOKEN (Versione con Radar Avanzato)
+        // 🚨 RICERCA OSTINATA DEI TOKEN (Versione FAST-FAIL: 18 Secondi)
         const cercaToken = async () => {
             const mintPubKey = new web3.PublicKey(tokenMint);
-            process.stdout.write(`\n⏳ Attesa aggiornamento nodo RPC per confermare i token in cassa...\n`);
+            process.stdout.write(`\n⏳ Attesa nodo RPC per conferma token in cassa (Max 18s)...\n`);
             
-            for (let i = 1; i <= 20; i++) {
+            // 🔥 Abbassato a 6 tentativi (circa 18 secondi totali)
+            for (let i = 1; i <= 6; i++) {
                 try {
-                    // Usiamo un metodo di lettura superiore che non va in crash se la cassa è troppo nuova
                     const accounts = await connection.getParsedTokenAccountsByOwner(portafoglio.publicKey, { mint: mintPubKey });
                     
                     if (accounts.value.length > 0) {
@@ -183,18 +183,17 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
                         }
                     }
                 } catch(e) {
-                    // ORA STAMPIAMO L'ERRORE PER VEDERE SE HELIUS CI STA SABOTANDO
                     console.log(`\n⚠️ [DEBUG NODO RPC] Errore di lettura: ${e.message}`);
                 }
                 
                 await new Promise(resolve => setTimeout(resolve, 3000)); 
             }
             
-            // Se fallisce per 60 secondi
+            // Se fallisce in 18 secondi, la diamo per morta e ci sblocchiamo subito
             tradeFallitoSuSolana = true;
-            occupatoInTrade = false; // 🟢 ECCO IL TASTO DI SBLOCCO! Semaforo verde!
+            occupatoInTrade = false; // 🟢 SEMAFORO VERDE IMMEDIATO
             
-            console.log(`\n⚠️ [ERRORE LETTURA] Nessun token ricevuto dopo 60s. La rete ha bocciato l'acquisto. Blacklist.`);
+            console.log(`\n⚠️ [TRANSAZIONE DROPPATA] Nessun token in 18s. La rete ha cestinato l'ordine. Semaforo sbloccato.`);
             if (typeof subscriptionId !== 'undefined') connection.removeAccountChangeListener(subscriptionId);
         };
         
@@ -228,20 +227,35 @@ async function avviaStalkerCopia(tokenMint, investimentoUSD) {
 
                 process.stdout.write(`\r📈 [COPY TRADE] Valore Reale: $${valoreLordo.toFixed(3)} | NETTO: $${pnlNetto.toFixed(3)}   `);
 
-                if (pnlNetto >= TARGET_PROFITTO_NETTO) {
-                    connection.removeAccountChangeListener(subscriptionId);
-                    console.log(`\n\n🎯 [BERSAGLIO COLPITO] Profitto Reale! Vendo e chiudo!`);
-                    sparaVenditaReale(tokenMint);
-                    salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN");
-                    occupatoInTrade = false; // 🟢 SBLOCCO DOPO LA VITTORIA
+               if (pnlNetto >= TARGET_PROFITTO_NETTO) {
+                    if (!inFaseDiPompaggio) {
+                        console.log(`\n\n🚀 [TARGET RAGGIUNTO] La candela è verde! Attivo il Trailing Stop e lo lascio correre...`);
+                        inFaseDiPompaggio = true;
+                        profittoMassimoRaggiunto = pnlNetto;
+                    } else {
+                        // Se continua a salire, aggiorniamo il nostro record
+                        if (pnlNetto > profittoMassimoRaggiunto) {
+                            profittoMassimoRaggiunto = pnlNetto;
+                        }
+                        
+                        // ⚠️ IL GROSSO SELL: Se il prezzo crolla dal picco massimo, tagliamo e incassiamo!
+                        if (pnlNetto <= profittoMassimoRaggiunto - TOLLERANZA_CROLLO) {
+                            connection.removeAccountChangeListener(subscriptionId);
+                            console.log(`\n\n⚠️ [GROSSO SELL RILEVATO] Il prezzo sta scendendo dal picco. Vendo e blocco i profitti!`);
+                            sparaVenditaReale(tokenMint);
+                            salvaPaperTrading(tokenMint, pnlNetto, "✅ WIN (TRAILING)");
+                            occupatoInTrade = false; // 🟢 SBLOCCO
+                        }
+                    }
                 }
 
-                if (pnlNetto <= STOP_LOSS_NETTO) {
+                // Paracadute di emergenza (Stop Loss Classico)
+                if (pnlNetto <= STOP_LOSS_NETTO && !inFaseDiPompaggio) {
                     connection.removeAccountChangeListener(subscriptionId);
                     console.log(`\n\n⚠️ [PARACADUTE] Stop Loss Reale. Fuga d'emergenza!`);
                     sparaVenditaReale(tokenMint);
                     salvaPaperTrading(tokenMint, pnlNetto, "❌ LOSS");
-                    occupatoInTrade = false; // 🟢 SBLOCCO DOPO LA SCONFITTA
+                    occupatoInTrade = false; // 🟢 SBLOCCO
                 }
             },
             'processed'
@@ -281,8 +295,8 @@ async function sparaAcquistoReale(tokenMint, investimentoUSD) {
                 "mint": tokenMint,
                 "denominatedInSol": "true",
                 "amount": investimentoSOL,
-                "slippage": 5,              
-                "priorityFee": 0.001,   
+                "slippage": 15,              
+                "priorityFee": 0.002,   
                 "pool": "pump"
             })
         });
@@ -350,34 +364,47 @@ async function autoInceneritore(tokenMint) {
 // ==========================================
 // ⚡ GROQ FLASH: PREDATORE DI SCAM ISTANTANEO
 // ==========================================
-async function scudoGroqFlash(tokenMint) {
+// ==========================================
+// ⚡ GROQ FLASH: IL GIUDICE SUPREMO
+// ==========================================
+async function scudoGroqFlash(tokenMint, marketCap) {
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) return true; // Bypass se manca la chiave nel .env
+    if (!apiKey) return { isClean: true, motivazione: "Bypass (API Key mancante)" }; 
     
     try {
         const start = Date.now();
+        const prompt = `Sei l'algoritmo giudice HFT di un trader istituzionale. Una balena sta comprando il token ${tokenMint}. 
+        Il Market Cap attuale stimato è $${marketCap.toFixed(0)}. 
+        Regole:
+        1. Se il Market Cap è sotto i 4000$, è un token appena nato: rischio accettabile.
+        2. Se il Market Cap supera i 10000$ subito dopo la creazione, la balena è entrata tardi o il prezzo è già esploso: rischio altissimo.
+        Rispondi ESATTAMENTE in questo formato JSON e nient'altro: {"verdetto": "CLEAN" oppure "SCAM", "motivazione": "la tua spiegazione breve in italiano"}`;
+
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile",
-                messages: [{ 
-                    role: "system", 
-                    content: `Sei un filtro HFT. Un trader istituzionale sta per copiare un acquisto sul contratto: ${tokenMint}. Se riconosci pattern malevoli, dev seriali o stringhe sospette, rispondi ESATTAMENTE e SOLO con 'SCAM'. Altrimenti rispondi 'CLEAN'. Nessuna punteggiatura aggiuntiva.` 
-                }],
-                max_tokens: 3, // Cruciale: limita l'output per essere un proiettile
+                messages: [{ role: "system", content: prompt }],
+                max_tokens: 50, 
                 temperature: 0.1
             })
         });
         
         const data = await response.json();
+        const content = data.choices[0].message.content.trim();
         const ms = Date.now() - start;
-        const verdetto = data.choices[0].message.content.trim().toUpperCase();
         
-        console.log(`⚡ [GROQ FLASH] Analisi neurale in ${ms}ms: ${verdetto}`);
-        return verdetto.includes("CLEAN");
+        // Estrai il JSON dalla risposta dell'LLM
+        const jsonMatch = content.match(/\{.*\}/s);
+        const result = jsonMatch ? JSON.parse(jsonMatch[0]) : { verdetto: "CLEAN", motivazione: "Errore parsing JSON" };
+
+        console.log(`\n⚖️ [VERDETTO GROQ] (${ms}ms) -> ${result.verdetto}`);
+        console.log(`🗣️ Motivazione: ${result.motivazione}`);
+
+        return { isClean: result.verdetto === "CLEAN", motivazione: result.motivazione };
     } catch (error) {
-        return true; // Se l'API lagga, non bloccare il trade e prosegui
+        return { isClean: true, motivazione: "Errore di connessione API Groq" }; 
     }
 }
 async function sparaVenditaReale(tokenMint) {
@@ -391,8 +418,8 @@ async function sparaVenditaReale(tokenMint) {
                 "mint": tokenMint,
                 "denominatedInSol": "false",
                 "amount": "100%",
-                "slippage": 7,              
-                "priorityFee": 0.0003,      
+                "slippage": 15,              
+                "priorityFee": 0.002,      
                 "pool": "pump"
             })
         });

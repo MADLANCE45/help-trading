@@ -39,6 +39,18 @@ const knownBotsCache = new Set();
 // 📡 MOTORE LIVE STREAMING (Tape Reading & Order Flow)
 // =====================================================================
 // 🔥 MEMORIA DELL'AGENTE SPY: Traccia le size identiche
+const dbPath = 'paper_trading.json';
+
+function getPaperTrades() {
+    if (!fs.existsSync(dbPath)) {
+        return { bilancio: 0, trades: [] };
+    }
+    try { 
+        return JSON.parse(fs.readFileSync(dbPath, 'utf8')); 
+    } catch(e) { 
+        return { bilancio: 0, trades: [] }; 
+    }
+}
 function salvaTradeInLocale(mint, pnl) {
     const filePaper = 'paper_trading.json';
     let db = { bilancio: 0, trades: [] };
@@ -252,8 +264,7 @@ const scanCache = new Map();
 const CACHE_TTL_MS = 60000; // 📉 Alzato a 60 secondi (salva le chiamate AI)
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 600ms
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 500ms
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 500)));// =====================================================================
-// 1. ANALISI DEL BUNDLE INIZIALE E BOT
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 150)));// 1. ANALISI DEL BUNDLE INIZIALE E BOT
 // =====================================================================
 async function analizzaBotEarlyLaunch(mintPubKey) {
     try {
@@ -463,7 +474,7 @@ async function interrogaAgente(nomeAgente, prompt) {
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({ 
-                    model: "llama-3.3-70b-versatile",
+                    model: "openai/gpt-oss-20b",
                     messages: [{ role: "user", content: prompt }],
                     response_format: { type: "json_object" } 
                 })
@@ -485,7 +496,14 @@ async function interrogaAgente(nomeAgente, prompt) {
             
             // Pulizia di sicurezza nel caso l'IA inserisca markdown sfuggito
             let pulito = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-            return JSON.parse(pulito);
+            
+            // 🔥 FIX 3: Avvolgiamo il parsing in un try-catch. Se Groq delira, entra in Safe Mode invece di far crashare il server.
+            try {
+                return JSON.parse(pulito);
+            } catch (parseError) {
+                console.error(`❌ Errore Parsing JSON Agente [${nomeAgente}]:`, pulito);
+                throw new Error("JSON generato non valido");
+            }
             
         } catch (error) {
             // Se l'errore sollevato dal catch è un Rate Limit "mascherato", ruota. Altrimenti entra in Safe Mode.
@@ -993,6 +1011,14 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
 // Apertura / Chiusura Posizione
 // Apertura / Chiusura Posizione
 // Apertura / Chiusura Posizione
+app.get('/api/paper-trading', (req, res) => {
+    try {
+        const db = getPaperTrades(); // Usa la funzione che abbiamo creato prima
+        res.json(db);
+    } catch (error) {
+        res.status(500).json({ error: "Errore lettura Paper Trading" });
+    }
+});
 app.post('/api/paper-trading', express.json(), (req, res) => {
     try {
         const { tokenMint, azione, pnlNetto } = req.body;
@@ -1044,7 +1070,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
         // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
-        await delay(1000);
+        await delay(200);
         let velocityData = { blocco: false, txMinuto: 0, secondiDaUltimaTx: 0, stato: "Sconosciuto", colore: "#ffaa00" };
         try {
             velocityData = await analizzaBattitoCardiaco(mintPubKey);
@@ -1064,7 +1090,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         }
 
         // 🛡️ 2° RESPIRO: Prima di controllare i bot del blocco 0
-        await delay(1000);
+        await delay(200);
         const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
         await delay(200); 
         
@@ -1092,7 +1118,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
-        await delay(1000);
+        await delay(200);
         console.log("⚡ Estrazione Firme e Base...");
         
         let signatures = [];
@@ -1108,7 +1134,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             cabalaData = await analizzaCabalaSupply(mintPubKey);
         } catch (e) {}
 
-        await delay(1000);
+        await delay(200);
 
         // 🧠 2. IDENTIFICAZIONE DEL DEV E DELL'ETÀ DEL TOKEN
         let walletAgeDays = null;
@@ -1144,16 +1170,16 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             }
         }
 
-        await delay(1000);
+        await delay(200);
 
         // 📊 3. CALCOLO VOLUMI E ORDER FLOW
         console.log("⚡ Estrazione Transazioni (UBI & Order Flow unificati)...");
         const recentSigs = signatures.slice(0, 20).map(s => s.signature);
         let parsedTxs = [];
         
-        for (let i = 0; i < recentSigs.length; i += 3) {
-            const chunk = recentSigs.slice(i, i + 3);
-            await delay(1500); 
+        for (let i = 0; i < recentSigs.length; i += 10) {
+            const chunk = recentSigs.slice(i, i + 10);
+            await delay(300);
             try {
                 const chunkTxs = await solanaConnection.getParsedTransactions(chunk, { maxSupportedTransactionVersion: 0 });
                 parsedTxs.push(...chunkTxs);
@@ -1165,7 +1191,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         const ubiData = analizzaUBI_Locale(parsedTxs);
         const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
 
-        await delay(1000);
+        await delay(200);
 
         // 🕵️ 4. ANALISI MANIPOLAZIONE
         console.log("⚡ Analisi Dump e Sybil Tree...");
@@ -1256,6 +1282,12 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             devWallet: devWallet,
             advice: tacticalAdvice,
             apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
+            
+            // 🛡️ ALIAS MULTIPLI PER EVITARE QUALSIASI ERRORE SULL'ESTENSIONE
+            devHistory: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
+            fedinaDev: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
+            
+            bundleShield: earlyBotData || { supplyBundledPct: 0, bundleSlot0: false },
             earlyRadar: {
                 potenzialeVolume: earlyBotData.potenzialeVolumeBot,
                 bundleSlot0: earlyBotData.bundleSlot0,
@@ -1263,6 +1295,10 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
                 masterWalletFull: earlyBotData.funderComune || "Nessuno",
                 masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
             },
+            
+            sybil: sybilData || { rilevato: false, testo: "Pulito" },
+            sanguisughe: microDumpData || { pericolo: false, testo: "Nessun dump" },
+            
             vitaToken: tokenAgeMinutes.toFixed(1),
             azione: simulazione.azione, 
             ctoStatus: simulazione.ctoStatus, 
@@ -1275,12 +1311,12 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             moltiplicatore: simulazione.moltiplicatore,
             targetMC: simulazione.targetMC,
             prezzoSol: parseFloat(solPriceUsd),
-            tradingFees: simulazione.raccomandazioneFees 
+            tradingFees: simulazione.raccomandazioneFees
         };
-
-        if (!tacticalAdvice.errore) {
-            scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
-        }
+            
+            
+        // Salvataggio forzato in Cache (anche in caso di errore AI, per non rompere la catena)
+        scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
 
         return risultatoFinale; // Restituiamo l'oggetto alla Promise
     })();
@@ -1305,9 +1341,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 // =====================================================================
 // 🧠 COPILOTA IA: PREDATORE DI SCAM (BLINDATO ANTI-CRASH + DATI LIVE)
 // =====================================================================
-// =====================================================================
-// 🧠 CERVELLO 5.0: MOTORE ESECUTIVO MULTI-AGENTE (Memoria + Llama 3.3)
-// =====================================================================
+
 // =====================================================================
 // 🧠 COPILOTA IA: CERVELLO 5.0 (Rotazione Chiavi + Dati Live)
 // =====================================================================
@@ -1339,9 +1373,20 @@ app.post('/api/copilot/:tokenMint', express.json(), async (req, res) => {
     } catch (e) {}
 
     const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
-    let sybilStatus = datiIniziali?.sybil?.testo || "Dato Sybil mancante.";
-    let fedinaDev = datiIniziali?.fedinaDev ? datiIniziali.fedinaDev.status : "Sconosciuta.";
-    let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dumping disponibile."; // 🔥 ECCO LA RIGA CHE MANCAVA!
+    
+    // 🔥 FIX 2: Se la scansione on-chain non è finita, diamo un verdetto di attesa invece di crashare
+    if (!datiIniziali) {
+        return res.json({
+            tattica: "⚠️ IN ATTESA DATI",
+            puntoRottura: "Esecuzione scansione base on-chain in corso...",
+            azione: "OSSERVARE"
+        });
+    }
+
+    // Ora può pescare tranquillamente i dati salvati dal FIX 1!
+    let sybilStatus = datiIniziali.sybil ? datiIniziali.sybil.testo : "Nessun dato Sybil.";
+    let fedinaDev = datiIniziali.fedinaDev ? datiIniziali.fedinaDev.status : "Sconosciuta.";
+    let microDumping = datiIniziali.sanguisughe ? datiIniziali.sanguisughe.testo : "Nessun dato Micro-Dumping."; 
 
     const historyText = history && history.length > 0 
         ? history.map(h => `[${h.time}] Buy: ${h.buy} SOL | Sell: ${h.sell} SOL | Press: ${h.pressure}%`).join('\n')
@@ -1393,7 +1438,7 @@ Rispondi RIGOROSAMENTE in JSON puro, sii tecnico e analitico:
                     method: "POST",
                     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
+                        model: "openai/gpt-oss-20b",
                         messages: [{ role: "user", content: promptCopilota }],
                         temperature: 0.1,
                         response_format: { type: "json_object" }
@@ -1543,6 +1588,12 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
 // =====================================================================
 // 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by GROQ Llama-3 70B)
 // =====================================================================
+// =====================================================================
+// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by OpenAI gpt-4o-mini)
+// =====================================================================
+// =====================================================================
+// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by GROQ)
+// =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
@@ -1552,90 +1603,139 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
-        console.log(`\n⚖️ Giudice Supremo (Groq Llama-3) avviato per: ${tokenMint}`);
+        console.log(`\n⚖️ Giudice Supremo (Groq Dashboard) avviato per: ${tokenMint}`);
 
         let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
         let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
         let fedinaDev = datiIniziali?.fedinaDev ? JSON.stringify(datiIniziali.fedinaDev) : "Ignota";
         let bundleInfo = datiIniziali?.earlyRadar ? JSON.stringify(datiIniziali.earlyRadar) : "Nessun bundle rilevato";
-        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M | Trend Rilevato: ${datiIniziali.hud.trend}` : "Dati di mercato assenti";
+        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
 
         const promptLaboratorio = `
-Sei il "Giudice Supremo", un analista forense on-chain spietato. 
-Il tuo report deve essere telegrafico, chirurgico e strutturato a punti elenco. NIENTE discorsi lunghi, niente introduzioni.
+Sei il "Giudice Supremo", l'analista di rischio on-chain di un hedge fund istituzionale.
+Analizza i dati forniti e calcola l'Affidabilità (da 0 a 100, dove 100 è un token perfetto e 0 è una truffa certa).
 
-DATI DA ANALIZZARE:
+DATI:
 - Mercato/Volumi: ${liquidita}
-- Rete Sybil (Cabala): ${sybilStatus}
+- Rete Sybil: ${sybilStatus}
 - Micro-Dumping: ${microDumping}
 - Dev: ${fedinaDev}
 - Bundle/Cecchini: ${bundleInfo}
 
-REGOLE DI COMPILAZIONE (SEGUILE O IL SISTEMA ESPLODE):
-1. STILE: Usa SOLO un elenco puntato (max 4-5 punti brevissimi).
-2. ONDA PIRAMIDALE: Incrocia il "Bundle" e il "Micro-Dumping". Se la supply è controllata, scrivi esplicitamente se è in corso un'onda piramidale (i top holder stanno usando i nuovi retail come exit liquidity).
-3. BOT PREDATORI (MEV/Sandwich): Valuta la vulnerabilità. C'è il rischio che i bot predatori si accodino alle transazioni (es. tu compri 10 e loro ti scaricano in testa 9.7)? Avvisa il trader.
-4. TOKEN MORTO: Se i volumi scendono a zero o il trend è piatto, dichiaralo MORTO.
+Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo extra:
+{
+  "global_score": 85,
+  "metrics": [
+    { "name": "Integrità Supply", "score": 90, "tooltip": "Analisi tecnica breve su Sybil e Bundle..." },
+    { "name": "Stabilità Volumi", "score": 75, "tooltip": "Analisi su liquidità e micro-dumping..." },
+    { "name": "Affidabilità Dev", "score": 40, "tooltip": "Analisi sullo storico del creatore..." }
+  ],
+  "verdetto_finale": "Sintesi brutale di 1 riga."
+}`;
 
-ESEMPIO DI FORMATO:
-- 🩸 Liquidity: [Tua analisi rapida]
-- 👁️ Bundle & Sybil: [Tua analisi rapida]
-- 🔺 Schema Piramidale: [Rilevato/Non Rilevato + motivo]
-- 🤖 Rischio Bot Predatori: [Alto/Basso + motivo]
-
-METRICA FINALE OBBIGATORIA (su un'ultima riga separata):
-RISCHIO_SCAM_FINALE: XX%`;
-        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel sistema globale.");
-        
-        // 🛡️ ROTAZIONE CHIAVI (ROUND-ROBIN): Prende la chiave attuale e sposta l'indice in avanti
+        // 🛡️ ROTAZIONE CHIAVI GROQ
+        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel .env");
         const apiKey = groqKeys[currentGroqIndex];
         currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
-        
-        console.log(`🔑 Usata chiave Groq numero: ${(currentGroqIndex === 0 ? groqKeys.length : currentGroqIndex)} di ${groqKeys.length}`);
+        console.log(`🔑 Giudice: Usata chiave Groq numero: ${(currentGroqIndex === 0 ? groqKeys.length : currentGroqIndex)} di ${groqKeys.length}`);
 
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: "llama3-8b-8192",
-                        messages: [{ role: "user", content: promptLaboratorio }],
-                        temperature: 0.2 
-                    })
-                });
-
-             
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-20b", // Il modello Groq più veloce e stabile per il JSON
+                response_format: { type: "json_object" }, 
+                messages: [{ role: "user", content: promptLaboratorio }],
+                temperature: 0.1 
+            })
+        });
 
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        const testoAI = data.choices[0].message.content;
-
-        let rischioScam = 50; 
-        const matchRischio = testoAI.match(/RISCHIO_SCAM_FINALE:\s*(\d+)%/);
-        if (matchRischio) rischioScam = parseInt(matchRischio[1]);
+        // Parsing e Pulizia del JSON restituito da Groq
+        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const aiResult = JSON.parse(testoJson);
         
-        const testoPulito = testoAI.replace(/RISCHIO_SCAM_FINALE:\s*\d+%/g, '').trim().replace(/\n/g, '<br>');
-        const coloreRischio = rischioScam > 60 ? "#ff4d4d" : (rischioScam > 30 ? "#ffaa00" : "#00e676");
+        const globalScore = aiResult.global_score || 50;
+        const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
 
+        // Generazione Dinamica delle metriche a barre con Tooltip
+        let barsHTML = "";
+        if(aiResult.metrics && aiResult.metrics.length > 0) {
+            aiResult.metrics.forEach(m => {
+                const barColor = m.score >= 70 ? "#00e676" : (m.score >= 40 ? "#ffaa00" : "#ff4d4d");
+                barsHTML += `
+                    <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 4px; color: #ccc; font-weight: bold; text-transform: uppercase;">
+                            <span>${m.name}</span>
+                            <span style="color: ${barColor};">${m.score}%</span>
+                        </div>
+                        <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                            <div style="width: ${m.score}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
+                        </div>
+                        <!-- TOOLTIP NASCOSTO (Compare con CSS :hover) -->
+                        <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4;">
+                            ${m.tooltip}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 🎨 Costruzione della Dashboard Visiva (HTML/CSS in linea)
         const reportHTML = `
-            <div style="color: #e4e4e7; line-height: 1.5; margin-bottom: 12px; font-size: 0.9em; font-family: sans-serif;">
-                ${testoPulito}
-            </div>
-            
-            <div style="background: rgba(0,0,0,0.3); border: 1px solid ${coloreRischio}; padding: 10px; border-radius: 6px; text-align: center;">
-                <span style="color:#888; text-transform: uppercase; font-size: 0.8em; font-weight:bold; display:block; margin-bottom:4px;">Rischio Scam (Giudice Supremo)</span>
-                <strong style="color:${coloreRischio}; font-size: 1.6em; text-shadow: 0 0 10px ${coloreRischio}80; font-family: monospace;">${rischioScam}%</strong>
+            <style>
+                .metric-container:hover .metric-tooltip { display: block !important; }
+                .donut-chart {
+                    width: 90px; height: 90px; border-radius: 50%;
+                    background: conic-gradient(${mainColor} ${globalScore}%, #161821 0);
+                    display: flex; align-items: center; justify-content: center;
+                    position: relative; box-shadow: 0 0 15px ${mainColor}40;
+                    flex-shrink: 0;
+                }
+                .donut-inner {
+                    width: 78px; height: 78px; background: #0a0c10; border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    flex-direction: column; position: absolute; z-index: 2;
+                }
+                .donut-inner span { z-index: 3; position: relative; }
+            </style>
+
+            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
+                
+                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
+                    <!-- DONUT CHART (Global Score) -->
+                    <div class="donut-chart">
+                        <div class="donut-inner">
+                            <span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span>
+                            <span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span>
+                        </div>
+                    </div>
+                    
+                    <div style="flex-grow: 1;">
+                        <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Giudizio Algoritmico</span>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.4; margin-top: 4px; font-weight: 500;">
+                            ${aiResult.verdetto_finale}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- METRICHE A BARRE CON TOOLTIP -->
+                <div style="padding-right: 5px;">
+                    ${barsHTML}
+                </div>
             </div>
         `;
 
         res.json({ success: true, verdetto: reportHTML });
 
     } catch (error) {
-        console.error("❌ Errore Giudice Groq:", error.message);
-        res.json({ success: false, verdetto: "Errore di calcolo AI: " + error.message });
+        console.error("❌ Errore Giudice Groq JSON:", error.message);
+        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore di calcolo AI: Il modello ha rifiutato la richiesta o è in Rate Limit. Riprova tra 10 secondi.</div>` });
     }
 });
 // =====================================================================
