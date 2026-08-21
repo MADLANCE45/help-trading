@@ -1585,14 +1585,9 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
 // =====================================================================
 // 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Sostituisce Gemini in Axiom)
 // =====================================================================
+
 // =====================================================================
-// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by GROQ Llama-3 70B)
-// =====================================================================
-// =====================================================================
-// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by OpenAI gpt-4o-mini)
-// =====================================================================
-// =====================================================================
-// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Powered by GROQ)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
@@ -1603,51 +1598,55 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
-        console.log(`\n⚖️ Giudice Supremo (Groq Dashboard) avviato per: ${tokenMint}`);
-
         let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
         let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
         let fedinaDev = datiIniziali?.fedinaDev ? JSON.stringify(datiIniziali.fedinaDev) : "Ignota";
         let bundleInfo = datiIniziali?.earlyRadar ? JSON.stringify(datiIniziali.earlyRadar) : "Nessun bundle rilevato";
         let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
 
+        // 🔥 IL NUOVO CERVELLO CINICO (Niente "Lungo Termine")
+        // 🔥 IL NUOVO CERVELLO CINICO (Niente "Lungo Termine")
         const promptLaboratorio = `
-Sei il "Giudice Supremo", l'analista di rischio on-chain di un hedge fund istituzionale.
-Analizza i dati forniti e calcola l'Affidabilità (da 0 a 100, dove 100 è un token perfetto e 0 è una truffa certa).
+Sei il "Giudice Supremo", lo spietato analista di rischio on-chain di un hedge fund istituzionale su Solana.
+Il 99.9% dei token su Solana sono TRUFFE e vanno a zero in poche ore.
 
-DATI:
+REGOLE D'ORO (INVIOLABILI):
+1. DEV GIOVANE = SCAM: Se nei dati del Dev leggi "Giovane", "Nuovo", "Fresh", "0 giorni", l'Affidabilità Dev DEVE essere SOTTO il 20%. Il "global_score" NON PUÒ superare 35.
+2. BUNDLE NASCOSTO: Se nei Top Holders vedi "0%" o "Attenzione", significa che il dev ha usato bot (bundle) per cecchinare la supply.
+3. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro". Le memecoin si tradano in minuti, si prende profitto e si scappa.
+4. STRATEGIA DI TRADING: Nel "verdetto_finale", devi SEMPRE iniziare il testo con una di queste tre etichette esatte:
+   - [AVOID] -> Scam, dev giovane o bundle. Stare alla larga.
+   - [SCALP] -> Entrare e uscire in pochissimi minuti (Take Profit veloce).
+   - [RIDE] -> Volumi enormi e dev pulito. Cavalcare il trend per MASSIMO 1 ora, poi vendere tutto.
+
+DATI DA ANALIZZARE:
 - Mercato/Volumi: ${liquidita}
 - Rete Sybil: ${sybilStatus}
 - Micro-Dumping: ${microDumping}
 - Dev: ${fedinaDev}
 - Bundle/Cecchini: ${bundleInfo}
 
-Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo extra:
+Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun testo prima, nessun testo dopo. Usa questo schema:
 {
-  "global_score": 85,
+  "global_score": 30,
   "metrics": [
-    { "name": "Integrità Supply", "score": 90, "tooltip": "Analisi tecnica breve su Sybil e Bundle..." },
-    { "name": "Stabilità Volumi", "score": 75, "tooltip": "Analisi su liquidità e micro-dumping..." },
-    { "name": "Affidabilità Dev", "score": 40, "tooltip": "Analisi sullo storico del creatore..." }
+    { "name": "Integrità Supply", "score": 40, "tooltip": "..." },
+    { "name": "Stabilità Volumi", "score": 60, "tooltip": "..." },
+    { "name": "Affidabilità Dev", "score": 10, "tooltip": "..." }
   ],
-  "verdetto_finale": "Sintesi brutale di 1 riga."
+  "verdetto_finale": "[AVOID] Dev giovane. Rischio rug immediato."
 }`;
 
-        // 🛡️ ROTAZIONE CHIAVI GROQ
         if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel .env");
         const apiKey = groqKeys[currentGroqIndex];
         currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
-        console.log(`🔑 Giudice: Usata chiave Groq numero: ${(currentGroqIndex === 0 ? groqKeys.length : currentGroqIndex)} di ${groqKeys.length}`);
-
+        
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
+            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "openai/gpt-oss-20b", // Il modello Groq più veloce e stabile per il JSON
-                response_format: { type: "json_object" }, 
+                model: "openai/gpt-oss-20b", 
+                // 🔥 FIX: Rimosso "response_format: { type: 'json_object' }" che mandava in tilt le API di Groq con Llama 8b
                 messages: [{ role: "user", content: promptLaboratorio }],
                 temperature: 0.1 
             })
@@ -1656,14 +1655,28 @@ Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // Parsing e Pulizia del JSON restituito da Groq
+        // Il nostro pulitore personalizzato farà il lavoro sporco senza far crashare il server
         let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        // Se l'AI aggiunge testo inutile all'inizio, forziamo l'estrazione della prima graffa
+        if (!testoJson.startsWith('{')) {
+            testoJson = testoJson.substring(testoJson.indexOf('{'));
+        }
+        if (!testoJson.endsWith('}')) {
+            testoJson = testoJson.substring(0, testoJson.lastIndexOf('}') + 1);
+        }
+
         const aiResult = JSON.parse(testoJson);
         
         const globalScore = aiResult.global_score || 50;
         const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
 
-        // Generazione Dinamica delle metriche a barre con Tooltip
+        // 🔥 SOSTITUZIONE DEI TAG VISIVI (Aggiunto RIDE)
+        let verdettoTesto = aiResult.verdetto_finale || "";
+        verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">🛑 AVOID</span>');
+        verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">⚡ SCALP</span>');
+        verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">🏄‍♂️ RIDE</span>');
+
         let barsHTML = "";
         if(aiResult.metrics && aiResult.metrics.length > 0) {
             aiResult.metrics.forEach(m => {
@@ -1677,7 +1690,6 @@ Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo
                         <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
                             <div style="width: ${m.score}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
                         </div>
-                        <!-- TOOLTIP NASCOSTO (Compare con CSS :hover) -->
                         <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4;">
                             ${m.tooltip}
                         </div>
@@ -1686,7 +1698,6 @@ Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo
             });
         }
 
-        // 🎨 Costruzione della Dashboard Visiva (HTML/CSS in linea)
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -1694,8 +1705,7 @@ Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo
                     width: 90px; height: 90px; border-radius: 50%;
                     background: conic-gradient(${mainColor} ${globalScore}%, #161821 0);
                     display: flex; align-items: center; justify-content: center;
-                    position: relative; box-shadow: 0 0 15px ${mainColor}40;
-                    flex-shrink: 0;
+                    position: relative; box-shadow: 0 0 15px ${mainColor}40; flex-shrink: 0;
                 }
                 .donut-inner {
                     width: 78px; height: 78px; background: #0a0c10; border-radius: 50%;
@@ -1706,36 +1716,21 @@ Restituisci ESCLUSIVAMENTE un JSON puro con questa struttura esatta, senza testo
             </style>
 
             <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
-                
                 <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
-                    <!-- DONUT CHART (Global Score) -->
-                    <div class="donut-chart">
-                        <div class="donut-inner">
-                            <span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span>
-                            <span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span>
-                        </div>
-                    </div>
-                    
+                    <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
                     <div style="flex-grow: 1;">
                         <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Giudizio Algoritmico</span>
-                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.4; margin-top: 4px; font-weight: 500;">
-                            ${aiResult.verdetto_finale}
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
+                            ${verdettoTesto}
                         </div>
                     </div>
                 </div>
-
-                <!-- METRICHE A BARRE CON TOOLTIP -->
-                <div style="padding-right: 5px;">
-                    ${barsHTML}
-                </div>
+                <div style="padding-right: 5px;">${barsHTML}</div>
             </div>
         `;
-
         res.json({ success: true, verdetto: reportHTML });
-
     } catch (error) {
-        console.error("❌ Errore Giudice Groq JSON:", error.message);
-        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore di calcolo AI: Il modello ha rifiutato la richiesta o è in Rate Limit. Riprova tra 10 secondi.</div>` });
+        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore: ${error.message}</div>` });
     }
 });
 // =====================================================================
