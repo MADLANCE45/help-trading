@@ -35,5 +35,11 @@
       "id": "pumpradar@solana.com",
       "strict_min_version": "109.0"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

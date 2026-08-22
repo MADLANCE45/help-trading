@@ -178,6 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🎨 COSTRUZIONE INTERFACCIA
     // =========================================================
     function costruisciInterfacciaLive(tokenMint) {
+        // 🔗 CREA I LINK LOCALI E SICURI ALLE TUE IMMAGINI
+        const av1 = chrome.runtime.getURL("avatar1.png");
+        const av2 = chrome.runtime.getURL("avatar2.png");
+        const av3 = chrome.runtime.getURL("avatar3.png");
+        const av4 = chrome.runtime.getURL("avatar4.png");
         const copilotHTML = `
             <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -220,19 +225,113 @@ document.addEventListener('DOMContentLoaded', () => {
                 ::-webkit-scrollbar { width: 6px; }
                 ::-webkit-scrollbar-track { background: #0a0c10; }
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
+                .avatar-option { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; opacity: 0.5; transition: 0.2s; object-fit: cover; }
+                .avatar-option.active { border: 2px solid #00ffcc; opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,255,204,0.4); }
             </style>
             
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: -8px;">
                 
-                <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10;">
-                    <div style="color:#888; font-size:0.75em; font-family:monospace; animation: pulseGlow 2s infinite;">🔄 Scansione Indici in corso...</div>
+                <!-- 🔥 HEADER A DUE PIANI -->
+                <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div>
+                            <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">MEME SAVER</div>
+                            <div style="font-size: 0.9em; font-weight: 900; color: #00ffcc;">Your Trading Helper</div>
+                        </div>
+                        <!-- AVATAR UTENTE IN ALTO A DESTRA -->
+                        <div id="btn-user-profile" title="Pannello Utente" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 10px rgba(0,255,204,0.1); overflow: hidden;">
+                            <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                    </div>
+
+                    <div id="hud-stats-container" style="display: none; justify-content: space-between; width: 100%; border-top: 1px dashed #2d3142; margin-top: 10px; padding-top: 8px;">
+                    </div>
                 </div>
 
                 <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 25px;">
-                    <!-- TAB 1: RADAR -->
+                    
+                    <!-- ⚙️ TAB SEGRETO: USER DASHBOARD -->
+                    <div id="view-user" style="display: none; height: 100%;">
+                        
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulseGlow 3s infinite;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <div>
+                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px;">Control Room</h3>
+                                <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">Impostazioni Algoritmiche</div>
+                            </div>
+                        </div>
+
+                        <!-- SELETTORE AVATAR MEME LOCALI -->
+                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #2d3142;">
+                            <img class="avatar-option active" data-src="${av1}" src="${av1}" title="Avatar 1">
+                            <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
+                            <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
+                            <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
+                        </div>
+
+                        <!-- 0. WALLET DI ESECUZIONE -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <strong style="color: #ff007f; font-size: 0.85em; text-transform: uppercase;">🏦 Wallet Operativo</strong>
+                            <div style="margin-top: 8px;">
+                                <label style="font-size: 0.7em; color: #aaa;">Chiave Privata (Formato Base58)</label>
+                                <input type="password" id="user-private-key" placeholder="Incolla la tua private key..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; margin-top: 2px;">
+                            </div>
+                        </div>
+                        
+                        <!-- (QUI PROSEGUE CON RPC, JITO TIP, Ecc.. lascialo invariato fino alla chiusura di view-user) -->
+
+                        <!-- 1. MOTORE RPC (NODO VELOCE) -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #4da6ff; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <strong style="color: #4da6ff; font-size: 0.85em; text-transform: uppercase;">⚡ API Helius (Nodo Veloce)</strong>
+                            <div style="margin-top: 8px;">
+                                <input type="text" id="user-rpc-url" placeholder="https://mainnet.helius-rpc.com/?api-key=..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em;">
+                                <div style="color: #888; font-size: 0.7em; margin-top: 4px;">Usa la tua API per operare senza blocchi.</div>
+                            </div>
+                        </div>
+
+                        <!-- 2. SCUDO MEV & ESECUZIONE -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #b366ff; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <strong style="color: #b366ff; font-size: 0.85em; text-transform: uppercase;">🛡️ Scudo Jito MEV</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                                <div>
+                                    <label style="font-size: 0.7em; color: #aaa;">Jito Tip (SOL)</label>
+                                    <input type="number" id="user-jito-tip" placeholder="0.001" step="0.001" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.7em; color: #aaa;">Slippage Max (%)</label>
+                                    <input type="number" id="user-slippage" placeholder="5" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. GESTIONE RISCHIO -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ffaa00; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                            <strong style="color: #ffaa00; font-size: 0.85em; text-transform: uppercase;">⚖️ Risk Management</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                                <div>
+                                    <label style="font-size: 0.7em; color: #aaa;">Take Profit (%)</label>
+                                    <input type="number" id="user-tp" placeholder="150" style="width: 100%; box-sizing: border-box; background: rgba(0, 230, 118, 0.1); border: 1px solid #00e676; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center; font-weight: bold;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.7em; color: #aaa;">Stop Loss (%)</label>
+                                    <input type="number" id="user-sl" placeholder="-20" style="width: 100%; box-sizing: border-box; background: rgba(255, 77, 77, 0.1); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center; font-weight: bold;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 12px; border-radius: 6px; font-weight: 900; font-size: 0.9em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);">
+                            💾 Salva e Attiva
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: RADAR (CON TIMER ATTESA) -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">🎯 ${tokenMint.substring(0,12)}...</div>
+                            <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">
+                                <span>🎯 ${tokenMint.substring(0,12)}...</span>
+                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">⏳ Analisi...</span>
+                            </div>
                             <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">Ricarica</button>
                         </div>
                         ${copilotHTML}
@@ -261,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <!-- BOTTOM TABS -->
-                <div style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
+                <div id="bottom-tabs-nav" style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
                         <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Radar</span>
                     </div>
@@ -286,7 +385,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     function configuraEventiBase(tokenMint) {
         const tabs = ['radar', 'tracker', 'spy'];
+        const viewUser = document.getElementById('view-user');
+        const bottomNav = document.getElementById('bottom-tabs-nav');
+        
+        // 1. TABS STANDARD (In basso)
         function switchTab(activeId) {
+            viewUser.style.display = 'none'; // Nasconde la User Dashboard
+            bottomNav.style.display = 'flex'; // Mostra la barra inferiore
+            document.getElementById('btn-user-profile').style.background = '#1a1c29'; // Resetta colore omino
+
             tabs.forEach(id => {
                 document.getElementById(`view-${id}`).style.display = (id === activeId) ? 'block' : 'none';
                 const tab = document.getElementById(`tab-${id}`);
@@ -304,6 +411,103 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
 
+        // 2. TOGGLE USER DASHBOARD (Omino in alto a destra)
+        const btnUser = document.getElementById('btn-user-profile');
+        if (btnUser) {
+            btnUser.addEventListener('click', () => {
+                const isUserOpen = viewUser.style.display === 'block';
+                if (isUserOpen) {
+                    switchTab('radar'); // Torna alla home
+                } else {
+                    tabs.forEach(id => document.getElementById(`view-${id}`).style.display = 'none');
+                    viewUser.style.display = 'block';
+                    bottomNav.style.display = 'none'; // Nascondi bottoni bassi
+                    btnUser.style.background = '#00ffcc';
+                }
+            });
+        }
+
+        // 3. CARICA E SALVA CONFIGURAZIONI (Control Room)
+        
+        // Recuperiamo i link sicuri dentro questa funzione
+        const av1 = chrome.runtime.getURL("avatar1.png");
+        let selectedAvatarUrl = av1; // Usa la tua prima immagine come default!
+
+        // Logica per cliccare e selezionare gli Avatar
+        const avatarOptions = document.querySelectorAll('.avatar-option');
+        avatarOptions.forEach(img => {
+            img.addEventListener('click', (e) => {
+                avatarOptions.forEach(opt => opt.classList.remove('active')); 
+                e.target.classList.add('active'); 
+                selectedAvatarUrl = e.target.getAttribute('data-src');
+                document.getElementById('current-user-avatar').src = selectedAvatarUrl; 
+            });
+        });
+
+        // Carica i dati salvati precedentemente...
+        // (Il resto del codice di caricamento/salvataggio rimane identico!)
+
+        // Carica i dati salvati precedentemente
+        chrome.storage.local.get(['userConfig'], (res) => {
+            if (res.userConfig) {
+                if (document.getElementById('user-rpc-url')) document.getElementById('user-rpc-url').value = res.userConfig.rpcUrl || "";
+                if (document.getElementById('user-private-key')) document.getElementById('user-private-key').value = res.userConfig.privateKey || "";
+                if (document.getElementById('user-jito-tip')) document.getElementById('user-jito-tip').value = res.userConfig.jitoTip || "";
+                if (document.getElementById('user-slippage')) document.getElementById('user-slippage').value = res.userConfig.slippage || "";
+                if (document.getElementById('user-tp')) document.getElementById('user-tp').value = res.userConfig.takeProfit || "";
+                if (document.getElementById('user-sl')) document.getElementById('user-sl').value = res.userConfig.stopLoss || "";
+                
+                // Ricarica l'avatar salvato
+                if (res.userConfig.avatarUrl) {
+                    selectedAvatarUrl = res.userConfig.avatarUrl;
+                    document.getElementById('current-user-avatar').src = selectedAvatarUrl;
+                    avatarOptions.forEach(opt => {
+                        opt.classList.remove('active');
+                        if (opt.getAttribute('data-src') === selectedAvatarUrl) opt.classList.add('active');
+                    });
+                }
+            }
+        });
+
+        // Logica pulsante Salva: Effetto visivo e ritorno al Radar
+        const btnSaveConfig = document.getElementById('btn-save-config');
+        if (btnSaveConfig) {
+            btnSaveConfig.addEventListener('click', () => {
+                const newConfig = {
+                    rpcUrl: document.getElementById('user-rpc-url').value.trim(),
+                    privateKey: document.getElementById('user-private-key').value.trim(),
+                    jitoTip: document.getElementById('user-jito-tip').value.trim(),
+                    slippage: document.getElementById('user-slippage').value.trim(),
+                    takeProfit: document.getElementById('user-tp').value.trim(),
+                    stopLoss: document.getElementById('user-sl').value.trim(),
+                    avatarUrl: selectedAvatarUrl
+                };
+
+                chrome.storage.local.set({ userConfig: newConfig }, () => {
+                    // Animazione pulsante salvato
+                    btnSaveConfig.style.background = '#00e676';
+                    btnSaveConfig.innerHTML = '✅ SALVATO CON SUCCESSO!';
+                    
+                    if (newConfig.rpcUrl && typeof socket !== 'undefined') {
+                        socket.emit('update_user_rpc', newConfig.rpcUrl);
+                    }
+
+                    // 🔙 TORNA AL RADAR IN AUTOMATICO DOPO 1 SECONDO
+                    setTimeout(() => {
+                        btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
+                        btnSaveConfig.innerHTML = '💾 Salva e Attiva';
+                        
+                        // Simula il click sul tab radar e nasconde la dashboard
+                        document.getElementById('tab-radar').click();
+                        viewUser.style.display = 'none';
+                        bottomNav.style.display = 'flex'; // Fa ricomparire la barra dei tab
+                        
+                    }, 1000); 
+                });
+            });
+        }
+
+        // 4. ALTRI BOTTONI E SOCKETS (Radar base)
         document.getElementById('btn-ricarica').addEventListener('click', () => {
             chrome.storage.local.remove(['ultimoTokenScansionato', 'ultimoRisultatoScan'], avviaRadar);
         });
@@ -397,9 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // =========================================================
-        // 🚨 RICEZIONE ALLARMI SPY E AUTOPSIE DAL BACKEND
-        // =========================================================
         socket.off('spy_alert');
         socket.on('spy_alert', (data) => {
             const feed = document.getElementById('spy-feed-list');
@@ -443,11 +644,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // 📊 DATI STATICI E CARDS 
     // =========================================================
+    // =========================================================
+    // 📊 DATI STATICI E CARDS 
+    // =========================================================
     function popolaInterfacciaStatica(data, tokenMint) {
-        const hudHeader = document.getElementById('hud-header');
-        if (hudHeader && data.hud) {
-            hudHeader.style.borderBottom = `2px solid ${data.hud.color}`;
-            hudHeader.innerHTML = `
+        
+        // 1. INIETTA L'INDICE NEL PIANO INFERIORE (Senza toccare l'omino!)
+        const hudStats = document.getElementById('hud-stats-container');
+        if (hudStats && data.hud) {
+            document.getElementById('hud-header').style.borderBottom = `2px solid ${data.hud.color}`;
+            hudStats.style.display = 'flex'; // Fa comparire magicamente la sezione
+            hudStats.innerHTML = `
                 <div>
                     <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Solana Memecoin Index</div>
                     <div style="font-size: 1.1em; font-weight: 900; color: ${data.hud.color};">${data.hud.icon} ${data.hud.change >= 0 ? '+' : ''}${data.hud.change}% <span style="font-size: 0.6em; color: #aaa;">Vol: $${data.hud.volume}M</span></div>
@@ -458,32 +665,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
+        // 2. FASE 2 DEL TIMER: Dati base caricati!
+        const mintStatus = document.getElementById('mint-loading-status');
+        if (mintStatus) {
+            mintStatus.innerHTML = `✅ Dati Base`;
+            mintStatus.style.color = `#00e676`;
+            mintStatus.style.animation = `none`;
+        }
+
+        // 3. AUTOSPIA BUNDLE & DEV
         const staticBox = document.getElementById('static-analysis-box');
         if (!staticBox) return;
         
         let reportHTML = "";
         if (data.advice) {
-            // 🔥 OVERRIDE FRONTEND: IL DEV GIOVANE E' SCAM
+            // OVERRIDE FRONTEND: IL DEV GIOVANE E' SCAM
             let devText = data.advice.devStatus || "";
-            let devColor = '#00ffcc'; // Verde base
+            let devColor = '#00ffcc'; 
             let devIcon = '👨‍💻';
             
-            // Se c'è la parola giovane, days, giorni, nuovo... DIVENTA ROSSO
-            if (devText.toUpperCase().includes('GIOVAN') || devText.toUpperCase().includes('FRESH') || devText.toUpperCase().includes('GIORNI') || devText.toUpperCase().includes('DAYS')) {
-                devColor = '#ff4d4d'; // ROSSO!
+            if (devText.toUpperCase().match(/GIOVAN|FRESH|GIORNI|DAYS|NEW/)) {
+                devColor = '#ff4d4d'; 
                 devIcon = '🚨';
                 devText += " <br><span style='color:#ff4d4d; font-size:0.85em; font-weight:bold;'>⚠️ ALTO RISCHIO RUG (Wallet creato apposta).</span>";
-            } else if (devText.toUpperCase().includes('SERIAL') || devText.toUpperCase().includes('FARMER')) {
+            } else if (devText.toUpperCase().match(/SERIAL|FARMER/)) {
                 devColor = '#ffaa00'; 
                 devIcon = '⚠️';
             }
 
-            // 🔥 OVERRIDE FRONTEND: 0% HOLDER = BUNDLE NASCOSTO
+            // OVERRIDE FRONTEND: 0% HOLDER = BUNDLE NASCOSTO
             let bundleText = data.advice.topHoldersStatus || "";
-            let bundleColor = bundleText.includes('ATTENZIONE') || bundleText.includes('Rischio') ? '#ffaa00' : '#00ffcc';
+            let bundleColor = bundleText.match(/ATTENZIONE|RISCHIO|0%/) ? '#ffaa00' : '#00ffcc';
             
             if (bundleText.includes('0%')) {
-                bundleColor = '#ffaa00'; // DIVENTA GIALLO
+                bundleColor = '#ffaa00'; 
                 bundleText += " <br><span style='color:#ffaa00; font-size:0.85em; font-weight:bold;'>⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato le prime candele in segreto!</span>";
             }
             
@@ -501,7 +716,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         staticBox.innerHTML = reportHTML;
     }
-
     // =========================================================
     // ⚖️ IL GIUDICE SUPREMO
     // =========================================================
