@@ -73,164 +73,167 @@ function salvaTradeInLocale(mint, pnl) {
     // Salva il file fisicamente sul PC
     fs.writeFileSync(filePaper, JSON.stringify(db, null, 2));
 }
+// ==========================================================
+// 📡 MOTORE WSS: LIVE TAPE CON SMART QUEUE (Zero Perdite)
+// ==========================================================
 const spyCache = new Map();
+let codaTransazioni = []; // La sala d'attesa per non perdere le balene
+let workerAttivo = false; // Controlla se l'estrattore sta già lavorando
+
 function avviaAscoltoLive(tokenMint) {
     const mintPubKey = new PublicKey(tokenMint);
 
     if (activeSubscriptionId !== null) {
         solanaConnection.removeOnLogsListener(activeSubscriptionId);
-        console.log("🔌 Canale precedente chiuso.");
+        console.log("🔌 Canale precedente chiuso. Pulisco la coda...");
+        codaTransazioni = []; // Svuota la coda vecchia
     }
 
     console.log(`\n📡 Apertura canale WebSocket per: ${tokenMint}`);
 
-    activeSubscriptionId = solanaConnection.onLogs(
-        mintPubKey,
-        async (logsInfo, context) => {
-            if (logsInfo.err) return; 
+    // 👷 IL WORKER: Analizza la coda senza scartare NULLA e senza far arrabbiare Helius
+    async function smaltisciCoda() {
+        if (codaTransazioni.length === 0) {
+            workerAttivo = false;
+            return;
+        }
+        workerAttivo = true;
 
-            const signature = logsInfo.signature;
+        // Prende la transazione più vecchia in attesa
+        const { signature, logsInfo } = codaTransazioni.shift(); 
 
-            // 🔥 CANCELLO ANTI-429: Processiamo max 3 transazioni al secondo.
-            // Se il mercato va troppo veloce, ignoriamo le transazioni minori per non far esplodere Helius.
-            // 🔥 CANCELLO ANTI-429 ULTRA-SEVERO (Per Piano Gratuito)
-                // Processiamo MASSIMO 1 transazione al secondo per non saturare Helius.
-                const oraAttuale = Date.now();
-                if (oraAttuale - ultimaElaborazioneTx < 1000) {
-                    return; // Ignora silenziosamente la transazione se è passato meno di 1 secondo
-                }
-                ultimaElaborazioneTx = oraAttuale;
-
-            try {
-                // 1. Diamo al nodo 1 secondo per indicizzare la transazione prima di scaricarla
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // 2. Scarichiamo la transazione completa
-                const tx = await solanaConnection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
-                if (!tx || !tx.meta || tx.meta.err) return;
-
-                // 3. Estrazione dati: chi ha firmato e quanti SOL sono entrati/usciti
+        try {
+            // Scarica la transazione (massimo ~3 al secondo per rispetto di Helius RPC)
+            const tx = await solanaConnection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
+            
+            if (tx && tx.meta && !tx.meta.err) {
                 const feePayer = tx.transaction.message.accountKeys[0].pubkey.toString();
                 const preSol = (tx.meta.preBalances[0] || 0) / 1e9;
                 const postSol = (tx.meta.postBalances[0] || 0) / 1e9;
                 const deltaSol = Math.abs(preSol - postSol);
 
-                // Filtriamo il rumore di fondo: ignoriamo le tx minuscole (sotto 0.05 SOL)
-                // Questo evita di intasare l'estensione con bot da millesimi di dollaro
-                if (deltaSol < 0.05) return;
-
-                const tipoAzione = preSol > postSol ? "🟢 BUY" : "🔴 SELL";
+                // 📦 JITO BUNDLE DETECTOR (Infallibile)
+                const JITO_TIP_ACCOUNTS = [
+                    "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5", "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7g",
+                    "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvVkY", "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49",
+                    "DfXyjRG4RvG8yX2w2tK5d8LzAMrEMq9jKx22g1Q1p4tN", "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBn1am13qT",
+                    "p13WE2kU9J1VbL1L4EGBtBtzvLAdh3DmsBtz6yDmbzP", "B1xQ1mZASq4aN3k8E2N91E68i1i2hT1iR7E39hK3QvS6"
+                ];
                 
-                // 🔥 FILTRO ZOO (Classificazione Istantanea in RAM)
-                let iconaZoo = "🐒";
-                let tagZoo = "Scimmia";
-
-                if (deltaSol > 15) {
-                    iconaZoo = "🐋";
-                    tagZoo = "Balena";
-                } else if (deltaSol >= 3) {
-                    iconaZoo = "🐬";
-                    tagZoo = "Delfino";
+                let isBundle = false;
+                if (tx.transaction.message.accountKeys) {
+                    const accountKeys = tx.transaction.message.accountKeys.map(k => k.pubkey.toString());
+                    isBundle = accountKeys.some(key => JITO_TIP_ACCOUNTS.includes(key));
                 }
 
-                // Se il wallet è nella nostra cache dei cecchini, lo marchiamo
-                if (knownBotsCache.has(feePayer)) {
-                    iconaZoo = "🤖";
-                    tagZoo = "Robot Snipe";
-                }
-
-                const solscanLink = `https://solscan.io/tx/${signature}`;
-                
-                // 4. Creiamo il Pacchetto Quantitativo
-                const liveEvent = {
-                    tipo: tipoAzione,
-                    sol: deltaSol.toFixed(2),
-                    wallet: feePayer,
-                    firma: signature,
-                    timestamp: Date.now(),
-                    zooIcon: iconaZoo,
-                    zooTag: tagZoo,
-                    solscan: solscanLink
-                };
-
-                console.log(`⚡ TAPE: ${liveEvent.tipo} | ${liveEvent.zooIcon} [${liveEvent.zooTag}] ${liveEvent.sol} SOL | Wallet: ${liveEvent.wallet.substring(0,6)}...`);
-                // 🔥 SALVATAGGIO EVENTI TATTICI NELLA BLACK BOX
-                if (!blackBoxEventi.has(tokenMint)) blackBoxEventi.set(tokenMint, []);
-                const diarioEventi = blackBoxEventi.get(tokenMint);
-                const ora = new Date().toLocaleTimeString('it-IT', { hour12: false });
-
-                // ALGORITMO DI CLASSIFICAZIONE TATTICA
-                // 1. Smart Money / Balene (Ora basta > 1.5 SOL per essere rilevante)
-                if (deltaSol >= 1.5) {
-                    diarioEventi.push(`[${ora}] 🌊 SMART MONEY: ${tagZoo} -> ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
-                }
-                // 2. Bot Snipe attivi
-                else if (knownBotsCache.has(feePayer)) {
-                    diarioEventi.push(`[${ora}] 🤖 BOT ACTION: Il cecchino ha fatto un ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
-                }
-                // 3. Rilevamento Micro-Dumping (Vendite medie tra 0.3 e 1.5 SOL)
-                else if (tipoAzione === "🔴 SELL" && deltaSol >= 0.3) {
-                    diarioEventi.push(`[${ora}] 🩸 DUMPING LENTO: Vendita di ${deltaSol.toFixed(2)} SOL da un wallet standard.`);
-                }
-                // 4. Pressione FOMO (Tanti piccoli acquisti)
-                else if (tipoAzione === "🟢 BUY" && deltaSol >= 0.5) {
-                    diarioEventi.push(`[${ora}] 🔥 FOMO RETAIL: Acquisto di ${deltaSol.toFixed(2)} SOL.`);
-                }
-                
-                // Manteniamo gli ultimi 20 eventi per dare all'IA un contesto perfetto
-                // Manteniamo gli ultimi 20 eventi per dare all'IA un contesto perfetto
-                if (diarioEventi.length > 20) diarioEventi.shift();
-
-                // ==========================================================
-                // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL IN TEMPO REALE
-                // ==========================================================
-                // ==========================================================
-                // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL IN TEMPO REALE
-                // ==========================================================
-                if (tipoAzione === "🔴 SELL" && deltaSol >= 0.05) {
-                    const now = Date.now();
+                // IGNORIAMO SOLO IL VERO RUMORE, MA NON SCARTIAMO LE BALENE
+                if (deltaSol >= 0.05 || isBundle) {
+                    const tipoAzione = preSol > postSol ? "🟢 BUY" : "🔴 SELL";
                     
-                    // Usiamo una chiave unica per il token invece dell'importo
-                    if (!spyCache.has(tokenMint)) spyCache.set(tokenMint, []);
-                    let sellers = spyCache.get(tokenMint);
+                    // 🔥 FILTRO ZOO
+                    let iconaZoo = "🐒";
+                    let tagZoo = "Scimmia";
+
+                    if (isBundle && deltaSol > 1) {
+                        iconaZoo = "📦"; tagZoo = "Jito Bundle";
+                    } else if (deltaSol > 15) {
+                        iconaZoo = "🐋"; tagZoo = "Balena";
+                    } else if (deltaSol >= 3) {
+                        iconaZoo = "🐬"; tagZoo = "Delfino";
+                    }
+
+                    if (knownBotsCache.has(feePayer)) {
+                        iconaZoo = "🤖"; tagZoo = "Robot Snipe";
+                    }
+
+                    const solscanLink = `https://solscan.io/tx/${signature}`;
                     
-                    // 1. Pulisce la memoria: dimentica le vendite più vecchie di 2.5 secondi
-                    sellers = sellers.filter(s => now - s.timestamp < 2500);
+                    // 4. Creiamo il Pacchetto
+                    const liveEvent = {
+                        tipo: isBundle ? `📦 BUNDLE ${tipoAzione.replace(/[🟢🔴]/,'').trim()}` : tipoAzione,
+                        sol: deltaSol.toFixed(2),
+                        wallet: feePayer,
+                        firma: signature,
+                        timestamp: Date.now(),
+                        zooIcon: iconaZoo,
+                        zooTag: tagZoo,
+                        solscan: solscanLink
+                    };
+
+                    console.log(`⚡ TAPE: ${liveEvent.tipo} | ${liveEvent.zooIcon} [${liveEvent.zooTag}] ${liveEvent.sol} SOL | Wallet: ${liveEvent.wallet.substring(0,6)}...`);
                     
-                    // 2. Se questo wallet non ha già venduto in questa finestra, lo aggiunge
-                    if (!sellers.some(s => s.wallet === feePayer)) {
-                        sellers.push({ wallet: feePayer, amount: deltaSol, timestamp: now });
+                    if (!blackBoxEventi.has(tokenMint)) blackBoxEventi.set(tokenMint, []);
+                    const diarioEventi = blackBoxEventi.get(tokenMint);
+                    const ora = new Date().toLocaleTimeString('it-IT', { hour12: false });
+
+                    if (isBundle) {
+                        diarioEventi.push(`[${ora}] 📦 BUNDLE CECCHINO: Rilevato multi-trade simultaneo di ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (deltaSol >= 1.5) {
+                        diarioEventi.push(`[${ora}] 🌊 SMART MONEY: ${tagZoo} -> ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (knownBotsCache.has(feePayer)) {
+                        diarioEventi.push(`[${ora}] 🤖 BOT ACTION: Il cecchino ha fatto un ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (tipoAzione === "🔴 SELL" && deltaSol >= 0.3) {
+                        diarioEventi.push(`[${ora}] 🩸 DUMPING LENTO: Vendita di ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (tipoAzione === "🟢 BUY" && deltaSol >= 0.5) {
+                        diarioEventi.push(`[${ora}] 🔥 FOMO RETAIL: Acquisto di ${deltaSol.toFixed(2)} SOL.`);
                     }
                     
-                    spyCache.set(tokenMint, sellers);
-                    
-                    // 3. IL TRIGGER AGGRESSIVO: 4 o più wallet diversi vendono in soli 2.5 secondi!
-                    if (sellers.length >= 4) {
-                        const totalDump = sellers.reduce((sum, s) => sum + s.amount, 0).toFixed(2);
-                        const alertMsg = `RAFFICA SYBIL: ${sellers.length} wallet stanno scaricando un totale di ${totalDump} SOL in 2 secondi!`;
-                        console.log(`\n🚨 SPY ALERT: ${alertMsg}`);
+                    if (diarioEventi.length > 20) diarioEventi.shift();
+
+                    // ==========================================================
+                    // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL
+                    // ==========================================================
+                    if (tipoAzione === "🔴 SELL" && deltaSol >= 0.05) {
+                        const now = Date.now();
+                        if (!spyCache.has(tokenMint)) spyCache.set(tokenMint, []);
+                        let sellers = spyCache.get(tokenMint);
                         
-                        // Spara l'allarme rosso al frontend
-                        io.emit('spy_alert', {
-                            timestamp: new Date().toLocaleTimeString('it-IT', { hour12: false }),
-                            messaggio: alertMsg,
-                            wallets: sellers.map(s => s.wallet)
-                        });
+                        sellers = sellers.filter(s => now - s.timestamp < 2500);
                         
-                        // Svuota la cache per non spammare
-                        spyCache.set(tokenMint, []);
+                        if (!sellers.some(s => s.wallet === feePayer)) {
+                            sellers.push({ wallet: feePayer, amount: deltaSol, timestamp: now });
+                        }
+                        
+                        spyCache.set(tokenMint, sellers);
+                        
+                        if (sellers.length >= 4) {
+                            const totalDump = sellers.reduce((sum, s) => sum + s.amount, 0).toFixed(2);
+                            const alertMsg = `RAFFICA SYBIL: ${sellers.length} wallet scaricano ${totalDump} SOL in 2s!`;
+                            console.log(`\n🚨 SPY ALERT: ${alertMsg}`);
+                            
+                            io.emit('spy_alert', {
+                                timestamp: new Date().toLocaleTimeString('it-IT', { hour12: false }),
+                                messaggio: alertMsg,
+                                wallets: sellers.map(s => s.wallet)
+                            });
+                            
+                            spyCache.set(tokenMint, []);
+                        }
                     }
+
+                    // 🚀 SPARA IL DATO LIVE ALL'ESTENSIONE!
+                    io.emit('nuovo_trade_live', liveEvent);
                 }
-                // ==========================================================
-                // ==========================================================
+            }
+        } catch (e) {
+            // Ignoriamo i drop del nodo
+        }
 
-                // 🚀 SPARA IL DATO LIVE ALL'ESTENSIONE!
-                io.emit('nuovo_trade_live', liveEvent);
+        // Aspetta 350ms (circa 3 tx al secondo) per non farsi bannare dall'RPC, poi elabora la prossima!
+        setTimeout(smaltisciCoda, 350); 
+    }
 
-                // 🚀 QUI INSERIREMO SOCKET.IO PER INVIARE 'liveEvent' ALL'ESTENSIONE
-
-            } catch (e) {
-                // Ignoriamo i drop del nodo per non intasare i log in caso di congestione
+    activeSubscriptionId = solanaConnection.onLogs(
+        mintPubKey,
+        (logsInfo, context) => {
+            if (logsInfo.err) return; 
+            
+            // 🔥 LA MAGIA: Non scartiamo PIÙ NULLA! Mettiamo tutto in coda.
+            codaTransazioni.push({ signature: logsInfo.signature, logsInfo });
+            
+            // Se il worker è fermo, sveglialo!
+            if (!workerAttivo) {
+                smaltisciCoda();
             }
         },
         'confirmed'
@@ -650,7 +653,72 @@ async function analizzaBattitoCardiaco(mintPubKey) {
         return { stato, txMinuto: txInLast60s, colore, blocco, secondiDaUltimaTx: secondiDaUltimaTx > 0 ? secondiDaUltimaTx : 0 };
     } catch (error) { return { stato: "ERRORE LETTURA", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 }; }
 }
+// =====================================================================
+// 🧠 MOTORE 1: IL COPILOTA TATTICO LIVE (Anti-Crash per GPT-OSS)
+// =====================================================================
+app.post('/api/copilot/:tokenMint', async (req, res) => {
+    const tokenMint = req.params.tokenMint;
+    const datiLive = req.body;
 
+    try {
+        const promptCopilot = `
+Sei l'Assistente Tattico Quantitativo (Copilota) di un trader su Solana.
+Analizza i flussi in tempo reale per lo scalping estremo (durata trade: 1-3 minuti).
+
+DATI LIVE IN INGRESSO (Ultimi 10 secondi):
+- Pressione Acquisto: ${datiLive.buyPressure}%
+- Volume Buy: ${datiLive.buyVol} SOL
+- Volume Sell: ${datiLive.sellVol} SOL
+
+Restituisci SOLO ED ESCLUSIVAMENTE un JSON valido, senza backtick e senza testo extra.
+Formato obbligatorio:
+{
+  "tattica": "Analisi clinica e spietata della pressione a mercato (1 riga max)",
+  "puntoRottura": "Previsione tecnica su cosa faranno i bot/cecchini a breve (1 riga max)",
+  "azione": "Scegli ESATTAMENTE una sola parola tra: COMPRARE, VENDERE, FUGGIRE, o ATTESA"
+}`;
+
+        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API mancanti");
+        const apiKey = groqKeys[currentGroqIndex];
+        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-20b", 
+                messages: [{ role: "user", content: promptCopilot }],
+                temperature: 0.1
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        // 🪤 TRAPPOLA ANTI-CRASH PER IL JSON (Filtro Etico)
+        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const startIdx = testoJson.indexOf('{');
+        const endIdx = testoJson.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+            testoJson = testoJson.substring(startIdx, endIdx + 1);
+        } else {
+            throw new Error("L'IA ha rifiutato di fornire i dati o ha generato testo non valido.");
+        }
+
+        const aiResult = JSON.parse(testoJson);
+        res.json(aiResult);
+
+    } catch (error) {
+        console.error("❌ Errore Copilota:", error.message);
+        // Questo salvagente impedisce all'estensione di mostrare l'errore JSON nel frontend
+        res.status(200).json({
+            tattica: "Ricalcolo in corso o Rate Limit raggiunto.",
+            puntoRottura: error.message,
+            azione: "ATTESA"
+        });
+    }
+});
 async function analizzaCabalaSupply(mintPubKey) {
     try {
         const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
@@ -1335,132 +1403,163 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         res.status(500).json({ error: "Errore API" }); 
     }
 });
-// =====================================================================
-// 🧠 COPILOTA IA: PREDATORE DI SCAM (Dati Dinamici Live)
-// =====================================================================
-// =====================================================================
-// 🧠 COPILOTA IA: PREDATORE DI SCAM (BLINDATO ANTI-CRASH + DATI LIVE)
-// =====================================================================
 
 // =====================================================================
-// 🧠 COPILOTA IA: CERVELLO 5.0 (Rotazione Chiavi + Dati Live)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (GPT-OSS-20B)
 // =====================================================================
-// =====================================================================
-// 🧠 COPILOTA IA: CERVELLO 5.0 (Integrazione Moduli Forensi On-Chain)
-// =====================================================================
-// =====================================================================
-// 🧠 COPILOTA IA: CERVELLO 5.0 (Integrazione Forense + Debug Rete)
-// =====================================================================
-// =====================================================================
-// 🔫 CORE 1: LO SNIPER DEI VOLUMI (Groq - Velocità Estrema)
-// =====================================================================
-app.post('/api/copilot/:tokenMint', express.json(), async (req, res) => {
+app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
-    
-    // Riceviamo solo Volumi e History in Tempo Reale
-    const { buyVol, sellVol, buyPressure, history } = req.body || { buyVol: 0, sellVol: 0, buyPressure: 50, history: [] };
-
-    // 🛡️ KILL-SWITCH: CONTROLLO DILUVIO / RUG PULL
-    try {
-        const battito = await analizzaBattitoCardiaco(new PublicKey(tokenMint));
-        if (battito.blocco || battito.secondiDaUltimaTx > 20) {
-            return res.json({
-                tattica: "🚨 RUG PULL / ZERO LIQUIDITÀ: Scambi fermi o pool prosciugata.",
-                puntoRottura: "Nessuna transazione rilevata.",
-                azione: "FUGGIRE"
-            });
-        }
-    } catch (e) {}
-
     const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
     
-    // 🔥 FIX 2: Se la scansione on-chain non è finita, diamo un verdetto di attesa invece di crashare
     if (!datiIniziali) {
-        return res.json({
-            tattica: "⚠️ IN ATTESA DATI",
-            puntoRottura: "Esecuzione scansione base on-chain in corso...",
-            azione: "OSSERVARE"
-        });
+        return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
     }
 
-    // Ora può pescare tranquillamente i dati salvati dal FIX 1!
-    let sybilStatus = datiIniziali.sybil ? datiIniziali.sybil.testo : "Nessun dato Sybil.";
-    let fedinaDev = datiIniziali.fedinaDev ? datiIniziali.fedinaDev.status : "Sconosciuta.";
-    let microDumping = datiIniziali.sanguisughe ? datiIniziali.sanguisughe.testo : "Nessun dato Micro-Dumping."; 
-
-    const historyText = history && history.length > 0 
-        ? history.map(h => `[${h.time}] Buy: ${h.buy} SOL | Sell: ${h.sell} SOL | Press: ${h.pressure}%`).join('\n')
-        : "Nessuno storico disponibile.";
-
-    const promptCopilota = `
-Sei uno speculatore on-chain specializzato in "Rug Prediction".
-VIETATO dare risposte generiche come "Balene comprano" o "Dump in arrivo".
-DEVI usare i numeri esatti forniti qui sotto per giustificare la tua analisi tecnica.
-
-DATI INVESTIGATIVI STRUTTURALI:
-- Rete Sybil / Cabala: ${sybilStatus}
-- Storico Sviluppatore: ${fedinaDev}
-- Micro-Dumping: ${microDumping}
-
-DINAMICA VOLUMI (Live):
-- COMPRA: ${buyVol} SOL
-- VENDITA: ${sellVol} SOL
-- Pressione: ${buyPressure}%
-STORICO TEMPORALE: 
-${historyText}
-
-REGOLE DI ANALISI (DA SCRIVERE NEL JSON):
-1. Usa sempre le cifre: devi scrivere quanti SOL sono in acquisto contro quanti in vendita.
-2. Se c'è una "Cabala Rilevata" o un "Wallet Padre", scrivi esplicitamente: "Rete Sybil attiva, il Dev controlla la supply. Volumi finti."
-3. Se c'è "Micro-Dumping", scrivi: "I Top Holders stanno scaricando lentamente sui retail".
-4. Se le balene (ordini grossi) comprano ma i top holders vendono, avvisa della trappola di exit liquidity.
-
-Rispondi RIGOROSAMENTE in JSON puro, sii tecnico e analitico:
-{
-  "tattica": "<Descrizione tecnica con i SOL esatti mossi e chi li muove (Dev/Balene/Retail). Ignora le frasi fatte. max 35 parole>",
-  "puntoRottura": "<Spiega ESATTAMENTE cosa innescherà il dump o il pump incrociando i volumi con i Dati Investigativi. max 30 parole>",
-  "azione": "COMPRARE / HOLD / VENDERE / FUGGIRE / OSSERVARE"
-}`;
-
     try {
-        const chiaviDisponibili = (typeof groqKeys !== 'undefined' && groqKeys.length > 0) 
-            ? [...groqKeys] : [process.env.GROQ_API_KEY].filter(k => k && k.trim() !== '');
+        let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
+        let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
+        let devStatusStr = datiIniziali?.advice?.devStatus || "Ignota";
+        let bundleInfo = datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato";
+        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
 
-        if (chiaviDisponibili.length === 0) throw new Error("Nessuna API Key Groq trovata.");
-        const chiaviMischiate = chiaviDisponibili.sort(() => 0.5 - Math.random());
-
-        let response;
-        let success = false;
-
-        for (const apiKey of chiaviMischiate) {
-            try {
-                response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: "openai/gpt-oss-20b",
-                        messages: [{ role: "user", content: promptCopilota }],
-                        temperature: 0.1,
-                        response_format: { type: "json_object" }
-                    })
-                });
-                if (response.ok) { success = true; break; }
-            } catch (e) {}
+        // 🔥 AGGIRAMENTO FILTRI ETICI AI: Usiamo un tono clinico ma regole spietate
+        const devTxtStr = devStatusStr.toUpperCase();
+        const bundleTxtStr = bundleInfo.toUpperCase();
+        
+        let aiMandate = "Applica la massima severità analitica. Rileva anomalie e difetti critici.";
+        
+        if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
+            aiMandate = "🔴 REGOLA CRITICA MATEMATICA: Il Dev Wallet è neonato. L'Affidabilità Dev DEVE essere < 15. Il global_score DEVE essere < 35. Il verdetto finale DEVE iniziare con [AVOID]. Segnala altissimo rischio di abbandono del progetto.";
+        } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
+            aiMandate = "🟠 REGOLA CRITICA MATEMATICA: Rilevata anomalia nella distribuzione (possibile Sniper Bundle). Integrità Supply DEVE essere < 30. global_score DEVE essere < 50. Usa l'etichetta [AVOID] o [SCALP].";
         }
 
-        if (!success) throw new Error(`Tutte le chiavi Groq hanno fallito.`);
+        const promptLaboratorio = `
+Sei un Analista Quantitativo di Rischio per asset decentralizzati ad altissima volatilità.
+
+${aiMandate}
+
+REGOLE DI VALUTAZIONE (STRICT):
+1. I token analizzati hanno un'alta probabilità di collasso. Sii conservativo.
+2. VIETATO suggerire visioni a lungo termine ("hold", "investimento sicuro").
+3. ETICHETTE DI RISCHIO: Inizia sempre il campo "verdetto_finale" con una tra:
+   - [AVOID] -> Rischio estremo, metriche anomale.
+   - [SCALP] -> Volatilità sfruttabile solo per timeframe brevi (1-2 minuti).
+   - [RIDE] -> Metriche solide, trend cavalcabile nel breve termine (max 1 ora).
+
+DATI ON-CHAIN:
+- Mercato: ${liquidita}
+- Analisi Sybil: ${sybilStatus}
+- Flusso Micro-Dump: ${microDumping}
+- Anzianità Dev: ${devStatusStr}
+- Concentrazione Supply: ${bundleInfo}
+
+Devi restituire ESCLUSIVAMENTE un oggetto JSON valido. Nessun testo introduttivo. Nessun backtick (\`\`\`).
+Esempio struttura obbligatoria:
+{
+  "global_score": 30,
+  "metrics": [
+    { "name": "Integrità Supply", "score": 25, "tooltip": "Tua analisi tecnica in 1 riga" },
+    { "name": "Stabilità Volumi", "score": 60, "tooltip": "Tua analisi tecnica in 1 riga" },
+    { "name": "Affidabilità Dev", "score": 10, "tooltip": "Tua analisi tecnica in 1 riga" }
+  ],
+  "verdetto_finale": "[AVOID] Anomalie rilevate. Altissima probabilità di manipolazione."
+}`;
+
+        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API non trovate nel .env");
+        const apiKey = groqKeys[currentGroqIndex];
+        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
+        
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-20b",
+                messages: [{ role: "user", content: promptLaboratorio }],
+                temperature: 0.1 
+            })
+        });
 
         const data = await response.json();
-        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const jsonPulito = JSON.parse(testoJson.substring(testoJson.indexOf('{'), testoJson.lastIndexOf('}') + 1));
+        if (data.error) throw new Error(data.error.message);
 
-        res.json({
-            tattica: jsonPulito.tattica || jsonPulito.Tattica,
-            puntoRottura: jsonPulito.puntoRottura || jsonPulito.PuntoRottura,
-            azione: jsonPulito.azione || jsonPulito.Azione
-        });
+        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        // 🪤 TRAPPOLA PER L'IA: Se si rifiuta, stampiamo a schermo la sua ribellione
+        const startIdx = testoJson.indexOf('{');
+        const endIdx = testoJson.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+            testoJson = testoJson.substring(startIdx, endIdx + 1);
+        } else {
+            // Se l'IA ha scritto una lettera invece del JSON, lo mandiamo al frontend per leggerlo
+            throw new Error(`Risposta IA non JSON: "${testoJson.substring(0, 80)}..."`);
+        }
+
+        const aiResult = JSON.parse(testoJson);
+        
+        const globalScore = aiResult.global_score || 50;
+        const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
+
+        let verdettoTesto = aiResult.verdetto_finale || "";
+        verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">🛑 AVOID</span>');
+        verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">⚡ SCALP</span>');
+        verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">🏄‍♂️ RIDE</span>');
+
+        let barsHTML = "";
+        if(aiResult.metrics && aiResult.metrics.length > 0) {
+            aiResult.metrics.forEach(m => {
+                const barColor = m.score >= 70 ? "#00e676" : (m.score >= 40 ? "#ffaa00" : "#ff4d4d");
+                barsHTML += `
+                    <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 4px; color: #ccc; font-weight: bold; text-transform: uppercase;">
+                            <span>${m.name}</span>
+                            <span style="color: ${barColor};">${m.score}%</span>
+                        </div>
+                        <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                            <div style="width: ${m.score}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
+                        </div>
+                        <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4;">
+                            ${m.tooltip}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        const reportHTML = `
+            <style>
+                .metric-container:hover .metric-tooltip { display: block !important; }
+                .donut-chart {
+                    width: 90px; height: 90px; border-radius: 50%;
+                    background: conic-gradient(${mainColor} ${globalScore}%, #161821 0);
+                    display: flex; align-items: center; justify-content: center;
+                    position: relative; box-shadow: 0 0 15px ${mainColor}40; flex-shrink: 0;
+                }
+                .donut-inner {
+                    width: 78px; height: 78px; background: #0a0c10; border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    flex-direction: column; position: absolute; z-index: 2;
+                }
+                .donut-inner span { z-index: 3; position: relative; }
+            </style>
+
+            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
+                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
+                    <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
+                    <div style="flex-grow: 1;">
+                        <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Giudizio Algoritmico</span>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
+                            ${verdettoTesto}
+                        </div>
+                    </div>
+                </div>
+                <div style="padding-right: 5px;">${barsHTML}</div>
+            </div>
+        `;
+        res.json({ success: true, verdetto: reportHTML });
     } catch (error) {
-        res.json({ tattica: "Errore API.", puntoRottura: "Lettura manuale.", azione: "OSSERVARE" });
+        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore: ${error.message}</div>` });
     }
 });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -1589,6 +1688,9 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
 // =====================================================================
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
 // =====================================================================
+// =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
+// =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
@@ -1598,43 +1700,51 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
+        // Estraiamo i dati già "digeriti" dal tuo algoritmo
         let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
         let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
-        let fedinaDev = datiIniziali?.fedinaDev ? JSON.stringify(datiIniziali.fedinaDev) : "Ignota";
-        let bundleInfo = datiIniziali?.earlyRadar ? JSON.stringify(datiIniziali.earlyRadar) : "Nessun bundle rilevato";
+        let devStatusStr = datiIniziali?.advice?.devStatus || "Ignota";
+        let bundleInfo = datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato";
         let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
 
-        // 🔥 IL NUOVO CERVELLO CINICO (Niente "Lungo Termine")
-        // 🔥 IL NUOVO CERVELLO CINICO (Niente "Lungo Termine")
+        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA (Pre-Filtro)
+        const devTxtStr = devStatusStr.toUpperCase();
+        const bundleTxtStr = bundleInfo.toUpperCase();
+        
+        let aiMandate = "Analizza i dati in modo estremamente cinico. Sei spietato e cerchi sempre lo scam.";
+        
+        if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
+            aiMandate = "🔴 MANDATO DI SISTEMA (INVIOLABILE): IL DEV E' UNO SCAMMER (WALLET NUOVO O FAKE). TI E' ASSOLUTAMENTE VIETATO SUPERARE IL PUNTEGGIO GLOBALE DI 35. 'Affidabilità Dev' DEVE ESSERE MASSIMO 15. DEVI INIZIARE IL VERDETTO CON [AVOID]. E' VIETATO DIRE CHE E' PULITO.";
+        } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
+            aiMandate = "🟠 MANDATO DI SISTEMA: RILEVATO BUNDLE ESTREMAMENTE PERICOLOSO. IL PUNTEGGIO 'Integrità Supply' DEVE ESSERE SOTTO IL 30 E IL GLOBALE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
+        }
+
         const promptLaboratorio = `
-Sei il "Giudice Supremo", lo spietato analista di rischio on-chain di un hedge fund istituzionale su Solana.
-Il 99.9% dei token su Solana sono TRUFFE e vanno a zero in poche ore.
+Sei il "Giudice Supremo", lo spietato analista on-chain di un fondo speculativo su Solana.
 
-REGOLE D'ORO (INVIOLABILI):
-1. DEV GIOVANE = SCAM: Se nei dati del Dev leggi "Giovane", "Nuovo", "Fresh", "0 giorni", l'Affidabilità Dev DEVE essere SOTTO il 20%. Il "global_score" NON PUÒ superare 35.
-2. BUNDLE NASCOSTO: Se nei Top Holders vedi "0%" o "Attenzione", significa che il dev ha usato bot (bundle) per cecchinare la supply.
-3. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro". Le memecoin si tradano in minuti, si prende profitto e si scappa.
-4. STRATEGIA DI TRADING: Nel "verdetto_finale", devi SEMPRE iniziare il testo con una di queste tre etichette esatte:
-   - [AVOID] -> Scam, dev giovane o bundle. Stare alla larga.
-   - [SCALP] -> Entrare e uscire in pochissimi minuti (Take Profit veloce).
-   - [RIDE] -> Volumi enormi e dev pulito. Cavalcare il trend per MASSIMO 1 ora, poi vendere tutto.
+${aiMandate}
 
-DATI DA ANALIZZARE:
+REGOLE GENERALI SUL TRADING MEMECOIN:
+1. Le memecoin si tradano in minuti, vanno a zero in poche ore.
+2. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
+3. ETICHETTE: Usa sempre [AVOID] (scam, fuggi), [SCALP] (entra/esci in 2 minuti), o [RIDE] (pompa iper-forte, massimo 1 ora).
+
+DATI VERIFICATI DA ELABORARE:
 - Mercato/Volumi: ${liquidita}
 - Rete Sybil: ${sybilStatus}
 - Micro-Dumping: ${microDumping}
-- Dev: ${fedinaDev}
-- Bundle/Cecchini: ${bundleInfo}
+- Info Sviluppatore: ${devStatusStr}
+- Info Supply/Bundle: ${bundleInfo}
 
-Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun testo prima, nessun testo dopo. Usa questo schema:
+Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto.
 {
   "global_score": 30,
   "metrics": [
-    { "name": "Integrità Supply", "score": 40, "tooltip": "..." },
+    { "name": "Integrità Supply", "score": 25, "tooltip": "..." },
     { "name": "Stabilità Volumi", "score": 60, "tooltip": "..." },
     { "name": "Affidabilità Dev", "score": 10, "tooltip": "..." }
   ],
-  "verdetto_finale": "[AVOID] Dev giovane. Rischio rug immediato."
+  "verdetto_finale": "[AVOID] Dev truffatore confermato. Scappare."
 }`;
 
         if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel .env");
@@ -1645,8 +1755,7 @@ Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun testo prima, nessun testo
             method: "POST",
             headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "openai/gpt-oss-20b", 
-                // 🔥 FIX: Rimosso "response_format: { type: 'json_object' }" che mandava in tilt le API di Groq con Llama 8b
+                model: "openai/gpt-oss-20b",
                 messages: [{ role: "user", content: promptLaboratorio }],
                 temperature: 0.1 
             })
@@ -1655,23 +1764,15 @@ Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun testo prima, nessun testo
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // Il nostro pulitore personalizzato farà il lavoro sporco senza far crashare il server
         let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
-        // Se l'AI aggiunge testo inutile all'inizio, forziamo l'estrazione della prima graffa
-        if (!testoJson.startsWith('{')) {
-            testoJson = testoJson.substring(testoJson.indexOf('{'));
-        }
-        if (!testoJson.endsWith('}')) {
-            testoJson = testoJson.substring(0, testoJson.lastIndexOf('}') + 1);
-        }
+        if (!testoJson.startsWith('{')) testoJson = testoJson.substring(testoJson.indexOf('{'));
+        if (!testoJson.endsWith('}')) testoJson = testoJson.substring(0, testoJson.lastIndexOf('}') + 1);
 
         const aiResult = JSON.parse(testoJson);
         
         const globalScore = aiResult.global_score || 50;
         const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
 
-        // 🔥 SOSTITUZIONE DEI TAG VISIVI (Aggiunto RIDE)
         let verdettoTesto = aiResult.verdetto_finale || "";
         verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">🛑 AVOID</span>');
         verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">⚡ SCALP</span>');
