@@ -235,13 +235,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <!-- LOGO A SINISTRA (Singolo) -->
                         <div>
                             <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">MEME SAVER</div>
-                            <div style="font-size: 0.9em; font-weight: 900; color: #00ffcc;">Your Trading Helper</div>
+                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc;">Radar & Auto-Sniper</div>
                         </div>
-                        <!-- AVATAR UTENTE IN ALTO A DESTRA -->
-                        <div id="btn-user-profile" title="Pannello Utente" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 10px rgba(0,255,204,0.1); overflow: hidden;">
-                            <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
+                        
+                        <!-- AVATAR UTENTE (Ingrandito con etichetta MENU) -->
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Impostazioni</span>
+                            <div id="btn-user-profile" title="Pannello Utente" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
+                                <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
                         </div>
                     </div>
 
@@ -270,12 +275,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
                         </div>
 
-                        <!-- 0. WALLET DI ESECUZIONE -->
+                        <!-- 0. WALLET DI ESECUZIONE (Etico & Burner) -->
                         <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                            <strong style="color: #ff007f; font-size: 0.85em; text-transform: uppercase;">🏦 Wallet Operativo</strong>
-                            <div style="margin-top: 8px;">
-                                <label style="font-size: 0.7em; color: #aaa;">Chiave Privata (Formato Base58)</label>
-                                <input type="password" id="user-private-key" placeholder="Incolla la tua private key..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; margin-top: 2px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="color: #ff007f; font-size: 0.85em; text-transform: uppercase;">🏦 Portafoglio Operativo</strong>
+                                <span style="font-size: 0.7em; color: #888; background: #0a0c10; padding: 2px 6px; border-radius: 4px; border: 1px solid #444;">Non Connesso</span>
+                            </div>
+                            
+                            <p style="color: #aaa; font-size: 0.7em; line-height: 1.4; margin-top: 8px;">
+                                Per la tua sicurezza, <b>non inserire mai la tua Private Key principale</b>. Scegli un metodo di connessione:
+                            </p>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+                                <button title="Genera un wallet usa e getta interno all'estensione" style="background: #2a2d3d; border: 1px solid #ff007f; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; transition: 0.2s;">
+                                    🔥 Crea Burner
+                                </button>
+                                <button title="Connetti Phantom per monitorare i profitti" style="background: #2a2d3d; border: 1px solid #ab9ff2; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    👻 Phantom
+                                </button>
                             </div>
                         </div>
                         
