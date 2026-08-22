@@ -39,19 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 255, 204, 0.3); padding-bottom:8px; margin-bottom:10px;">
                 <div style="display:flex; align-items:center; gap: 8px;">
                     <span style="font-size: 1.2em;">🚨</span>
-                    <span style="color:#00ffcc; font-weight:900; font-size:1em; letter-spacing: 1px;">WHALE MATCH!</span>
+                    <span style="color:#00ffcc; font-weight:900; font-size:1em; letter-spacing: 1px;">${t('whale_title')}</span>
                 </div>
                 <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">✕</button>
             </div>
             
             <div id="golden-stats-${actualMint}" style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: monospace; font-size: 0.85em; min-height: 70px;">
-                <div style="text-align: center; color: #888; font-size: 0.9em; margin-top: 15px; animation: pulseGlow 1s infinite;">🔄 Estrazione dati mercato...</div>
+                <div style="text-align: center; color: #888; font-size: 0.9em; margin-top: 15px; animation: pulseGlow 1s infinite;">🔄 ${t('loading_analysis')}</div>
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; flex: 1; transition: 0.2s;">📋 Copia Mint</button>
+                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; flex: 1; transition: 0.2s;">${t('copy_mint')}</button>
                 <a href="https://pump.fun/${actualMint}" target="_blank" style="flex: 2; text-align:center; background: linear-gradient(90deg, #00ffcc, #00b38f); color:#000; text-decoration:none; padding:8px; border-radius:6px; font-weight:900; font-size: 0.85em; letter-spacing:1px; box-shadow: 0 4px 10px rgba(0, 255, 204, 0.3);">
-                    💊 APRI PUMP.FUN
+                    ${t('open_pump')}
                 </a>
             </div>
         `;
@@ -85,16 +85,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Azione:</span> <span style="color:#00ffcc; font-weight:bold;">BALENA IN ACQUISTO</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Action:</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Market Cap:</span> <span style="color:#fff; font-weight:bold;">$${mc.toLocaleString()}</span></div>
                     ${liqRow}
                     <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol 5m:</span> <span style="color:#ffaa00; font-weight:bold;">$${(pair.volume?.m5 || 0).toLocaleString()}</span></div>
                 `;
             } else if (statsContainer) {
                 statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">Azione:</span> <span style="color:#00ffcc; font-weight:bold;">BALENA IN ACQUISTO</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">Action:</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
                     <div style="text-align:center; padding: 6px; background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; border-radius: 4px; color:#ff4d4d; font-size:0.85em; font-weight: bold;">
-                        ⚠️ Token Neonato<br><span style="font-size:0.8em; color:#e0e0e0; font-weight:normal;">Ancora invisibile a DexScreener. Procedi con cautela.</span>
+                        ${t('whale_new')}<br><span style="font-size:0.8em; color:#e0e0e0; font-weight:normal;">${t('whale_inv')}</span>
                     </div>
                 `;
             }
@@ -107,221 +107,124 @@ document.addEventListener('DOMContentLoaded', () => {
 // =========================================================
 // 🌍 MOTORE MULTILINGUA (i18n Engine - Default: EN)
 // =========================================================
-let currentLang = 'en'; // Default assoluto per tutti i nuovi utenti
+// =========================================================
+// 🌍 MOTORE MULTILINGUA (i18n Engine)
+// =========================================================
+let currentLang = 'en'; 
 
 const TRANSLATIONS = {
     en: {
-        app_name: "MEME SAVER",
-        app_sub: "Radar & Auto-Sniper",
-        settings_btn: "SETTINGS",
-        control_room: "Control Room",
-        algo_settings: "Algorithmic Settings",
-        lang_title: "INTERFACE LANGUAGE",
-        pro_title: "Meme Saver PRO",
-        status_label: "Status:",
-        status_disconnected: "Disconnected",
-        cloud_wallet_label: "Cloud Wallet:",
+        app_name: "MEME SAVER", app_sub: "Radar & Auto-Sniper", settings_btn: "SETTINGS", control_room: "Control Room",
+        algo_settings: "Algorithmic Settings", lang_title: "INTERFACE LANGUAGE", pro_title: "Meme Saver PRO",
+        status_label: "Status:", status_disconnected: "Disconnected", cloud_wallet_label: "Cloud Wallet:",
         pro_desc: "Connect your extension to our official Cloud Burner Wallet to unlock Auto-Sniper.",
-        btn_connect_web: "🔗 Connect Web Account",
-        helius_title: "⚡ Helius API (Fast Node)",
-        helius_desc: "Use your dedicated RPC node to prevent throttling.",
-        helius_placeholder: "Paste Helius RPC URL...",
-        jito_title: "🛡️ Jito MEV Shield",
-        jito_tip: "Jito Tip (SOL)",
-        slippage: "Max Slippage (%)",
-        risk_title: "⚖️ Risk Management",
-        take_profit: "Take Profit (%)",
-        stop_loss: "Stop Loss (%)",
-        btn_save: "💾 Save & Activate",
-        btn_saved: "✅ SAVED SUCCESSFULLY!",
-        nav_radar: "Radar",
-        nav_tracker: "Tracker",
-        nav_spy: "Spy",
-        btn_reload: "RELOAD",
-        copilot_title: "🧠 Copilot AI",
-        copilot_btn: "Request Analysis",
-        copilot_analyzing: "⏳ Analyzing...",
-        copilot_reanalyze: "🔄 Re-analyze",
-        orderflow_title: "⏱️ 10s Order Flow",
-        orderflow_waiting: "WAITING...",
-        live_tape_title: "🔴 Live Tape",
-        live_tape_listening: "Listening to blockchain...",
-        loading_analysis: "⏳ Analyzing...",
-        loading_base: "✅ Base Data",
-        loading_complete: "✅ Full Report",
-        tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Paste Address...",
-        tracker_btn: "Track",
-        spy_title: "🚨 LIVE SPY FEED",
-        spy_waiting: "Waiting for signals...",
-        judge_title: "Judge Verdict",
-        done_in: "Done in",
-        dev_history: "Developer History",
-        supply_analysis: "Supply Analysis",
-        high_risk_rug: "⚠️ HIGH RUG RISK (Wallet just created).",
-        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped the first candles secretly!"
+        btn_connect_web: "🔗 Connect Web Account", helius_title: "⚡ Helius API (Fast Node)",
+        helius_desc: "Use your dedicated RPC node to prevent throttling.", helius_placeholder: "Paste Helius RPC URL...",
+        jito_title: "🛡️ Jito MEV Shield", jito_tip: "Jito Tip (SOL)", slippage: "Max Slippage (%)",
+        risk_title: "⚖️ Risk Management", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Save & Activate", btn_saved: "✅ SAVED SUCCESSFULLY!", nav_radar: "Radar",
+        nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RELOAD", copilot_title: "🧠 Copilot AI",
+        copilot_btn: "Request Analysis", copilot_analyzing: "⏳ Analyzing...", copilot_reanalyze: "🔄 Re-analyze",
+        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "WAITING...", live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "Listening to blockchain...", loading_analysis: "⏳ Analyzing...",
+        loading_base: "✅ Base Data", loading_complete: "✅ Full Report", tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Paste Address...", tracker_btn: "Track", spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "Waiting for signals...", judge_title: "Judge Verdict", done_in: "Done in",
+        dev_history: "Developer History", supply_analysis: "Supply Analysis", high_risk_rug: "⚠️ HIGH RUG RISK.",
+        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped secretly!",
+        // NUOVE TRADUZIONI DAL BACKEND:
+        bought: "BOUGHT", sold: "SOLD", investment: "Investment", normal_trade: "NORMAL",
+        human_trader: "Human Trader", algo_trader: "Algo Trader", exit_pos: "📉 Exiting position",
+        dead_token: "💀 DEAD TOKEN 💀", dead_desc: "Zero volume for 25s. Change coin!", algo_judgment: "Algorithmic Judgment"
     },
     it: {
-        app_name: "MEME SAVER",
-        app_sub: "Radar & Auto-Sniper",
-        settings_btn: "IMPOSTAZIONI",
-        control_room: "Control Room",
-        algo_settings: "Impostazioni Algoritmiche",
-        lang_title: "LINGUA INTERFACCIA",
-        pro_title: "Meme Saver PRO",
-        status_label: "Stato:",
-        status_disconnected: "Scollegato",
-        cloud_wallet_label: "Cloud Wallet:",
-        pro_desc: "Per sbloccare l'Auto-Sniper, collega l'estensione al tuo Cloud Burner Wallet sulla piattaforma.",
-        btn_connect_web: "🔗 Connetti Account Web",
-        helius_title: "⚡ API Helius (Nodo Veloce)",
-        helius_desc: "Usa la tua API per operare senza blocchi.",
-        helius_placeholder: "Incolla URL Helius RPC...",
-        jito_title: "🛡️ Scudo Jito MEV",
-        jito_tip: "Jito Tip (SOL)",
-        slippage: "Slippage Max (%)",
-        risk_title: "⚖️ Gestione Rischio",
-        take_profit: "Take Profit (%)",
-        stop_loss: "Stop Loss (%)",
-        btn_save: "💾 Salva e Attiva",
-        btn_saved: "✅ SALVATO CON SUCCESSO!",
-        nav_radar: "Radar",
-        nav_tracker: "Tracker",
-        nav_spy: "Spy",
-        btn_reload: "RICARICA",
-        copilot_title: "🧠 Copilota AI",
-        copilot_btn: "Richiedi Analisi",
-        copilot_analyzing: "⏳ Analisi in corso...",
-        copilot_reanalyze: "🔄 Ri-analizza",
-        orderflow_title: "⏱️ 10s Order Flow",
-        orderflow_waiting: "IN ATTESA...",
-        live_tape_title: "🔴 Live Tape",
-        live_tape_listening: "In ascolto della blockchain...",
-        loading_analysis: "⏳ Analisi...",
-        loading_base: "✅ Dati Base",
-        loading_complete: "✅ Report Completo",
-        tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Incolla Address...",
-        tracker_btn: "Traccia",
-        spy_title: "🚨 LIVE SPY FEED",
-        spy_waiting: "In attesa di movimenti...",
-        judge_title: "Verdetto Giudice",
-        done_in: "Fatto in",
-        dev_history: "Storico Sviluppatore",
-        supply_analysis: "Analisi Supply",
-        high_risk_rug: "⚠️ ALTO RISCHIO RUG (Wallet creato apposta).",
-        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato le prime candele in segreto!"
+        app_name: "MEME SAVER", app_sub: "Radar & Auto-Sniper", settings_btn: "IMPOSTAZIONI", control_room: "Control Room",
+        algo_settings: "Impostazioni Algoritmiche", lang_title: "LINGUA INTERFACCIA", pro_title: "Meme Saver PRO",
+        status_label: "Stato:", status_disconnected: "Scollegato", cloud_wallet_label: "Cloud Wallet:",
+        pro_desc: "Collega l'estensione al tuo Cloud Burner Wallet sulla piattaforma.",
+        btn_connect_web: "🔗 Connetti Account Web", helius_title: "⚡ API Helius (Nodo Veloce)",
+        helius_desc: "Usa la tua API per operare senza blocchi.", helius_placeholder: "Incolla URL Helius RPC...",
+        jito_title: "🛡️ Scudo Jito MEV", jito_tip: "Jito Tip (SOL)", slippage: "Slippage Max (%)",
+        risk_title: "⚖️ Gestione Rischio", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Salva e Attiva", btn_saved: "✅ SALVATO CON SUCCESSO!", nav_radar: "Radar",
+        nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RICARICA", copilot_title: "🧠 Copilota AI",
+        copilot_btn: "Richiedi Analisi", copilot_analyzing: "⏳ Analisi in corso...", copilot_reanalyze: "🔄 Ri-analizza",
+        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "IN ATTESA...", live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "In ascolto della blockchain...", loading_analysis: "⏳ Analisi...",
+        loading_base: "✅ Dati Base", loading_complete: "✅ Report Completo", tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Incolla Address...", tracker_btn: "Traccia", spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "In attesa di movimenti...", judge_title: "Verdetto Giudice", done_in: "Fatto in",
+        dev_history: "Storico Sviluppatore", supply_analysis: "Analisi Supply", high_risk_rug: "⚠️ ALTO RISCHIO RUG.",
+        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato!",
+        bought: "HA COMPRATO", sold: "HA VENDUTO", investment: "Investimento", normal_trade: "NORMALE",
+        human_trader: "Trader Umano", algo_trader: "Algo Trader", exit_pos: "📉 Uscita dalla posizione",
+        dead_token: "💀 TOKEN MORTO 💀", dead_desc: "Zero volumi da 25s. Cambia moneta!", algo_judgment: "Giudizio Algoritmico"
     },
     zh: {
-        app_name: "MEME SAVER",
-        app_sub: "雷达与自动狙击",
-        settings_btn: "设置",
-        control_room: "控制室",
-        algo_settings: "算法设置",
-        lang_title: "界面语言",
-        pro_title: "Meme Saver 专业版",
-        status_label: "状态:",
-        status_disconnected: "未连接",
-        cloud_wallet_label: "云端钱包:",
-        pro_desc: "连接官方云端钱包以解锁自动狙击功能。",
-        btn_connect_web: "🔗 连接网页账户",
-        helius_title: "⚡ Helius 节点 (快速RPC)",
-        helius_desc: "使用专用节点以防止请求受限。",
-        helius_placeholder: "输入 Helius RPC 地址...",
-        jito_title: "🛡️ Jito MEV 防护",
-        jito_tip: "Jito 小费 (SOL)",
-        slippage: "最大滑点 (%)",
-        risk_title: "⚖️ 风险管理",
-        take_profit: "止盈目标 (%)",
-        stop_loss: "止损限制 (%)",
-        btn_save: "💾 保存并激活",
-        btn_saved: "✅ 保存成功！",
-        nav_radar: "雷达",
-        nav_tracker: "追踪",
-        nav_spy: "间谍",
-        btn_reload: "刷新",
-        copilot_title: "🧠 AI 助手",
-        copilot_btn: "请求分析",
-        copilot_analyzing: "⏳ 分析中...",
-        copilot_reanalyze: "🔄 重新分析",
-        orderflow_title: "⏱️ 10秒订单流",
-        orderflow_waiting: "等待中...",
-        live_tape_title: "🔴 实时流水",
-        live_tape_listening: "正在监听区块链...",
-        loading_analysis: "⏳ 分析中...",
-        loading_base: "✅ 基础数据",
-        loading_complete: "✅ 完整报告",
-        tracker_title: "💼 聪明钱追踪",
-        tracker_placeholder: "粘贴钱包地址...",
-        tracker_btn: "追踪",
-        spy_title: "🚨 实时预警",
-        spy_waiting: "等待链上信号...",
-        judge_title: "法官裁决",
-        done_in: "耗时",
-        dev_history: "开发者历史",
-        supply_analysis: "供应量分析",
-        high_risk_rug: "⚠️ 高跑路风险 (专为发币创建的新钱包).",
-        risk_bundle: "⚠️ 老鼠仓风险: 开发者可能在暗中狙击了初始筹码!"
-        
+        app_name: "MEME SAVER", app_sub: "雷达与自动狙击", settings_btn: "设置", control_room: "控制室",
+        algo_settings: "算法设置", lang_title: "界面语言", pro_title: "Meme Saver 专业版",
+        status_label: "状态:", status_disconnected: "未连接", cloud_wallet_label: "云端钱包:",
+        pro_desc: "连接官方云端钱包以解锁自动狙击功能。", btn_connect_web: "🔗 连接网页账户",
+        helius_title: "⚡ Helius 节点 (快速)", helius_desc: "使用专用节点以防止受限。",
+        helius_placeholder: "输入 Helius RPC...", jito_title: "🛡️ Jito MEV 防护",
+        jito_tip: "Jito 小费 (SOL)", slippage: "最大滑点 (%)", risk_title: "⚖️ 风险管理",
+        take_profit: "止盈目标 (%)", stop_loss: "止损限制 (%)", btn_save: "💾 保存并激活",
+        btn_saved: "✅ 保存成功！", nav_radar: "雷达", nav_tracker: "追踪", nav_spy: "预警",
+        btn_reload: "刷新", copilot_title: "🧠 AI 助手", copilot_btn: "请求分析",
+        copilot_analyzing: "⏳ 分析中...", copilot_reanalyze: "🔄 重新分析", orderflow_title: "⏱️ 10秒订单流",
+        orderflow_waiting: "等待中...", live_tape_title: "🔴 实时流水", live_tape_listening: "正在监听区块链...",
+        loading_analysis: "⏳ 分析中...", loading_base: "✅ 基础数据", loading_complete: "✅ 完整报告",
+        tracker_title: "💼 聪明钱追踪", tracker_placeholder: "粘贴钱包地址...", tracker_btn: "追踪",
+        spy_title: "🚨 实时预警", spy_waiting: "等待链上信号...", judge_title: "法官裁决",
+        done_in: "耗时", dev_history: "开发者历史", supply_analysis: "供应量分析",
+        high_risk_rug: "⚠️ 高跑路风险.", risk_bundle: "⚠️ 老鼠仓风险!",
+        bought: "买入", sold: "卖出", investment: "投资", normal_trade: "正常",
+        human_trader: "人类交易员", algo_trader: "量化机器人", exit_pos: "📉 正在平仓",
+        dead_token: "💀 死币 💀", dead_desc: "25秒内零交易量。请换币！", algo_judgment: "算法评判"
     },
     fr: {
-        app_name: "MEME SAVER",
-        app_sub: "Radar & Auto-Sniper",
-        settings_btn: "PARAMÈTRES",
-        control_room: "Salle de Contrôle",
-        algo_settings: "Paramètres Algorithmiques",
-        lang_title: "LANGUE DE L'INTERFACE",
-        pro_title: "Meme Saver PRO",
-        status_label: "Statut :",
-        status_disconnected: "Déconnecté",
-        cloud_wallet_label: "Cloud Wallet :",
-        pro_desc: "Connectez votre extension à notre Cloud Wallet officiel pour débloquer l'Auto-Sniper.",
-        btn_connect_web: "🔗 Connecter le Compte Web",
-        helius_title: "⚡ API Helius (Nœud Rapide)",
-        helius_desc: "Utilisez votre propre nœud pour éviter les ralentissements.",
-        helius_placeholder: "Coller l'URL RPC Helius...",
-        jito_title: "🛡️ Bouclier Jito MEV",
-        jito_tip: "Pourboire Jito (SOL)",
-        slippage: "Slippage Max (%)",
-        risk_title: "⚖️ Gestion du Risque",
-        take_profit: "Take Profit (%)",
-        stop_loss: "Stop Loss (%)",
-        btn_save: "💾 Enregistrer & Activer",
-        btn_saved: "✅ ENREGISTRÉ AVEC SUCCÈS !",
-        nav_radar: "Radar",
-        nav_tracker: "Tracker",
-        nav_spy: "Spy",
-        btn_reload: "RECHARGER",
-        copilot_title: "🧠 Copilote IA",
-        copilot_btn: "Demander Analyse",
-        copilot_analyzing: "⏳ Analyse en cours...",
-        copilot_reanalyze: "🔄 Ré-analyser",
-        orderflow_title: "⏱️ Flux d'ordres 10s",
-        orderflow_waiting: "EN ATTENTE...",
-        live_tape_title: "🔴 Live Tape",
-        live_tape_listening: "Écoute de la blockchain...",
-        loading_analysis: "⏳ Analyse...",
-        loading_base: "✅ Données de Base",
-        loading_complete: "✅ Rapport Complet",
-        tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Coller l'adresse...",
-        tracker_btn: "Traquer",
-        spy_title: "🚨 LIVE SPY FEED",
-        spy_waiting: "En attente de mouvements...",
-        judge_title: "Verdict du Juge",
-        done_in: "Fait en",
-        dev_history: "Historique du Dév",
-        supply_analysis: "Analyse de l'Offre",
-        high_risk_rug: "⚠️ HAUT RISQUE DE RUG (Nouveau portefeuille).",
-        risk_bundle: "⚠️ RISQUE BUNDLE : Le dév a peut-être snipé en secret !"
+        app_name: "MEME SAVER", app_sub: "Radar & Auto-Sniper", settings_btn: "PARAMÈTRES", control_room: "Contrôle",
+        algo_settings: "Paramètres Algorithmiques", lang_title: "LANGUE", pro_title: "Meme Saver PRO",
+        status_label: "Statut :", status_disconnected: "Déconnecté", cloud_wallet_label: "Cloud Wallet :",
+        pro_desc: "Connectez votre extension au Cloud Wallet pour débloquer l'Auto-Sniper.",
+        btn_connect_web: "🔗 Connecter le Compte", helius_title: "⚡ API Helius (Rapide)",
+        helius_desc: "Utilisez votre nœud pour éviter les limites.", helius_placeholder: "Coller l'URL RPC...",
+        jito_title: "🛡️ Bouclier Jito MEV", jito_tip: "Pourboire (SOL)", slippage: "Slippage Max (%)",
+        risk_title: "⚖️ Gestion du Risque", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Enregistrer", btn_saved: "✅ ENREGISTRÉ !", nav_radar: "Radar",
+        nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RECHARGER", copilot_title: "🧠 Copilote IA",
+        copilot_btn: "Demander Analyse", copilot_analyzing: "⏳ Analyse...", copilot_reanalyze: "🔄 Ré-analyser",
+        orderflow_title: "⏱️ Flux 10s", orderflow_waiting: "ATTENTE...", live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "Écoute de la blockchain...", loading_analysis: "⏳ Analyse...",
+        loading_base: "✅ Données de Base", loading_complete: "✅ Rapport Complet", tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Coller l'adresse...", tracker_btn: "Traquer", spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "En attente de signaux...", judge_title: "Verdict du Juge", done_in: "Fait en",
+        dev_history: "Historique Dév", supply_analysis: "Analyse Offre", high_risk_rug: "⚠️ RISQUE DE RUG.",
+        risk_bundle: "⚠️ RISQUE BUNDLE!",
+        bought: "A ACHETÉ", sold: "A VENDU", investment: "Investissement", normal_trade: "NORMAL",
+        human_trader: "Trader Humain", algo_trader: "Algo Trader", exit_pos: "📉 Sortie de position",
+        dead_token: "💀 JETON MORT 💀", dead_desc: "Zéro volume. Changez de pièce !", algo_judgment: "Jugement Algorithmique"
     }
 };
 
-// Funzione helper per ottenere il testo tradotto con fallback su Inglese
-function t(key) {
-    const lang = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
-    return lang[key] || TRANSLATIONS['en'][key] || key;
+function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['en'][key] || key; }
+
+// 🧠 TRADUTTORE UNIVERSALE PER I DATI DAL SERVER
+function traduciDalBackend(testo) {
+    if (!testo) return "";
+    return testo
+        .replace(/HA COMPRATO/gi, t('bought'))
+        .replace(/HA VENDUTO/gi, t('sold'))
+        .replace(/Investimento/gi, t('investment'))
+        .replace(/NORMALE/gi, t('normal_trade'))
+        .replace(/Trader Umano/gi, t('human_trader'))
+        .replace(/Algo Trader/gi, t('algo_trader'))
+        .replace(/Uscita dalla posizione/gi, t('exit_pos'))
+        .replace(/TOKEN MORTO/gi, t('dead_token'))
+        .replace(/Zero volumi da 25s\. Cambia moneta!/gi, t('dead_desc'))
+        .replace(/Giudizio Algoritmico/gi, t('algo_judgment'));
 }
+// Funzione helper per ottenere il testo tradotto con fallback su Inglese
     // =========================================================
     // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
     // =========================================================
@@ -457,6 +360,9 @@ function t(key) {
 
         contentDiv.innerHTML = `
             <style>
+                /* 🔥 FIX SCROLL JUMP: Blocca il fastidioso salto della rotellina */
+                #scroll-area, #live-tape-list, #spy-feed-list { overflow-anchor: none !important; }
+                
                 @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
                 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
                 ::-webkit-scrollbar { width: 6px; }
@@ -757,15 +663,15 @@ function t(key) {
         }
 
         // 🌍 4. CAMBIO LINGUA LIVE
+        // 🌍 4. CAMBIO LINGUA LIVE (Fix Caricamento Infinito)
         const langBtns = document.querySelectorAll('.lang-btn');
         langBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const newLang = e.currentTarget.getAttribute('data-lang');
                 if (newLang !== currentLang) {
-                    currentLang = newLang; // Aggiorna la lingua
                     chrome.storage.local.set({ userLanguage: newLang }, () => {
-                        costruisciInterfacciaLive(tokenMint); // Ricarica tutta la grafica istantaneamente
-                        document.getElementById('btn-user-profile').click(); // Riapre il pannello utente per mostrare il cambio
+                        // Invece di far incartare l'HTML, ricarichiamo il popup: tutto ripartirà a razzo nella nuova lingua!
+                        location.reload(); 
                     });
                 }
             });
@@ -798,9 +704,9 @@ function t(key) {
                     });
                     const dataResp = await resp.json();
                     
-                    let tattica = dataResp.tattica || "⚠️ Error AI";
-                    let puntoRottura = dataResp.puntoRottura || "Data Unreadable";
-                    let azione = dataResp.azione || "ATTESA";
+                    let tattica = traduciDalBackend(dataResp.tattica || "⚠️ Error AI");
+                    let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
+                    let azione = traduciDalBackend(dataResp.azione || "ATTESA");
                     let actionColor = azione.includes("FUGG") || azione.includes("VEND") ? "#ff4d4d" : (azione.includes("COMPR") ? "#00e676" : "#ffaa00");
                     
                     copilotResult.innerHTML = `
@@ -898,15 +804,20 @@ function t(key) {
                 const feed = document.getElementById('spy-feed-list');
                 if (feed) {
                     if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
+                    
+                    // 🧠 TRADUZIONE AL VOLO DEL BACKEND
+                    let translatedEsito = traduciDalBackend(data.esito);
+                    let translatedMotivo = traduciDalBackend(data.motivo);
+
                     const card = document.createElement('div');
                     card.style.cssText = `background:#161821; border-top: 3px solid ${data.colore}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
                     card.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                             <span style="color:#b366ff; font-weight:bold; font-size:0.85em;">⚙️ Quant X-Ray</span>
-                            <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${data.esito}</span>
+                            <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${translatedEsito}</span>
                         </div>
                         <div style="color:#aaa; font-size:0.8em; margin-bottom:8px;">Wallet: <span style="color:#fff;">${data.walletSpia.substring(0,6)}...</span></div>
-                        <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; font-size:0.85em; color:#e0e0e0; margin-bottom:10px;">${data.motivo}</div>
+                        <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; font-size:0.85em; color:#e0e0e0; margin-bottom:10px;">${translatedMotivo}</div>
                         <div style="text-align:center;"><a href="https://pump.fun/${data.mint}" target="_blank" style="background:#222; border:1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">💊 Pump.fun</a></div>
                     `;
                     feed.prepend(card);
@@ -1002,12 +913,12 @@ function t(key) {
         // 🔥 CRONOMETRO IN TEMPO REALE
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Giudice Supremo</span>
+                <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ ${t('judge_title')}</span>
                 <span id="judge-timer" style="background:#4a2b66; color:#fff; padding:2px 6px; border-radius:4px; font-family:monospace; font-size:0.8em; font-weight:bold;">0.0s</span>
             </div>
             <div style="text-align: center; padding: 10px; color: #c084fc;">
-                <span style="animation: pulseGlow 1.5s infinite; font-weight:bold;">⏳ Indagine forense in corso...</span>
-                <div style="font-size: 0.75em; color: #888; margin-top: 6px;">Elaborazione dati IA (attesa stimata: 5-8s)</div>
+                <span style="animation: pulseGlow 1.5s infinite; font-weight:bold;">${t('judge_load1')}</span>
+                <div style="font-size: 0.75em; color: #888; margin-top: 6px;">${t('judge_load2')}</div>
             </div>
         `;
 
@@ -1037,7 +948,8 @@ function t(key) {
                             <button id="btn-refresh-judge" style="background: #c084fc; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7em;">🔄</button>
                         </div>
                     </div>
-                    ${data.verdetto}
+                    ${traduciDalBackend(data.verdetto)}
+                    
                 `;
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
 

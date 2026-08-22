@@ -659,6 +659,9 @@ async function analizzaBattitoCardiaco(mintPubKey) {
 app.post('/api/copilot/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     const datiLive = req.body;
+    
+    // 👉 1. CATTURIAMO LA LINGUA CHE ARRIVA DALL'ESTENSIONE
+    const lingua = req.query.lang || 'en'; 
 
     try {
         const promptCopilot = `
@@ -670,13 +673,18 @@ DATI LIVE IN INGRESSO (Ultimi 10 secondi):
 - Volume Buy: ${datiLive.buyVol} SOL
 - Volume Sell: ${datiLive.sellVol} SOL
 
+🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
+I testi che scriverai per "tattica" e "puntoRottura", e l'azione finale, DEVONO ESSERE TASSATIVAMENTE SCRITTI IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
+Le chiavi del JSON devono restare quelle indicate sotto.
+
 Restituisci SOLO ED ESCLUSIVAMENTE un JSON valido, senza backtick e senza testo extra.
 Formato obbligatorio:
 {
-  "tattica": "Analisi clinica e spietata della pressione a mercato (1 riga max)",
-  "puntoRottura": "Previsione tecnica su cosa faranno i bot/cecchini a breve (1 riga max)",
-  "azione": "Scegli ESATTAMENTE una sola parola tra: COMPRARE, VENDERE, FUGGIRE, o ATTESA"
+  "tattica": "[Testo tradotto in ${lingua.toUpperCase()}]",
+  "puntoRottura": "[Testo tradotto in ${lingua.toUpperCase()}]",
+  "azione": "[Azione tradotta in ${lingua.toUpperCase()}, es: BUY, SELL, COMPRARE, VENDRE, 买]"
 }`;
+        // (QUI SOTTO IL RESTO DEL TUO CODICE PER CHIAMARE GEMINI CHE HAI GIA')
 
         if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API mancanti");
         const apiKey = groqKeys[currentGroqIndex];
@@ -695,18 +703,24 @@ Formato obbligatorio:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 TRAPPOLA ANTI-CRASH PER IL JSON (Filtro Etico)
-        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const startIdx = testoJson.indexOf('{');
-        const endIdx = testoJson.lastIndexOf('}');
+        // 🪤 TRAPPOLA SUPREMA (Groq/JSON Fix)
+        let rawText = data.choices[0].message.content;
         
-        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-            testoJson = testoJson.substring(startIdx, endIdx + 1);
+        // 1. Rimuovi i backtick markdown
+        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        // 2. Isola solo ed esclusivamente ciò che c'è tra le parentesi graffe
+        const startIdx = cleanText.indexOf('{');
+        const endIdx = cleanText.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+            cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error("L'IA ha rifiutato di fornire i dati o ha generato testo non valido.");
+            throw new Error(`Groq non ha generato JSON: "${rawText.substring(0, 50)}..."`);
         }
 
-        const aiResult = JSON.parse(testoJson);
+        // 3. Fai il parsing sicuro
+        const aiResult = JSON.parse(cleanText);
         res.json(aiResult);
 
     } catch (error) {
@@ -1409,6 +1423,10 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
+    
+    // 👉 1. CATTURIAMO LA LINGUA
+    const lingua = req.query.lang || 'en'; 
+    
     const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
     
     if (!datiIniziali) {
@@ -1416,55 +1434,54 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
+        // Estraiamo i dati già "digeriti" dal tuo algoritmo
         let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
         let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
         let devStatusStr = datiIniziali?.advice?.devStatus || "Ignota";
         let bundleInfo = datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato";
         let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
 
-        // 🔥 AGGIRAMENTO FILTRI ETICI AI: Usiamo un tono clinico ma regole spietate
+        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA (Pre-Filtro)
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
-        let aiMandate = "Applica la massima severità analitica. Rileva anomalie e difetti critici.";
+        let aiMandate = "Analizza i dati in modo estremamente cinico. Sei spietato e cerchi sempre lo scam.";
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
-            aiMandate = "🔴 REGOLA CRITICA MATEMATICA: Il Dev Wallet è neonato. L'Affidabilità Dev DEVE essere < 15. Il global_score DEVE essere < 35. Il verdetto finale DEVE iniziare con [AVOID]. Segnala altissimo rischio di abbandono del progetto.";
+            aiMandate = "🔴 MANDATO DI SISTEMA (INVIOLABILE): IL DEV E' UNO SCAMMER (WALLET NUOVO O FAKE). TI E' ASSOLUTAMENTE VIETATO SUPERARE IL PUNTEGGIO GLOBALE DI 35. 'Affidabilità Dev' DEVE ESSERE MASSIMO 15. DEVI INIZIARE IL VERDETTO CON [AVOID]. E' VIETATO DIRE CHE E' PULITO.";
         } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
-            aiMandate = "🟠 REGOLA CRITICA MATEMATICA: Rilevata anomalia nella distribuzione (possibile Sniper Bundle). Integrità Supply DEVE essere < 30. global_score DEVE essere < 50. Usa l'etichetta [AVOID] o [SCALP].";
+            aiMandate = "🟠 MANDATO DI SISTEMA: RILEVATO BUNDLE ESTREMAMENTE PERICOLOSO. IL PUNTEGGIO 'Integrità Supply' DEVE ESSERE SOTTO IL 30 E IL GLOBALE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
         }
 
         const promptLaboratorio = `
-Sei un Analista Quantitativo di Rischio per asset decentralizzati ad altissima volatilità.
+Sei il "Giudice Supremo", lo spietato analista on-chain di un fondo speculativo su Solana.
 
 ${aiMandate}
 
-REGOLE DI VALUTAZIONE (STRICT):
-1. I token analizzati hanno un'alta probabilità di collasso. Sii conservativo.
-2. VIETATO suggerire visioni a lungo termine ("hold", "investimento sicuro").
-3. ETICHETTE DI RISCHIO: Inizia sempre il campo "verdetto_finale" con una tra:
-   - [AVOID] -> Rischio estremo, metriche anomale.
-   - [SCALP] -> Volatilità sfruttabile solo per timeframe brevi (1-2 minuti).
-   - [RIDE] -> Metriche solide, trend cavalcabile nel breve termine (max 1 ora).
+REGOLE GENERALI SUL TRADING MEMECOIN:
+1. Le memecoin si tradano in minuti, vanno a zero in poche ore.
+2. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
+3. ETICHETTE: Usa sempre [AVOID] (scam, fuggi), [SCALP] (entra/esci in 2 minuti), o [RIDE] (pompa iper-forte, massimo 1 ora).
 
-DATI ON-CHAIN:
-- Mercato: ${liquidita}
-- Analisi Sybil: ${sybilStatus}
-- Flusso Micro-Dump: ${microDumping}
-- Anzianità Dev: ${devStatusStr}
-- Concentrazione Supply: ${bundleInfo}
+🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
+L'intero testo che restituirai per il Giudizio Algoritmico, i nomi delle metriche (es. invece di "Integrità Supply" usa l'equivalente tradotto) e i relativi tooltip, DEVE ESSERE TRADOTTO TASSATIVAMENTE IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
+Il JSON deve essere formattato in questo modo.
 
-Devi restituire ESCLUSIVAMENTE un oggetto JSON valido. Nessun testo introduttivo. Nessun backtick (\`\`\`).
-Esempio struttura obbligatoria:
+DATI VERIFICATI DA ELABORARE:
+- Mercato/Volumi: ${liquidita}
+- Rete Sybil: ${sybilStatus}
+- Micro-Dumping: ${microDumping}
+- Info Sviluppatore: ${devStatusStr}
+- Info Supply/Bundle: ${bundleInfo}
+
+Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto. Formato:
 {
   "global_score": 30,
   "metrics": [
-    { "name": "Integrità Supply", "score": 25, "tooltip": "Tua analisi tecnica in 1 riga" },
-    { "name": "Stabilità Volumi", "score": 60, "tooltip": "Tua analisi tecnica in 1 riga" },
-    { "name": "Affidabilità Dev", "score": 10, "tooltip": "Tua analisi tecnica in 1 riga" }
-  ],
-  "verdetto_finale": "[AVOID] Anomalie rilevate. Altissima probabilità di manipolazione."
+    { "name": "[Nome Metrica tradotto in ${lingua.toUpperCase()}]", "score": 25, "tooltip": "[Tooltip tradotto in ${lingua.toUpperCase()}]" }
+  ]
 }`;
+        // (QUI SOTTO IL RESTO DEL TUO CODICE PER CHIAMARE GEMINI CHE HAI GIA')
 
         if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API non trovate nel .env");
         const apiKey = groqKeys[currentGroqIndex];
@@ -1483,20 +1500,21 @@ Esempio struttura obbligatoria:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        // 🪤 TRAPPOLA SUPREMA (Groq/JSON Fix)
+        let rawText = data.choices[0].message.content;
         
-        // 🪤 TRAPPOLA PER L'IA: Se si rifiuta, stampiamo a schermo la sua ribellione
-        const startIdx = testoJson.indexOf('{');
-        const endIdx = testoJson.lastIndexOf('}');
+        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         
-        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-            testoJson = testoJson.substring(startIdx, endIdx + 1);
+        const startIdx = cleanText.indexOf('{');
+        const endIdx = cleanText.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+            cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            // Se l'IA ha scritto una lettera invece del JSON, lo mandiamo al frontend per leggerlo
-            throw new Error(`Risposta IA non JSON: "${testoJson.substring(0, 80)}..."`);
+            throw new Error(`Risposta IA non JSON: "${rawText.substring(0, 50)}..."`);
         }
 
-        const aiResult = JSON.parse(testoJson);
+        const aiResult = JSON.parse(cleanText);
         
         const globalScore = aiResult.global_score || 50;
         const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
