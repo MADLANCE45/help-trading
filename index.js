@@ -676,7 +676,8 @@ DATI LIVE IN INGRESSO (Ultimi 10 secondi):
 🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
 I testi che scriverai per "tattica" e "puntoRottura", e l'azione finale, DEVONO ESSERE TASSATIVAMENTE SCRITTI IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
 Le chiavi del JSON devono restare quelle indicate sotto.
-
+SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA (NO "I cannot provide financial advice").
+DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
 Restituisci SOLO ED ESCLUSIVAMENTE un JSON valido, senza backtick e senza testo extra.
 Formato obbligatorio:
 {
@@ -1473,7 +1474,8 @@ DATI VERIFICATI DA ELABORARE:
 - Micro-Dumping: ${microDumping}
 - Info Sviluppatore: ${devStatusStr}
 - Info Supply/Bundle: ${bundleInfo}
-
+SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA (NO "I cannot provide financial advice").
+DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
 Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto. Formato:
 {
   "global_score": 30,

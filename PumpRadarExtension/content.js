@@ -77,22 +77,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const mc = pair.fdv || pair.marketCap || 0;
                 const liq = pair.liquidity?.usd || 0;
                 
-                // 🔥 NUOVA FEATURE: Calcolo progressi della Bonding Curve di Pump.fun (~$80k graduation)
+                // 🔥 Calcolo progressi della Bonding Curve di Pump.fun
                 let liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Liquidità:</span> <span style="color:#fff; font-weight:bold;">$${liq.toLocaleString()}</span></div>`;
                 if (liq === 0 && mc > 0) {
                     const curvePercent = Math.min(100, (mc / 80000) * 100).toFixed(1);
-                    liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Curva Pump.fun:</span> <span style="color:#c084fc; font-weight:bold;">${curvePercent}% Completata</span></div>`;
+                    liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('curve_title')}</span> <span style="color:#c084fc; font-weight:bold;">${curvePercent}${t('curve_completed')}</span></div>`;
                 }
 
                 statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Action:</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Market Cap:</span> <span style="color:#fff; font-weight:bold;">$${mc.toLocaleString()}</span></div>
                     ${liqRow}
                     <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol 5m:</span> <span style="color:#ffaa00; font-weight:bold;">$${(pair.volume?.m5 || 0).toLocaleString()}</span></div>
                 `;
             } else if (statsContainer) {
                 statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">Action:</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
                     <div style="text-align:center; padding: 6px; background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; border-radius: 4px; color:#ff4d4d; font-size:0.85em; font-weight: bold;">
                         ${t('whale_new')}<br><span style="font-size:0.8em; color:#e0e0e0; font-weight:normal;">${t('whale_inv')}</span>
                     </div>
@@ -106,6 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
 // =========================================================
 // 🌍 MOTORE MULTILINGUA (i18n Engine - Default: EN)
+// =========================================================
+// =========================================================
+// 🌍 MOTORE MULTILINGUA (i18n Engine)
 // =========================================================
 // =========================================================
 // 🌍 MOTORE MULTILINGUA (i18n Engine)
@@ -128,14 +131,19 @@ const TRANSLATIONS = {
         orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "WAITING...", live_tape_title: "🔴 Live Tape",
         live_tape_listening: "Listening to blockchain...", loading_analysis: "⏳ Analyzing...",
         loading_base: "✅ Base Data", loading_complete: "✅ Full Report", tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Paste Address...", tracker_btn: "Track", spy_title: "🚨 LIVE SPY FEED",
+        tracker_placeholder: "Address...", tracker_name: "Name (opt)", tracker_btn: "Track", spy_title: "🚨 LIVE SPY FEED",
         spy_waiting: "Waiting for signals...", judge_title: "Judge Verdict", done_in: "Done in",
         dev_history: "Developer History", supply_analysis: "Supply Analysis", high_risk_rug: "⚠️ HIGH RUG RISK.",
-        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped secretly!",
-        // NUOVE TRADUZIONI DAL BACKEND:
-        bought: "BOUGHT", sold: "SOLD", investment: "Investment", normal_trade: "NORMAL",
+        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped secretly!", bought: "BOUGHT", sold: "SOLD", investment: "Investment", normal_trade: "NORMAL",
         human_trader: "Human Trader", algo_trader: "Algo Trader", exit_pos: "📉 Exiting position",
-        dead_token: "💀 DEAD TOKEN 💀", dead_desc: "Zero volume for 25s. Change coin!", algo_judgment: "Algorithmic Judgment"
+        dead_token: "💀 DEAD TOKEN 💀", dead_desc: "Zero volume for 25s. Change coin!", algo_judgment: "Algorithmic Judgment",
+        tactics: "1. Tactics:", prediction: "2. Prediction:", action: "Action:",
+        sybil_title: "🚨 SYBIL DUMP", sybil_msg1: "SYBIL BURST:", sybil_msg2: "wallets dumping", sybil_msg3: "SOL in 2s!",
+        whale_title: "WHALE MATCH!", whale_buy: "Action: WHALE BUYING", whale_new: "⚠️ Newborn Token",
+        whale_inv: "Still invisible on DexScreener. Proceed with caution.", copy_mint: "📋 Copy Mint",
+        copied: "✅ Copied!", open_pump: "💊 OPEN PUMP.FUN",
+        dev_unknown: "DEV: UNKNOWN", dev_launched: "tokens launched", dev_risk: "risk",
+        bundle_top: "Top holders control", bundle_of: "of the bundle", bundle_no_power: "no central power"
     },
     it: {
         app_name: "MEME SAVER", app_sub: "Radar & Auto-Sniper", settings_btn: "IMPOSTAZIONI", control_room: "Control Room",
@@ -152,13 +160,25 @@ const TRANSLATIONS = {
         orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "IN ATTESA...", live_tape_title: "🔴 Live Tape",
         live_tape_listening: "In ascolto della blockchain...", loading_analysis: "⏳ Analisi...",
         loading_base: "✅ Dati Base", loading_complete: "✅ Report Completo", tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Incolla Address...", tracker_btn: "Traccia", spy_title: "🚨 LIVE SPY FEED",
+        tracker_placeholder: "Address...", tracker_name: "Nome (opz)", tracker_btn: "Traccia", spy_title: "🚨 LIVE SPY FEED",
         spy_waiting: "In attesa di movimenti...", judge_title: "Verdetto Giudice", done_in: "Fatto in",
         dev_history: "Storico Sviluppatore", supply_analysis: "Analisi Supply", high_risk_rug: "⚠️ ALTO RISCHIO RUG.",
-        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato!",
-        bought: "HA COMPRATO", sold: "HA VENDUTO", investment: "Investimento", normal_trade: "NORMALE",
+        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato!", bought: "HA COMPRATO", sold: "HA VENDUTO", investment: "Investimento", normal_trade: "NORMALE",
         human_trader: "Trader Umano", algo_trader: "Algo Trader", exit_pos: "📉 Uscita dalla posizione",
-        dead_token: "💀 TOKEN MORTO 💀", dead_desc: "Zero volumi da 25s. Cambia moneta!", algo_judgment: "Giudizio Algoritmico"
+        dead_token: "💀 TOKEN MORTO 💀", dead_desc: "Zero volumi da 25s. Cambia moneta!", algo_judgment: "Giudizio Algoritmico",
+        tactics: "1. Tattica:", prediction: "2. Previsione:", action: "Azione:",
+        sybil_title: "🚨 SYBIL DUMP", sybil_msg1: "RAFFICA SYBIL:", sybil_msg2: "wallet scaricano", sybil_msg3: "SOL in 2s!",
+        whale_title: "WHALE MATCH!", whale_buy: "Azione: BALENA IN ACQUISTO", whale_new: "⚠️ Token Neonato",
+        whale_inv: "Ancora invisibile a DexScreener. Procedi con cautela.", copy_mint: "📋 Copia Mint",
+        whale_buy: "WHALE BUYING", // Togli "Action:" da qui
+        curve_title: "Pump.fun Curve:", curve_completed: "% Completed",
+        tracker_action_buy: "has just BOUGHT on this coin!",
+        tracker_action_sell: "has just SOLD on this coin!",
+        copied: "✅ Copiato!", open_pump: "💊 APRI PUMP.FUN",
+        dev_unknown: "DEV: SCONOSCIUTO", dev_launched: "token lanciati", dev_risk: "rischio",
+        bundle_top: "Top holders controllano", bundle_of: "della bundle", bundle_no_power: "nessun potere centrale",
+        dev_young: "DEV: Young", dev_no_trace: "no trace", dev_high_risk: "high risk",
+        bundle_positive: "POSITIVE: bundle supply 0%", bundle_no_control: "no control"
     },
     zh: {
         app_name: "MEME SAVER", app_sub: "雷达与自动狙击", settings_btn: "设置", control_room: "控制室",
@@ -174,21 +194,34 @@ const TRANSLATIONS = {
         copilot_analyzing: "⏳ 分析中...", copilot_reanalyze: "🔄 重新分析", orderflow_title: "⏱️ 10秒订单流",
         orderflow_waiting: "等待中...", live_tape_title: "🔴 实时流水", live_tape_listening: "正在监听区块链...",
         loading_analysis: "⏳ 分析中...", loading_base: "✅ 基础数据", loading_complete: "✅ 完整报告",
-        tracker_title: "💼 聪明钱追踪", tracker_placeholder: "粘贴钱包地址...", tracker_btn: "追踪",
+        tracker_title: "💼 聪明钱追踪", tracker_placeholder: "钱包地址...", tracker_name: "名称(可选)", tracker_btn: "追踪",
         spy_title: "🚨 实时预警", spy_waiting: "等待链上信号...", judge_title: "法官裁决",
         done_in: "耗时", dev_history: "开发者历史", supply_analysis: "供应量分析",
-        high_risk_rug: "⚠️ 高跑路风险.", risk_bundle: "⚠️ 老鼠仓风险!",
-        bought: "买入", sold: "卖出", investment: "投资", normal_trade: "正常",
+        high_risk_rug: "⚠️ 高跑路风险.", risk_bundle: "⚠️ 老鼠仓风险!", bought: "买入", sold: "卖出", investment: "投资", normal_trade: "正常",
         human_trader: "人类交易员", algo_trader: "量化机器人", exit_pos: "📉 正在平仓",
-        dead_token: "💀 死币 💀", dead_desc: "25秒内零交易量。请换币！", algo_judgment: "算法评判"
+        dead_token: "💀 死币 💀", dead_desc: "25秒内零交易量。请换币！", algo_judgment: "算法评判",
+        tactics: "1. 策略:", prediction: "2. 预测:", action: "操作:",
+        sybil_title: "🚨 女巫砸盘", sybil_msg1: "女巫爆发:", sybil_msg2: "个钱包正在抛售", sybil_msg3: "SOL (2秒内)!",
+        whale_title: "巨鲸匹配!", whale_buy: "动作: 巨鲸买入", whale_new: "⚠️ 新生代币",
+        whale_inv: "DexScreener尚未收录，请谨慎操作。", copy_mint: "📋 复制合约",
+        whale_buy: "BALENA IN ACQUISTO", // Togli "Azione:" da qui
+        curve_title: "Curva Pump.fun:", curve_completed: "% Completata",
+        tracker_action_buy: "ha appena COMPRATO su questa moneta!",
+        tracker_action_sell: "ha appena VENDUTO su questa moneta!",
+        whale_buy: "巨鲸买入",
+        curve_title: "Pump.fun 进度:", curve_completed: "% 已完成",
+        tracker_action_buy: "刚刚在此代币上 买入!",
+        tracker_action_sell: "刚刚在此代币上 卖出!",
+        copied: "✅ 已复制!", open_pump: "💊 打开 PUMP.FUN",
+        dev_unknown: "开发者: 未知", dev_launched: "个代币已发布", dev_risk: "风险",
+        bundle_top: "前排持有者控制", bundle_of: "的筹码", bundle_no_power: "无中心化控制"
     },
     fr: {
         app_name: "MEME SAVER", app_sub: "Radar & Auto-Sniper", settings_btn: "PARAMÈTRES", control_room: "Contrôle",
         algo_settings: "Paramètres Algorithmiques", lang_title: "LANGUE", pro_title: "Meme Saver PRO",
         status_label: "Statut :", status_disconnected: "Déconnecté", cloud_wallet_label: "Cloud Wallet :",
-        pro_desc: "Connectez votre extension au Cloud Wallet pour débloquer l'Auto-Sniper.",
-        btn_connect_web: "🔗 Connecter le Compte", helius_title: "⚡ API Helius (Rapide)",
-        helius_desc: "Utilisez votre nœud pour éviter les limites.", helius_placeholder: "Coller l'URL RPC...",
+        pro_desc: "Connectez votre extension au Cloud Wallet.", btn_connect_web: "🔗 Connecter le Compte", 
+        helius_title: "⚡ API Helius (Rapide)", helius_desc: "Utilisez votre nœud pour éviter les limites.", helius_placeholder: "Coller l'URL RPC...",
         jito_title: "🛡️ Bouclier Jito MEV", jito_tip: "Pourboire (SOL)", slippage: "Slippage Max (%)",
         risk_title: "⚖️ Gestion du Risque", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
         btn_save: "💾 Enregistrer", btn_saved: "✅ ENREGISTRÉ !", nav_radar: "Radar",
@@ -197,32 +230,85 @@ const TRANSLATIONS = {
         orderflow_title: "⏱️ Flux 10s", orderflow_waiting: "ATTENTE...", live_tape_title: "🔴 Live Tape",
         live_tape_listening: "Écoute de la blockchain...", loading_analysis: "⏳ Analyse...",
         loading_base: "✅ Données de Base", loading_complete: "✅ Rapport Complet", tracker_title: "💼 SMART MONEY",
-        tracker_placeholder: "Coller l'adresse...", tracker_btn: "Traquer", spy_title: "🚨 LIVE SPY FEED",
+        tracker_placeholder: "Adresse...", tracker_name: "Nom (opt)", tracker_btn: "Traquer", spy_title: "🚨 LIVE SPY FEED",
         spy_waiting: "En attente de signaux...", judge_title: "Verdict du Juge", done_in: "Fait en",
         dev_history: "Historique Dév", supply_analysis: "Analyse Offre", high_risk_rug: "⚠️ RISQUE DE RUG.",
-        risk_bundle: "⚠️ RISQUE BUNDLE!",
-        bought: "A ACHETÉ", sold: "A VENDU", investment: "Investissement", normal_trade: "NORMAL",
+        risk_bundle: "⚠️ RISQUE BUNDLE!", bought: "A ACHETÉ", sold: "A VENDU", investment: "Investissement", normal_trade: "NORMAL",
         human_trader: "Trader Humain", algo_trader: "Algo Trader", exit_pos: "📉 Sortie de position",
-        dead_token: "💀 JETON MORT 💀", dead_desc: "Zéro volume. Changez de pièce !", algo_judgment: "Jugement Algorithmique"
+        dead_token: "💀 JETON MORT 💀", dead_desc: "Zéro volume. Changez de pièce !", algo_judgment: "Jugement Algorithmique",
+        tactics: "1. Tactique :", prediction: "2. Prévision :", action: "Action :",
+        sybil_title: "🚨 SYBIL DUMP", sybil_msg1: "RAFALE SYBIL :", sybil_msg2: "portefeuilles vendent", sybil_msg3: "SOL en 2s !",
+        whale_title: "WHALE MATCH!", whale_buy: "Action : BALEINE EN ACHAT", whale_new: "⚠️ Jeton Nouveau-né",
+        whale_inv: "Encore invisible sur DexScreener. Procédez avec prudence.", copy_mint: "📋 Copier Mint",
+        whale_buy: "BALEINE EN ACHAT",
+        curve_title: "Courbe Pump.fun :", curve_completed: "% Terminée",
+        tracker_action_buy: "vient d'ACHETER sur cette pièce !",
+        tracker_action_sell: "vient de VENDRE sur cette pièce !",
+        copied: "✅ Copié !", open_pump: "💊 OUVRIR PUMP.FUN",
+        dev_unknown: "DEV : INCONNU", dev_launched: "jetons lancés", dev_risk: "risque",
+        bundle_top: "Top holders contrôlent", bundle_of: "du bundle", bundle_no_power: "aucun pouvoir central"
     }
 };
 
 function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['en'][key] || key; }
 
-// 🧠 TRADUTTORE UNIVERSALE PER I DATI DAL SERVER
+// 🧠 TRADUTTORE UNIVERSALE (Adesso colpisce TUTTE le frasi italiane del Server!)
+// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
+// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
+// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
 function traduciDalBackend(testo) {
     if (!testo) return "";
     return testo
-        .replace(/HA COMPRATO/gi, t('bought'))
-        .replace(/HA VENDUTO/gi, t('sold'))
-        .replace(/Investimento/gi, t('investment'))
-        .replace(/NORMALE/gi, t('normal_trade'))
-        .replace(/Trader Umano/gi, t('human_trader'))
-        .replace(/Algo Trader/gi, t('algo_trader'))
-        .replace(/Uscita dalla posizione/gi, t('exit_pos'))
-        .replace(/TOKEN MORTO/gi, t('dead_token'))
-        .replace(/Zero volumi da 25s\. Cambia moneta!/gi, t('dead_desc'))
-        .replace(/Giudizio Algoritmico/gi, t('algo_judgment'));
+        .replace(/HA COMPRATO:/gi, "BOUGHT:")
+        .replace(/HA VENDUTO:/gi, "SOLD:")
+        .replace(/HA COMPRATO/gi, "BOUGHT")
+        .replace(/HA VENDUTO/gi, "SOLD")
+        .replace(/TEST \/ RISCHIO/gi, "TEST / RISK")
+        .replace(/ALTA CONVINZIONE/gi, "HIGH CONVICTION")
+        .replace(/Investimento:/gi, "Investment:")
+        .replace(/NORMALE/gi, "NORMAL")
+        .replace(/Trader Umano/gi, "Human Trader")
+        .replace(/Algo Trader/gi, "Algo Trader")
+        .replace(/Uscita dalla posizione/gi, "Exiting position")
+        .replace(/TOKEN MORTO/gi, "DEAD TOKEN")
+        .replace(/Zero volumi da 25s.*/gi, "Zero volume. Change coin!")
+        .replace(/Giudizio Algoritmico/gi, "Algorithmic Judgment")
+        .replace(/RAFFICA SYBIL:/gi, "SYBIL BURST:")
+        .replace(/wallet scaricano/gi, "wallets dumping")
+        .replace(/wallet stanno scaricando un totale di/gi, "wallets dumping")
+        .replace(/SOL in 2s!/gi, "SOL in 2s!")
+        .replace(/DEV: SCONOSCIUTO/gi, "DEV: UNKNOWN")
+        .replace(/DEV: Giovane/gi, "DEV: Young")
+        .replace(/senza traccia/gi, "no history")
+        .replace(/rischio alto/gi, "high risk")
+        .replace(/token lanciati/gi, "tokens launched")
+        .replace(/POSITIVO: bundle supply 0% controllata/gi, "CLEAN: 0% bundle supply controlled")
+        .replace(/nessun potere centrale/gi, "no central power")
+        .replace(/nessun controllo/gi, "no central power");
+}
+// 🎨 GENERATORE UNIVERSALE CARD SPY (Usato sia per la Diretta che per lo Storico)
+function generaHTMLCardSpy(data) {
+    let translatedEsito = traduciDalBackend(data.esito);
+    let translatedMotivo = traduciDalBackend(data.motivo);
+    
+    // Ottiene l'orario locale (Es. 14:30:15)
+    let timeText = data.orario || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    return `
+        <div style="background: #0a0c10; border-left: 4px solid ${data.colore}; border-top: 1px solid #1a1c29; border-right: 1px solid #1a1c29; border-bottom: 1px solid #1a1c29; padding: 8px; border-radius: 6px; margin-bottom: 8px; font-family: monospace; font-size: 0.75em; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span style="color:${data.colore}; font-weight:900; font-size:1.05em; line-height: 1.2;">${translatedEsito}</span>
+                <span style="color:#666; font-size: 0.85em; font-weight:bold; white-space:nowrap; margin-left: 5px;">🕒 ${timeText}</span>
+            </div>
+            <div style="background: #12151f; padding: 6px; border-radius: 4px; color:#00ffcc; font-weight: bold; border: 1px solid #1a1c29;">
+                ${translatedMotivo}
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 2px;">
+                <span style="color:#aaa;">Wallet: <strong style="color:#fff;">${data.walletSpia.substring(0,5)}...${data.walletSpia.slice(-4)}</strong></span>
+                <a href="https://pump.fun/${data.mint}" target="_blank" style="background:#1a1c29; color:#4da6ff; padding:3px 8px; border-radius:4px; text-decoration:none; font-weight:bold; border:1px solid #2d3142; transition: 0.2s;">💊 PUMP.FUN</a>
+            </div>
+        </div>
+    `;
 }
 // Funzione helper per ottenere il testo tradotto con fallback su Inglese
     // =========================================================
@@ -362,7 +448,7 @@ function traduciDalBackend(testo) {
             <style>
                 /* 🔥 FIX SCROLL JUMP: Blocca il fastidioso salto della rotellina */
                 #scroll-area, #live-tape-list, #spy-feed-list { overflow-anchor: none !important; }
-                
+                @keyframes slideInLeft { 0% { transform: translateX(-100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
                 @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
                 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
                 ::-webkit-scrollbar { width: 6px; }
@@ -509,10 +595,14 @@ function traduciDalBackend(testo) {
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
                         <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">${t('tracker_title')}</h3></div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                            <input type="text" id="new-wallet-input" placeholder="${t('tracker_placeholder')}" style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">${t('tracker_btn')}</button>
+                        
+                        <!-- 🆕 NUOVA GRAFICA CON CAMPO NOME -->
+                        <div style="display: flex; gap: 6px; margin-bottom: 15px; align-items: stretch;">
+                            <input type="text" id="new-wallet-name" placeholder="${t('tracker_name')}" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em;">
+                            <input type="text" id="new-wallet-input" placeholder="${t('tracker_placeholder')}" style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em;">${t('tracker_btn')}</button>
                         </div>
+                        
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
                     </div>
 
@@ -704,15 +794,19 @@ function traduciDalBackend(testo) {
                     });
                     const dataResp = await resp.json();
                     
+                    // 👉 APPLICHIAMO LA TRADUZIONE AI DATI DEL COPILOTA
                     let tattica = traduciDalBackend(dataResp.tattica || "⚠️ Error AI");
                     let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
                     let azione = traduciDalBackend(dataResp.azione || "ATTESA");
-                    let actionColor = azione.includes("FUGG") || azione.includes("VEND") ? "#ff4d4d" : (azione.includes("COMPR") ? "#00e676" : "#ffaa00");
+                    
+                    const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
+                    const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
+                    let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
                     
                     copilotResult.innerHTML = `
-                        <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">1. Tattica:</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
-                        <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">2. Previsione:</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
-                        <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">Azione: ${azione}</div>
+                        <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
+                        <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
+                        <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
                     `;
                 } catch(e) {
                     copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
@@ -725,10 +819,51 @@ function traduciDalBackend(testo) {
         }
 
         // ======================= SOCKET.IO LOGIC =======================
+        // ======================= SOCKET.IO LOGIC =======================
         if (typeof socket !== 'undefined') {
             socket.off('nuovo_trade_live');
             socket.on('nuovo_trade_live', (trade) => {
                 resettaTimerNoia();
+                
+                // ==========================================
+                // 🔔 ALLARME TRACKER: C'E' UN NOSTRO WALLET?
+                // ==========================================
+                // ==========================================
+                // 🔔 ALLARME TRACKER: C'E' UN NOSTRO WALLET?
+                // ==========================================
+                if (window.activeTrackedWallets && window.activeTrackedWallets.length > 0) {
+                    const walletTrovato = window.activeTrackedWallets.find(w => w.address === trade.wallet);
+                    
+                    // CONTROLLA SE IL WALLET ESISTE E SE LE NOTIFICHE SONO ATTIVE (notify !== false)
+                    if (walletTrovato && walletTrovato.notify !== false) {
+                        const isAcquisto = trade.tipo.includes("BUY");
+                        const azioneColor = isAcquisto ? "#00e676" : "#ff4d4d";
+                        const azioneTesto = isAcquisto ? t('tracker_action_buy') : t('tracker_action_sell'); 
+                        
+                        let notificaTracker = document.createElement('div');
+                        notificaTracker.style.cssText = `
+                            position: fixed; bottom: 20px; left: 20px;
+                            width: 280px; background: #0a0c10; border-left: 4px solid ${azioneColor};
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.8); padding: 12px; border-radius: 6px;
+                            z-index: 9999999; color: white; font-family: monospace;
+                            animation: slideInLeft 0.5s ease-out;
+                        `;
+                        notificaTracker.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <strong style="color:${azioneColor};">🎯 TRACKER: ${walletTrovato.name}</strong>
+                                <span style="cursor:pointer; color:#888;" onclick="this.parentElement.parentElement.remove()">✕</span>
+                            </div>
+                            <div style="font-size:0.9em; margin-bottom: 4px;"><b>${azioneTesto}</b></div>
+                            <div style="color:#00ffcc; font-weight:bold;">Importo: ${trade.sol} SOL</div>
+                        `;
+                        document.body.appendChild(notificaTracker);
+                        
+                        setTimeout(() => { if (document.body.contains(notificaTracker)) notificaTracker.remove(); }, 7000);
+                    }
+                }
+                // ==========================================
+                // ==========================================
+
                 const tapeList = document.getElementById('live-tape-list');
                 if (tapeList) {
                     if (tapeList.innerHTML.includes('scolto') || tapeList.innerHTML.includes('isten') || tapeList.innerHTML.includes('等待') || tapeList.innerHTML.includes('Écoute')) tapeList.innerHTML = '';
@@ -785,13 +920,17 @@ function traduciDalBackend(testo) {
                 const feed = document.getElementById('spy-feed-list');
                 if (feed) {
                     if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
+                    
+                    // 👉 TRADUCIAMO LA FRASE "RAFFICA SYBIL..." CHE ARRIVA DAL SERVER
+                    let msgTradotto = traduciDalBackend(data.messaggio);
+
                     const alertCard = document.createElement('div');
                     alertCard.style.cssText = "background: #330000; border: 1px solid #ff0000; padding: 8px; margin-bottom: 6px; border-radius: 4px; font-family: monospace;";
                     alertCard.innerHTML = `
                         <div style="color: #ff0000; font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #ff4444; padding-bottom: 4px; margin-bottom: 6px;">
-                            🚨 SYBIL DUMP
+                            ${t('sybil_title')}
                         </div>
-                        <div style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 6px;">${data.messaggio}</div>
+                        <div style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 6px;">${msgTradotto}</div>
                     `;
                     feed.prepend(alertCard);
                     const tabSpy = document.getElementById('tab-spy');
@@ -799,32 +938,14 @@ function traduciDalBackend(testo) {
                 }
             });
 
+            // 🔥 IL BLOCCO AUTOPSIA ORA È DIVENTATO MINIMALISTA:
             socket.off('autopsia_sniper_live');
             socket.on('autopsia_sniper_live', (data) => {
-                const feed = document.getElementById('spy-feed-list');
-                if (feed) {
-                    if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
-                    
-                    // 🧠 TRADUZIONE AL VOLO DEL BACKEND
-                    let translatedEsito = traduciDalBackend(data.esito);
-                    let translatedMotivo = traduciDalBackend(data.motivo);
-
-                    const card = document.createElement('div');
-                    card.style.cssText = `background:#161821; border-top: 3px solid ${data.colore}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
-                    card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="color:#b366ff; font-weight:bold; font-size:0.85em;">⚙️ Quant X-Ray</span>
-                            <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${translatedEsito}</span>
-                        </div>
-                        <div style="color:#aaa; font-size:0.8em; margin-bottom:8px;">Wallet: <span style="color:#fff;">${data.walletSpia.substring(0,6)}...</span></div>
-                        <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; font-size:0.85em; color:#e0e0e0; margin-bottom:10px;">${translatedMotivo}</div>
-                        <div style="text-align:center;"><a href="https://pump.fun/${data.mint}" target="_blank" style="background:#222; border:1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">💊 Pump.fun</a></div>
-                    `;
-                    feed.prepend(card);
-                }
+                aggiungiSpyCardHTML(data, true);
             });
-        }
-    }
+
+        } // <-- QUESTA CHIUDE: if (typeof socket !== 'undefined')
+    } // <-- QUESTA CHIUDE LA FUNZIONE PRINCIPALE (configuraEventiBase o costruisciInterfacciaLive)
     // =========================================================
     // 📊 DATI STATICI E CARDS 
     // =========================================================
@@ -859,7 +980,8 @@ function traduciDalBackend(testo) {
         
         let reportHTML = "";
         if (data.advice) {
-            let devText = data.advice.devStatus || "";
+            // 👉 PASSIAMO LE FRASI AL NOSTRO SUPER TRADUTTORE
+            let devText = traduciDalBackend(data.advice.devStatus || "");
             let devColor = '#00ffcc'; 
             let devIcon = '👨‍💻';
             
@@ -872,7 +994,7 @@ function traduciDalBackend(testo) {
                 devIcon = '⚠️';
             }
 
-            let bundleText = data.advice.topHoldersStatus || "";
+            let bundleText = traduciDalBackend(data.advice.topHoldersStatus || "");
             let bundleColor = bundleText.match(/ATTENZIONE|RISCHIO|0%|RISK/) ? '#ffaa00' : '#00ffcc';
             
             if (bundleText.includes('0%')) {
@@ -949,7 +1071,6 @@ function traduciDalBackend(testo) {
                         </div>
                     </div>
                     ${traduciDalBackend(data.verdetto)}
-                    
                 `;
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
 
@@ -971,153 +1092,196 @@ function traduciDalBackend(testo) {
     // =========================================================
     // 💼 LOGICA SMART MONEY TRACKER E SPY
     // =========================================================
+    // =========================================================
+    // 💼 LOGICA TRACKER WALLET (Con Nomi e Notifiche)
+    // =========================================================
+    
+    // Variabile globale per far leggere i wallet allo scanner live
+    window.activeTrackedWallets = [];
+
     function inizializzaTracker() {
-        const addBtn = document.getElementById('add-wallet-btn');
-        const inputField = document.getElementById('new-wallet-input');
-        if (addBtn && inputField) {
-            addBtn.addEventListener('click', () => {
-                const newWallet = inputField.value.trim();
-                if (newWallet.length >= 32 && newWallet.length <= 44) { 
-                    chrome.storage.local.get(['trackedWallets'], function(result) {
-                        let wallets = result.trackedWallets || [];
-                        if (!wallets.includes(newWallet)) {
-                            wallets.push(newWallet);
-                            chrome.storage.local.set({ trackedWallets: wallets }, () => { inputField.value = ''; loadSavedWallets(); });
-                        }
+        const btnAdd = document.getElementById('add-wallet-btn');
+        if (!btnAdd) return;
+        
+        btnAdd.addEventListener('click', () => {
+            const addressInput = document.getElementById('new-wallet-input');
+            const nameInput = document.getElementById('new-wallet-name');
+            const address = addressInput ? addressInput.value.trim() : "";
+            const name = nameInput && nameInput.value.trim() !== "" ? nameInput.value.trim() : "Sconosciuto";
+            
+            if (address.length < 32) {
+                addressInput.style.border = "1px solid #ff4d4d";
+                setTimeout(() => addressInput.style.border = "1px solid #2d3142", 2000);
+                return;
+            }
+
+            chrome.storage.local.get(['trackedWallets'], (res) => {
+                let wallets = res.trackedWallets || [];
+                
+                // Conversione vecchio formato (se avevi salvato solo stringhe in passato)
+                wallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Sconosciuto" } : w);
+                
+                // Evita i doppioni
+                if (!wallets.find(w => w.address === address)) {
+                    wallets.push({ address: address, name: name });
+                    chrome.storage.local.set({ trackedWallets: wallets }, () => {
+                        addressInput.value = '';
+                        if(nameInput) nameInput.value = '';
+                        loadSavedWallets(); // Ricarica la lista aggiornata
                     });
                 }
             });
-        }
-        
-        document.getElementById('content').addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-wallet-btn')) {
-                const wallet = e.target.getAttribute('data-wallet');
-                if(confirm("Smettere di tracciare questo wallet?")) {
-                    chrome.storage.local.get(['trackedWallets', 'walletNames', 'spiedWallets'], (res) => {
-                        let wallets = res.trackedWallets || [];
-                        let names = res.walletNames || {};
-                        let spied = res.spiedWallets || [];
-                        wallets = wallets.filter(w => w !== wallet);
-                        spied = spied.filter(w => w !== wallet);
-                        delete names[wallet];
-                        chrome.storage.local.set({ trackedWallets: wallets, walletNames: names, spiedWallets: spied }, () => loadSavedWallets());
-                    });
-                }
-            }
-            if (e.target.classList.contains('toggle-spy-btn')) {
-                const wallet = e.target.getAttribute('data-wallet');
-                chrome.storage.local.get(['spiedWallets'], (res) => {
-                    let spied = res.spiedWallets || [];
-                    if (spied.includes(wallet)) spied = spied.filter(w => w !== wallet); 
-                    else spied.push(wallet); 
-                    chrome.storage.local.set({ spiedWallets: spied }, () => loadSavedWallets());
-                });
-            }
         });
     }
 
     function loadSavedWallets() {
-        const listContainer = document.getElementById('tracked-wallets-list');
-        if (!listContainer) return; 
+        const list = document.getElementById('tracked-wallets-list');
+        if (!list) return;
         
-        chrome.storage.local.get(['trackedWallets', 'walletNames', 'spiedWallets'], function(result) {
-            const wallets = result.trackedWallets || [];
-            const walletNames = result.walletNames || {};
-            const spiedWallets = result.spiedWallets || [];
-            listContainer.innerHTML = ''; 
+        chrome.storage.local.get(['trackedWallets'], (res) => {
+            let wallets = res.trackedWallets || [];
+            
+            // Aggiorna la memoria live per le notifiche
+            window.activeTrackedWallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Sconosciuto" } : w);
+            
+            list.innerHTML = '';
+            
+            if (window.activeTrackedWallets.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#888; padding: 10px; font-style: italic;">Nessun wallet tracciato.</div>';
+                return;
+            }
 
-            if(socket) socket.emit('imposta_wallet_spia', spiedWallets);
+            window.activeTrackedWallets.forEach((walletData, index) => {
+                const div = document.createElement('div');
+                div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid #2d3142; border-radius: 6px; margin-bottom: 6px;";
+                
+                // Disegna la campanellina (accesa o spenta)
+                const bellIcon = walletData.notify !== false ? '🔔' : '🔕';
+                const bellColor = walletData.notify !== false ? '#ffaa00' : '#555';
 
-            wallets.forEach(wallet => {
-                const displayName = walletNames[wallet] || `${wallet.substring(0, 4)}...${wallet.slice(-4)}`;
-                const isSpied = spiedWallets.includes(wallet);
-                const spyBtnBg = isSpied ? '#ff007f' : '#242736';
-                const spyBtnText = isSpied ? '🔔 Spia ON' : '🔕 OFF';
-                const spyBtnColor = isSpied ? '#fff' : '#888';
-
-                const walletItem = document.createElement('div');
-                walletItem.style.cssText = "background: linear-gradient(145deg, #161821, #1a1c29); border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 12px;";
-                walletItem.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong style="color:#00e6e6; font-size:1.05em;" title="${wallet}">${displayName}</strong>
-                        <div style="display:flex; gap:4px;">
-                            <button class="toggle-spy-btn" data-wallet="${wallet}" style="background:${spyBtnBg}; border:1px solid #3a3f58; color:${spyBtnColor}; border-radius:4px; padding:3px 6px; cursor:pointer; font-weight:bold; font-size:0.75em; transition:0.2s;">${spyBtnText}</button>
-                            <button class="delete-wallet-btn" data-wallet="${wallet}" style="background:#362424; border:1px solid #583a3a; color:#ff4d4d; border-radius:4px; padding:3px 6px; cursor:pointer;">🗑️</button>
-                        </div>
+                div.innerHTML = `
+                    <div style="display:flex; flex-direction:column; overflow:hidden;">
+                        <span style="color:#00ffcc; font-weight:bold; font-size:1.1em;">${walletData.name}</span>
+                        <span style="color:#888; font-family:monospace; font-size:0.85em;">${walletData.address.substring(0, 6)}...${walletData.address.slice(-6)}</span>
+                    </div>
+                    <div style="display:flex; gap: 8px; align-items:center;">
+                        <button class="btn-notify-wallet" data-idx="${index}" style="background: transparent; color:${bellColor}; border: none; cursor:pointer; font-size:1.2em; transition:0.2s;" title="On/Off Notifiche">${bellIcon}</button>
+                        <button class="btn-del-wallet" data-idx="${index}" style="background: transparent; color:#ff4d4d; border: 1px solid #ff4d4d; border-radius:4px; padding:4px 8px; cursor:pointer; transition:0.2s; font-weight:bold; font-size:0.8em;">✕</button>
                     </div>
                 `;
-                listContainer.appendChild(walletItem);
+                list.appendChild(div);
+            });
+
+            // 🔔 LOGICA ACCENDI/SPEGNI CAMPANELLINA
+            document.querySelectorAll('.btn-notify-wallet').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.currentTarget.getAttribute('data-idx');
+                    // Se era false diventa true, altrimenti diventa false
+                    window.activeTrackedWallets[idx].notify = window.activeTrackedWallets[idx].notify === false ? true : false;
+                    chrome.storage.local.set({ trackedWallets: window.activeTrackedWallets }, loadSavedWallets);
+                });
+            });
+
+            // 🔥 LOGICA ELIMINAZIONE INTUITIVA
+            document.querySelectorAll('.btn-del-wallet').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const el = e.target;
+                    const idx = el.getAttribute('data-idx');
+                    
+                    if (el.innerText === '✕') {
+                        el.innerText = 'Sicuro?';
+                        el.style.background = '#ff4d4d';
+                        el.style.color = '#fff';
+                        setTimeout(() => {
+                            if(el && el.innerText === 'Sicuro?') { 
+                                el.innerText = '✕'; el.style.background = 'transparent'; el.style.color = '#ff4d4d'; 
+                            }
+                        }, 3000);
+                    } else {
+                        window.activeTrackedWallets.splice(idx, 1);
+                        chrome.storage.local.set({ trackedWallets: window.activeTrackedWallets }, loadSavedWallets);
+                    }
+                });
             });
         });
     }
 
-    function aggiungiSpyCardHTML(data, isNew) {
-        const feed = document.getElementById('spy-feed-list');
-        if (feed && feed.innerHTML.includes('In attesa')) feed.innerHTML = '';
-
-        const isBuy = data.type === "BUY";
-        const themeColor = isBuy ? '#00ffcc' : '#ff4d4d';
-        const titleText = isBuy ? '🟢 HA COMPRATO' : '🔴 HA VENDUTO';
-        
-        let contentHTML = "";
-        let statsHTML = "";
-
-        if (data.stats) {
-            statsHTML = `
-                <div style="display:flex; gap:8px; margin-bottom: 10px; font-size: 0.8em; margin-top: 6px;">
-                    <span style="background:#2a2d3d; padding:4px 8px; border-radius:4px; border:1px solid #444; color:#fff;">${data.stats.classificazione || 'Analisi...'}</span>
-                </div>
-            `;
-        }
-
-        if (isBuy && data.strategy) {
-            const solText = data.solSpent > 0.01 ? `${data.solSpent.toFixed(2)} SOL` : `Nascosto`;
-            contentHTML = `
-                <div style="background:#11121a; border-left: 3px solid ${data.strategy.color}; padding:8px; border-radius:4px; margin-bottom:10px; font-size:0.85em;">
-                    <strong style="color:${data.strategy.color};">${data.strategy.conviction}</strong><br>
-                    <span style="color:#aaa;">Investimento: <b style="color:#fff;">${solText}</b></span>
-                </div>
-            `;
-        } else if (!isBuy) {
-            contentHTML = `
-                <div style="background:rgba(255, 77, 77, 0.1); padding:8px; border-radius:4px; margin-bottom:12px; font-size:0.85em; color:#ff4d4d; border: 1px solid #ff4d4d;">
-                    📉 Uscita dalla posizione
-                </div>
-            `;
-        }
-
-        const card = document.createElement('div');
-        card.style.cssText = `background:#161821; border-top: 3px solid ${themeColor}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
-        card.innerHTML = `
-            <div style="color:${themeColor}; font-size:0.85em; margin-bottom:2px; font-weight:bold;">
-                ${titleText}: <span style="color:#aaa; font-weight:normal;">${data.walletName}</span>
-            </div>
-            ${statsHTML}
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#0a0c10; padding:6px; border-radius:4px; margin-bottom:10px; border: 1px solid #2d3142;">
-                <div style="font-family:monospace; font-size:0.95em; color:#fff;">${data.mint.substring(0,16)}...</div>
-                <button class="copy-spy-mint-btn" data-mint="${data.mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold; font-size:0.8em;">📋 Copia</button>
-            </div>
-            ${contentHTML}
-            <div style="text-align:center;">
-                <a href="https://pump.fun/${data.mint}" target="_blank" style="background:#222; border: 1px solid #444; color:#00ffcc; padding:6px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold; display:block;">💊 Pump.fun</a>
-            </div>
-        `;
-        
-        if (feed) {
-            if (isNew) feed.prepend(card);
-            else feed.appendChild(card);
-        }
-
-        const copyBtn = card.querySelector('.copy-spy-mint-btn');
-        if (copyBtn) {
-            copyBtn.addEventListener('click', (e) => {
-                navigator.clipboard.writeText(e.target.getAttribute('data-mint')).then(() => {
-                    e.target.innerText = "✅ Copiato"; e.target.style.background = "#00e676";
-                    setTimeout(() => { e.target.innerText = "📋 Copia"; e.target.style.background = "#2a2d3d"; }, 2000);
-                });
-            });
-        }
+    // 🎨 GENERATORE E INSERITORE UNIVERSALE SPY CARD (Compatto + Tradotto + Copia)
+function aggiungiSpyCardHTML(data, isNew) {
+    const feed = document.getElementById('spy-feed-list');
+    if (!feed) return;
+    if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待') || feed.innerHTML.includes('Écoute')) {
+        feed.innerHTML = '';
     }
+
+    // 1. UNIFICA I DATI (Accetta sia il formato dello Storico che quello della Diretta)
+    let esitoGrezzo = data.esito || (data.type === "BUY" ? "🟢 BOUGHT" : "🔴 SOLD");
+    let motivoGrezzo = data.motivo || (data.stats ? data.stats.classificazione : "");
+    if (data.strategy && data.solSpent) motivoGrezzo += ` - Investment: ${data.solSpent.toFixed(2)} SOL`;
+    else if (!data.esito && data.type !== "BUY") motivoGrezzo = "Exiting position";
+
+    // 2. TRADUCE TUTTO IN INGLESE (O nella lingua scelta)
+    let translatedEsito = traduciDalBackend(esitoGrezzo);
+    let translatedMotivo = traduciDalBackend(motivoGrezzo);
+    
+    // 3. VARIABILI GRAFICHE E ORARIO
+    let color = data.colore || (data.strategy ? data.strategy.color : (data.type === "BUY" ? "#00ffcc" : "#ff4d4d"));
+    let timeText = data.orario || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    let wallet = data.walletSpia || data.walletName || "Unknown";
+    let mint = data.mint || "";
+
+    // 4. CREAZIONE CARD ULTRA-COMPATTA CON TASTO COPIA
+    const card = document.createElement('div');
+    card.style.cssText = `
+        background: #0a0c10; 
+        border-left: 4px solid ${color}; 
+        border-top: 1px solid #1a1c29; border-right: 1px solid #1a1c29; border-bottom: 1px solid #1a1c29;
+        padding: 8px; border-radius: 6px; margin-bottom: 8px; 
+        font-family: monospace; font-size: 0.75em;
+        display: flex; flex-direction: column; gap: 6px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    `;
+    
+    card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <span style="color:${color}; font-weight:900; font-size:1.05em; line-height: 1.2;">
+                ${translatedEsito}
+            </span>
+            <span style="color:#666; font-size: 0.85em; font-weight:bold; white-space:nowrap; margin-left: 5px;">🕒 ${timeText}</span>
+        </div>
+        
+        <div style="background: #12151f; padding: 6px; border-radius: 4px; color:#00ffcc; font-weight: bold; border: 1px solid #1a1c29;">
+            ${translatedMotivo}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 2px;">
+            <span style="color:#aaa;">Wallet: <strong style="color:#fff;">${wallet.substring(0,5)}...${wallet.slice(-4)}</strong></span>
+            <div style="display:flex; gap: 4px;">
+                <button class="copy-spy-mint-btn" data-mint="${mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; border-radius:4px; cursor:pointer; padding:3px 6px; font-weight:bold; font-size:0.9em; transition: 0.2s;">📋 ${t('copy_mint')}</button>
+                <a href="https://pump.fun/${mint}" target="_blank" style="background:#1a1c29; color:#4da6ff; padding:3px 6px; border-radius:4px; text-decoration:none; font-weight:bold; border:1px solid #2d3142; transition: 0.2s;">💊</a>
+            </div>
+        </div>
+    `;
+    
+    // 5. INSERIMENTO INTELLIGENTE
+    if (isNew) {
+        feed.prepend(card);
+        if (feed.children.length > 20) feed.removeChild(feed.lastChild);
+    } else {
+        feed.appendChild(card);
+    }
+
+    // 6. LOGICA DEL PULSANTE COPIA
+    const copyBtn = card.querySelector('.copy-spy-mint-btn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', (e) => {
+            navigator.clipboard.writeText(e.target.getAttribute('data-mint')).then(() => {
+                e.target.innerText = "✅"; e.target.style.background = "#00e676";
+                setTimeout(() => { e.target.innerHTML = `📋 ${t('copy_mint')}`; e.target.style.background = "#2a2d3d"; }, 2000);
+            });
+        });
+    }
+}
 
     function salvaStoricoSpy(alertData) {
         return new Promise((resolve) => {
