@@ -104,7 +104,224 @@ document.addEventListener('DOMContentLoaded', () => {
     let orderFlowWindow = [];
     window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
+// =========================================================
+// 🌍 MOTORE MULTILINGUA (i18n Engine - Default: EN)
+// =========================================================
+let currentLang = 'en'; // Default assoluto per tutti i nuovi utenti
 
+const TRANSLATIONS = {
+    en: {
+        app_name: "MEME SAVER",
+        app_sub: "Radar & Auto-Sniper",
+        settings_btn: "SETTINGS",
+        control_room: "Control Room",
+        algo_settings: "Algorithmic Settings",
+        lang_title: "INTERFACE LANGUAGE",
+        pro_title: "Meme Saver PRO",
+        status_label: "Status:",
+        status_disconnected: "Disconnected",
+        cloud_wallet_label: "Cloud Wallet:",
+        pro_desc: "Connect your extension to our official Cloud Burner Wallet to unlock Auto-Sniper.",
+        btn_connect_web: "🔗 Connect Web Account",
+        helius_title: "⚡ Helius API (Fast Node)",
+        helius_desc: "Use your dedicated RPC node to prevent throttling.",
+        helius_placeholder: "Paste Helius RPC URL...",
+        jito_title: "🛡️ Jito MEV Shield",
+        jito_tip: "Jito Tip (SOL)",
+        slippage: "Max Slippage (%)",
+        risk_title: "⚖️ Risk Management",
+        take_profit: "Take Profit (%)",
+        stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Save & Activate",
+        btn_saved: "✅ SAVED SUCCESSFULLY!",
+        nav_radar: "Radar",
+        nav_tracker: "Tracker",
+        nav_spy: "Spy",
+        btn_reload: "RELOAD",
+        copilot_title: "🧠 Copilot AI",
+        copilot_btn: "Request Analysis",
+        copilot_analyzing: "⏳ Analyzing...",
+        copilot_reanalyze: "🔄 Re-analyze",
+        orderflow_title: "⏱️ 10s Order Flow",
+        orderflow_waiting: "WAITING...",
+        live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "Listening to blockchain...",
+        loading_analysis: "⏳ Analyzing...",
+        loading_base: "✅ Base Data",
+        loading_complete: "✅ Full Report",
+        tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Paste Address...",
+        tracker_btn: "Track",
+        spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "Waiting for signals...",
+        judge_title: "Judge Verdict",
+        done_in: "Done in",
+        dev_history: "Developer History",
+        supply_analysis: "Supply Analysis",
+        high_risk_rug: "⚠️ HIGH RUG RISK (Wallet just created).",
+        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped the first candles secretly!"
+    },
+    it: {
+        app_name: "MEME SAVER",
+        app_sub: "Radar & Auto-Sniper",
+        settings_btn: "IMPOSTAZIONI",
+        control_room: "Control Room",
+        algo_settings: "Impostazioni Algoritmiche",
+        lang_title: "LINGUA INTERFACCIA",
+        pro_title: "Meme Saver PRO",
+        status_label: "Stato:",
+        status_disconnected: "Scollegato",
+        cloud_wallet_label: "Cloud Wallet:",
+        pro_desc: "Per sbloccare l'Auto-Sniper, collega l'estensione al tuo Cloud Burner Wallet sulla piattaforma.",
+        btn_connect_web: "🔗 Connetti Account Web",
+        helius_title: "⚡ API Helius (Nodo Veloce)",
+        helius_desc: "Usa la tua API per operare senza blocchi.",
+        helius_placeholder: "Incolla URL Helius RPC...",
+        jito_title: "🛡️ Scudo Jito MEV",
+        jito_tip: "Jito Tip (SOL)",
+        slippage: "Slippage Max (%)",
+        risk_title: "⚖️ Gestione Rischio",
+        take_profit: "Take Profit (%)",
+        stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Salva e Attiva",
+        btn_saved: "✅ SALVATO CON SUCCESSO!",
+        nav_radar: "Radar",
+        nav_tracker: "Tracker",
+        nav_spy: "Spy",
+        btn_reload: "RICARICA",
+        copilot_title: "🧠 Copilota AI",
+        copilot_btn: "Richiedi Analisi",
+        copilot_analyzing: "⏳ Analisi in corso...",
+        copilot_reanalyze: "🔄 Ri-analizza",
+        orderflow_title: "⏱️ 10s Order Flow",
+        orderflow_waiting: "IN ATTESA...",
+        live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "In ascolto della blockchain...",
+        loading_analysis: "⏳ Analisi...",
+        loading_base: "✅ Dati Base",
+        loading_complete: "✅ Report Completo",
+        tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Incolla Address...",
+        tracker_btn: "Traccia",
+        spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "In attesa di movimenti...",
+        judge_title: "Verdetto Giudice",
+        done_in: "Fatto in",
+        dev_history: "Storico Sviluppatore",
+        supply_analysis: "Analisi Supply",
+        high_risk_rug: "⚠️ ALTO RISCHIO RUG (Wallet creato apposta).",
+        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato le prime candele in segreto!"
+    },
+    zh: {
+        app_name: "MEME SAVER",
+        app_sub: "雷达与自动狙击",
+        settings_btn: "设置",
+        control_room: "控制室",
+        algo_settings: "算法设置",
+        lang_title: "界面语言",
+        pro_title: "Meme Saver 专业版",
+        status_label: "状态:",
+        status_disconnected: "未连接",
+        cloud_wallet_label: "云端钱包:",
+        pro_desc: "连接官方云端钱包以解锁自动狙击功能。",
+        btn_connect_web: "🔗 连接网页账户",
+        helius_title: "⚡ Helius 节点 (快速RPC)",
+        helius_desc: "使用专用节点以防止请求受限。",
+        helius_placeholder: "输入 Helius RPC 地址...",
+        jito_title: "🛡️ Jito MEV 防护",
+        jito_tip: "Jito 小费 (SOL)",
+        slippage: "最大滑点 (%)",
+        risk_title: "⚖️ 风险管理",
+        take_profit: "止盈目标 (%)",
+        stop_loss: "止损限制 (%)",
+        btn_save: "💾 保存并激活",
+        btn_saved: "✅ 保存成功！",
+        nav_radar: "雷达",
+        nav_tracker: "追踪",
+        nav_spy: "间谍",
+        btn_reload: "刷新",
+        copilot_title: "🧠 AI 助手",
+        copilot_btn: "请求分析",
+        copilot_analyzing: "⏳ 分析中...",
+        copilot_reanalyze: "🔄 重新分析",
+        orderflow_title: "⏱️ 10秒订单流",
+        orderflow_waiting: "等待中...",
+        live_tape_title: "🔴 实时流水",
+        live_tape_listening: "正在监听区块链...",
+        loading_analysis: "⏳ 分析中...",
+        loading_base: "✅ 基础数据",
+        loading_complete: "✅ 完整报告",
+        tracker_title: "💼 聪明钱追踪",
+        tracker_placeholder: "粘贴钱包地址...",
+        tracker_btn: "追踪",
+        spy_title: "🚨 实时预警",
+        spy_waiting: "等待链上信号...",
+        judge_title: "法官裁决",
+        done_in: "耗时",
+        dev_history: "开发者历史",
+        supply_analysis: "供应量分析",
+        high_risk_rug: "⚠️ 高跑路风险 (专为发币创建的新钱包).",
+        risk_bundle: "⚠️ 老鼠仓风险: 开发者可能在暗中狙击了初始筹码!"
+        
+    },
+    fr: {
+        app_name: "MEME SAVER",
+        app_sub: "Radar & Auto-Sniper",
+        settings_btn: "PARAMÈTRES",
+        control_room: "Salle de Contrôle",
+        algo_settings: "Paramètres Algorithmiques",
+        lang_title: "LANGUE DE L'INTERFACE",
+        pro_title: "Meme Saver PRO",
+        status_label: "Statut :",
+        status_disconnected: "Déconnecté",
+        cloud_wallet_label: "Cloud Wallet :",
+        pro_desc: "Connectez votre extension à notre Cloud Wallet officiel pour débloquer l'Auto-Sniper.",
+        btn_connect_web: "🔗 Connecter le Compte Web",
+        helius_title: "⚡ API Helius (Nœud Rapide)",
+        helius_desc: "Utilisez votre propre nœud pour éviter les ralentissements.",
+        helius_placeholder: "Coller l'URL RPC Helius...",
+        jito_title: "🛡️ Bouclier Jito MEV",
+        jito_tip: "Pourboire Jito (SOL)",
+        slippage: "Slippage Max (%)",
+        risk_title: "⚖️ Gestion du Risque",
+        take_profit: "Take Profit (%)",
+        stop_loss: "Stop Loss (%)",
+        btn_save: "💾 Enregistrer & Activer",
+        btn_saved: "✅ ENREGISTRÉ AVEC SUCCÈS !",
+        nav_radar: "Radar",
+        nav_tracker: "Tracker",
+        nav_spy: "Spy",
+        btn_reload: "RECHARGER",
+        copilot_title: "🧠 Copilote IA",
+        copilot_btn: "Demander Analyse",
+        copilot_analyzing: "⏳ Analyse en cours...",
+        copilot_reanalyze: "🔄 Ré-analyser",
+        orderflow_title: "⏱️ Flux d'ordres 10s",
+        orderflow_waiting: "EN ATTENTE...",
+        live_tape_title: "🔴 Live Tape",
+        live_tape_listening: "Écoute de la blockchain...",
+        loading_analysis: "⏳ Analyse...",
+        loading_base: "✅ Données de Base",
+        loading_complete: "✅ Rapport Complet",
+        tracker_title: "💼 SMART MONEY",
+        tracker_placeholder: "Coller l'adresse...",
+        tracker_btn: "Traquer",
+        spy_title: "🚨 LIVE SPY FEED",
+        spy_waiting: "En attente de mouvements...",
+        judge_title: "Verdict du Juge",
+        done_in: "Fait en",
+        dev_history: "Historique du Dév",
+        supply_analysis: "Analyse de l'Offre",
+        high_risk_rug: "⚠️ HAUT RISQUE DE RUG (Nouveau portefeuille).",
+        risk_bundle: "⚠️ RISQUE BUNDLE : Le dév a peut-être snipé en secret !"
+    }
+};
+
+// Funzione helper per ottenere il testo tradotto con fallback su Inglese
+function t(key) {
+    const lang = TRANSLATIONS[currentLang] || TRANSLATIONS['en'];
+    return lang[key] || TRANSLATIONS['en'][key] || key;
+}
     // =========================================================
     // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
     // =========================================================
@@ -131,31 +348,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // 📡 AVVIO E MEMORIA
     // =========================================================
     function avviaRadar() {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs || tabs.length === 0) return;
-            const url = tabs[0].url;
-            
-            const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-            let tokenMint = null;
-            if (matchToken) tokenMint = matchToken[0];
-
-            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Naviga su un token per attivare il Radar.</div>';
-                return;
+        // 1. PRIMA legge la lingua salvata...
+        chrome.storage.local.get(['userLanguage'], (res) => {
+            if (res.userLanguage) {
+                currentLang = res.userLanguage; 
+            } else {
+                currentLang = 'en'; 
             }
 
-            costruisciInterfacciaLive(tokenMint);
-            resettaTimerNoia();
+            // 2. ...E SOLO DOPO avvia la scansione e costruisce l'interfaccia
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (!tabs || tabs.length === 0) return;
+                const url = tabs[0].url;
+                
+                const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+                let tokenMint = null;
+                if (matchToken) tokenMint = matchToken[0];
 
-            chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
+                if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                    contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Naviga su un token per attivare il Radar.</div>';
+                    return;
+                }
+
+                // Ora la lingua è pronta al 100%, possiamo costruire l'interfaccia!
+                costruisciInterfacciaLive(tokenMint);
+                resettaTimerNoia();
+
+                chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
                 if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan) {
                     popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
                     avviaLaboratorioGemini(tokenMint); 
-                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                    
+                    // 👉 URL 1 AGGIORNATO CON LINGUA
+                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
                         headers: { "ngrok-skip-browser-warning": "true" }
                     }).catch(() => {});
                 } else {
-                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
+                    
+                    // 👉 URL 2 AGGIORNATO CON LINGUA
+                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
                         headers: { "ngrok-skip-browser-warning": "true" }
                     })
                     .then(res => res.json())
@@ -167,9 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                     .catch(err => {
                         const staticBox = document.getElementById('static-analysis-box');
-                        if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Errore: ${err.message}</div>`;
+                        if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
                     });
                 }
+            });
             });
         });
     }
@@ -177,17 +409,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // 🎨 COSTRUZIONE INTERFACCIA
     // =========================================================
+    // =========================================================
+    // 🎨 COSTRUZIONE INTERFACCIA
+    // =========================================================
     function costruisciInterfacciaLive(tokenMint) {
+        
         // 🔗 CREA I LINK LOCALI E SICURI ALLE TUE IMMAGINI
         const av1 = chrome.runtime.getURL("avatar1.png");
         const av2 = chrome.runtime.getURL("avatar2.png");
         const av3 = chrome.runtime.getURL("avatar3.png");
         const av4 = chrome.runtime.getURL("avatar4.png");
+
         const copilotHTML = `
             <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">🧠 Copilota AI</span>
-                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase;">Richiedi Analisi</button>
+                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">${t('copilot_title')}</span>
+                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase;">${t('copilot_btn')}</button>
                 </div>
                 <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;"></div>
             </div>`;
@@ -195,8 +432,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const orderFlowHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">⏱️ 10s Order Flow</span>
-                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">IN ATTESA...</span>
+                    <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">${t('orderflow_title')}</span>
+                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">${t('orderflow_waiting')}</span>
                 </div>
                 <div style="width: 100%; height: 10px; background: #ff4d4d; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);">
                     <div id="flow-bar-green" style="width: 50%; height: 100%; background: #00e676; transition: width 0.3s ease-out;"></div>
@@ -210,11 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const liveTapeHTML = `
             <div style="background: rgba(10, 12, 16, 0.9); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between;">
-                    <span>🔴 Live Tape</span>
+                    <span>${t('live_tape_title')}</span>
                     <span style="color: #00ffcc; font-size: 0.8em;">WSS Sync</span>
                 </div>
                 <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 6px; height: 180px; overflow-y: auto; padding-right: 4px;">
-                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">In ascolto della blockchain...</div>
+                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">${t('live_tape_listening')}</div>
                 </div>
             </div>`;
 
@@ -227,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
                 .avatar-option { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; opacity: 0.5; transition: 0.2s; object-fit: cover; }
                 .avatar-option.active { border: 2px solid #00ffcc; opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,255,204,0.4); }
+                .lang-btn { flex: 1; border: 1px solid #444; border-radius: 4px; padding: 5px 2px; font-size: 0.75em; font-weight: bold; cursor: pointer; transition: 0.2s; }
             </style>
             
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: -8px;">
@@ -235,16 +473,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                        <!-- LOGO A SINISTRA (Singolo) -->
                         <div>
-                            <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">MEME SAVER</div>
-                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc;">Radar & Auto-Sniper</div>
+                            <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">${t('app_name')}</div>
+                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc;">${t('app_sub')}</div>
                         </div>
-                        
-                        <!-- AVATAR UTENTE (Ingrandito con etichetta MENU) -->
+                        <!-- AVATAR UTENTE (Con Etichetta) -->
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Impostazioni</span>
-                            <div id="btn-user-profile" title="Pannello Utente" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
+                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">${t('settings_btn')}</span>
+                            <div id="btn-user-profile" title="${t('settings_btn')}" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
                                 <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                         </div>
@@ -259,97 +495,104 @@ document.addEventListener('DOMContentLoaded', () => {
                     <!-- ⚙️ TAB SEGRETO: USER DASHBOARD -->
                     <div id="view-user" style="display: none; height: 100%;">
                         
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulseGlow 3s infinite;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulseGlow 3s infinite;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             <div>
-                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px;">Control Room</h3>
-                                <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">Impostazioni Algoritmiche</div>
+                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px;">${t('control_room')}</h3>
+                                <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">${t('algo_settings')}</div>
+                            </div>
+                        </div>
+
+                        <!-- 🌍 SELETTORE LINGUA (4 Lingue) -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
+                            <div style="font-size: 0.65em; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; text-align: center;">${t('lang_title')}</div>
+                            <div style="display: flex; justify-content: space-between; gap: 6px;">
+                                <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'};">🇬🇧 EN</button>
+                                <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'};">🇮🇹 IT</button>
+                                <button class="lang-btn" data-lang="zh" style="background: ${currentLang === 'zh' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'zh' ? '#000' : '#fff'};">🇨🇳 中文</button>
+                                <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">🇫🇷 FR</button>
                             </div>
                         </div>
 
                         <!-- SELETTORE AVATAR MEME LOCALI -->
-                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #2d3142;">
-                            <img class="avatar-option active" data-src="${av1}" src="${av1}" title="Avatar 1">
+                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #2d3142;">
+                            <img class="avatar-option" data-src="${av1}" src="${av1}" title="Avatar 1">
                             <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
                             <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
                             <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
                         </div>
 
-                        <!-- 0. WALLET DI ESECUZIONE (Etico & Burner) -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <strong style="color: #ff007f; font-size: 0.85em; text-transform: uppercase;">🏦 Portafoglio Operativo</strong>
-                                <span style="font-size: 0.7em; color: #888; background: #0a0c10; padding: 2px 6px; border-radius: 4px; border: 1px solid #444;">Non Connesso</span>
-                            </div>
+                        <!-- 💎 HUB ACCOUNT WEB (IL PORTALE PRO) -->
+                        <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
+                            <div style="width: 40px; height: 40px; margin: 0 auto 8px; background: rgba(0, 255, 204, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3em; border: 1px solid rgba(0, 255, 204, 0.3);">💎</div>
+                            <strong style="color: #00ffcc; font-size: 1.05em; text-transform: uppercase; letter-spacing: 1px;">${t('pro_title')}</strong>
                             
-                            <p style="color: #aaa; font-size: 0.7em; line-height: 1.4; margin-top: 8px;">
-                                Per la tua sicurezza, <b>non inserire mai la tua Private Key principale</b>. Scegli un metodo di connessione:
-                            </p>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
-                                <button title="Genera un wallet usa e getta interno all'estensione" style="background: #2a2d3d; border: 1px solid #ff007f; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; transition: 0.2s;">
-                                    🔥 Crea Burner
-                                </button>
-                                <button title="Connetti Phantom per monitorare i profitti" style="background: #2a2d3d; border: 1px solid #ab9ff2; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                                    👻 Phantom
-                                </button>
+                            <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>${t('status_label')}</span> <span style="color: #ff4d4d; font-weight: bold;">${t('status_disconnected')}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>${t('cloud_wallet_label')}</span> <span>---</span>
+                                </div>
                             </div>
+                            <p style="color: #888; font-size: 0.7em; line-height: 1.4; margin-bottom: 12px;">${t('pro_desc')}</p>
+                            <button id="btn-login-web" style="width: 100%; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 6px; font-weight: 900; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.75em;">
+                                ${t('btn_connect_web')}
+                            </button>
                         </div>
-                        
-                        <!-- (QUI PROSEGUE CON RPC, JITO TIP, Ecc.. lascialo invariato fino alla chiusura di view-user) -->
 
-                        <!-- 1. MOTORE RPC (NODO VELOCE) -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #4da6ff; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                            <strong style="color: #4da6ff; font-size: 0.85em; text-transform: uppercase;">⚡ API Helius (Nodo Veloce)</strong>
-                            <div style="margin-top: 8px;">
-                                <input type="text" id="user-rpc-url" placeholder="https://mainnet.helius-rpc.com/?api-key=..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em;">
-                                <div style="color: #888; font-size: 0.7em; margin-top: 4px;">Usa la tua API per operare senza blocchi.</div>
+                        <!-- 1. API HELIUS -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #4da6ff; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+                            <strong style="color: #4da6ff; font-size: 0.8em; text-transform: uppercase;">${t('helius_title')}</strong>
+                            <div style="margin-top: 6px;">
+                                <input type="text" id="user-rpc-url" placeholder="${t('helius_placeholder')}" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.75em;">
+                                <div style="color: #888; font-size: 0.65em; margin-top: 3px;">${t('helius_desc')}</div>
                             </div>
                         </div>
 
-                        <!-- 2. SCUDO MEV & ESECUZIONE -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #b366ff; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                            <strong style="color: #b366ff; font-size: 0.85em; text-transform: uppercase;">🛡️ Scudo Jito MEV</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                        <!-- 2. SCUDO MEV -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #b366ff; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
+                            <strong style="color: #b366ff; font-size: 0.8em; text-transform: uppercase;">${t('jito_title')}</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
                                 <div>
-                                    <label style="font-size: 0.7em; color: #aaa;">Jito Tip (SOL)</label>
-                                    <input type="number" id="user-jito-tip" placeholder="0.001" step="0.001" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center;">
+                                    <label style="font-size: 0.68em; color: #aaa;">${t('jito_tip')}</label>
+                                    <input type="number" id="user-jito-tip" placeholder="0.001" step="0.001" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center;">
                                 </div>
                                 <div>
-                                    <label style="font-size: 0.7em; color: #aaa;">Slippage Max (%)</label>
-                                    <input type="number" id="user-slippage" placeholder="5" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center;">
+                                    <label style="font-size: 0.68em; color: #aaa;">${t('slippage')}</label>
+                                    <input type="number" id="user-slippage" placeholder="5" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center;">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 3. GESTIONE RISCHIO -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ffaa00; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
-                            <strong style="color: #ffaa00; font-size: 0.85em; text-transform: uppercase;">⚖️ Risk Management</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                        <!-- 3. RISK MANAGEMENT -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ffaa00; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                            <strong style="color: #ffaa00; font-size: 0.8em; text-transform: uppercase;">${t('risk_title')}</strong>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
                                 <div>
-                                    <label style="font-size: 0.7em; color: #aaa;">Take Profit (%)</label>
-                                    <input type="number" id="user-tp" placeholder="150" style="width: 100%; box-sizing: border-box; background: rgba(0, 230, 118, 0.1); border: 1px solid #00e676; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center; font-weight: bold;">
+                                    <label style="font-size: 0.68em; color: #aaa;">${t('take_profit')}</label>
+                                    <input type="number" id="user-tp" placeholder="150" style="width: 100%; box-sizing: border-box; background: rgba(0, 230, 118, 0.1); border: 1px solid #00e676; color: #00e676; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center; font-weight: bold;">
                                 </div>
                                 <div>
-                                    <label style="font-size: 0.7em; color: #aaa;">Stop Loss (%)</label>
-                                    <input type="number" id="user-sl" placeholder="-20" style="width: 100%; box-sizing: border-box; background: rgba(255, 77, 77, 0.1); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.8em; text-align: center; font-weight: bold;">
+                                    <label style="font-size: 0.68em; color: #aaa;">${t('stop_loss')}</label>
+                                    <input type="number" id="user-sl" placeholder="-20" style="width: 100%; box-sizing: border-box; background: rgba(255, 77, 77, 0.1); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center; font-weight: bold;">
                                 </div>
                             </div>
                         </div>
 
-                        <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 12px; border-radius: 6px; font-weight: 900; font-size: 0.9em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);">
-                            💾 Salva e Attiva
+                        <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 0.85em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;">
+                            ${t('btn_save')}
                         </button>
                     </div>
 
-                    <!-- TAB 1: RADAR (CON TIMER ATTESA) -->
+                    <!-- TAB 1: RADAR -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">
                                 <span>🎯 ${tokenMint.substring(0,12)}...</span>
-                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">⏳ Analisi...</span>
+                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">${t('loading_analysis')}</span>
                             </div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">Ricarica</button>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">${t('btn_reload')}</button>
                         </div>
                         ${copilotHTML}
                         ${orderFlowHTML}
@@ -359,19 +602,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">💼 SMART MONEY</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">${t('tracker_title')}</h3></div>
                         <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                            <input type="text" id="new-wallet-input" placeholder="Incolla Address..." style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Traccia</button>
+                            <input type="text" id="new-wallet-input" placeholder="${t('tracker_placeholder')}" style="flex-grow: 1; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.8em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 10px 15px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">${t('tracker_btn')}</button>
                         </div>
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
                     </div>
 
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">🚨 LIVE SPY FEED</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">${t('spy_title')}</h3></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti...</div>
+                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">${t('spy_waiting')}</div>
                         </div>
                     </div>
                 </div>
@@ -379,13 +622,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- BOTTOM TABS -->
                 <div id="bottom-tabs-nav" style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Radar</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_radar')}</span>
                     </div>
                     <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Tracker</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_tracker')}</span>
                     </div>
                     <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Spy</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_spy')}</span>
                     </div>
                 </div>
             </div>
@@ -407,9 +650,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 1. TABS STANDARD (In basso)
         function switchTab(activeId) {
-            viewUser.style.display = 'none'; // Nasconde la User Dashboard
-            bottomNav.style.display = 'flex'; // Mostra la barra inferiore
-            document.getElementById('btn-user-profile').style.background = '#1a1c29'; // Resetta colore omino
+            viewUser.style.display = 'none'; 
+            bottomNav.style.display = 'flex'; 
+            document.getElementById('btn-user-profile').style.background = '#1a1c29'; 
 
             tabs.forEach(id => {
                 document.getElementById(`view-${id}`).style.display = (id === activeId) ? 'block' : 'none';
@@ -428,29 +671,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
 
-        // 2. TOGGLE USER DASHBOARD (Omino in alto a destra)
+        // 2. TOGGLE USER DASHBOARD
         const btnUser = document.getElementById('btn-user-profile');
         if (btnUser) {
             btnUser.addEventListener('click', () => {
                 const isUserOpen = viewUser.style.display === 'block';
                 if (isUserOpen) {
-                    switchTab('radar'); // Torna alla home
+                    switchTab('radar'); 
                 } else {
                     tabs.forEach(id => document.getElementById(`view-${id}`).style.display = 'none');
                     viewUser.style.display = 'block';
-                    bottomNav.style.display = 'none'; // Nascondi bottoni bassi
+                    bottomNav.style.display = 'none'; 
                     btnUser.style.background = '#00ffcc';
                 }
             });
         }
 
-        // 3. CARICA E SALVA CONFIGURAZIONI (Control Room)
-        
-        // Recuperiamo i link sicuri dentro questa funzione
+        // 3. CARICA E SALVA CONFIGURAZIONI E AVATAR
         const av1 = chrome.runtime.getURL("avatar1.png");
-        let selectedAvatarUrl = av1; // Usa la tua prima immagine come default!
+        let selectedAvatarUrl = av1; 
 
-        // Logica per cliccare e selezionare gli Avatar
         const avatarOptions = document.querySelectorAll('.avatar-option');
         avatarOptions.forEach(img => {
             img.addEventListener('click', (e) => {
@@ -461,20 +701,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Carica i dati salvati precedentemente...
-        // (Il resto del codice di caricamento/salvataggio rimane identico!)
-
-        // Carica i dati salvati precedentemente
         chrome.storage.local.get(['userConfig'], (res) => {
             if (res.userConfig) {
                 if (document.getElementById('user-rpc-url')) document.getElementById('user-rpc-url').value = res.userConfig.rpcUrl || "";
-                if (document.getElementById('user-private-key')) document.getElementById('user-private-key').value = res.userConfig.privateKey || "";
                 if (document.getElementById('user-jito-tip')) document.getElementById('user-jito-tip').value = res.userConfig.jitoTip || "";
                 if (document.getElementById('user-slippage')) document.getElementById('user-slippage').value = res.userConfig.slippage || "";
                 if (document.getElementById('user-tp')) document.getElementById('user-tp').value = res.userConfig.takeProfit || "";
                 if (document.getElementById('user-sl')) document.getElementById('user-sl').value = res.userConfig.stopLoss || "";
                 
-                // Ricarica l'avatar salvato
                 if (res.userConfig.avatarUrl) {
                     selectedAvatarUrl = res.userConfig.avatarUrl;
                     document.getElementById('current-user-avatar').src = selectedAvatarUrl;
@@ -483,61 +717,77 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (opt.getAttribute('data-src') === selectedAvatarUrl) opt.classList.add('active');
                     });
                 }
+            } else {
+                // Se non c'è config salvata, attiva di default il primo avatar
+                avatarOptions[0].classList.add('active');
             }
         });
 
-        // Logica pulsante Salva: Effetto visivo e ritorno al Radar
+        // Logica pulsante Salva
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
             btnSaveConfig.addEventListener('click', () => {
                 const newConfig = {
-                    rpcUrl: document.getElementById('user-rpc-url').value.trim(),
-                    privateKey: document.getElementById('user-private-key').value.trim(),
-                    jitoTip: document.getElementById('user-jito-tip').value.trim(),
-                    slippage: document.getElementById('user-slippage').value.trim(),
-                    takeProfit: document.getElementById('user-tp').value.trim(),
-                    stopLoss: document.getElementById('user-sl').value.trim(),
+                    rpcUrl: document.getElementById('user-rpc-url') ? document.getElementById('user-rpc-url').value.trim() : "",
+                    jitoTip: document.getElementById('user-jito-tip') ? document.getElementById('user-jito-tip').value.trim() : "",
+                    slippage: document.getElementById('user-slippage') ? document.getElementById('user-slippage').value.trim() : "",
+                    takeProfit: document.getElementById('user-tp') ? document.getElementById('user-tp').value.trim() : "",
+                    stopLoss: document.getElementById('user-sl') ? document.getElementById('user-sl').value.trim() : "",
                     avatarUrl: selectedAvatarUrl
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
-                    // Animazione pulsante salvato
                     btnSaveConfig.style.background = '#00e676';
-                    btnSaveConfig.innerHTML = '✅ SALVATO CON SUCCESSO!';
+                    btnSaveConfig.innerHTML = t('btn_saved'); 
                     
                     if (newConfig.rpcUrl && typeof socket !== 'undefined') {
                         socket.emit('update_user_rpc', newConfig.rpcUrl);
                     }
 
-                    // 🔙 TORNA AL RADAR IN AUTOMATICO DOPO 1 SECONDO
                     setTimeout(() => {
                         btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
-                        btnSaveConfig.innerHTML = '💾 Salva e Attiva';
+                        btnSaveConfig.innerHTML = t('btn_save'); 
                         
-                        // Simula il click sul tab radar e nasconde la dashboard
                         document.getElementById('tab-radar').click();
                         viewUser.style.display = 'none';
-                        bottomNav.style.display = 'flex'; // Fa ricomparire la barra dei tab
-                        
+                        bottomNav.style.display = 'flex'; 
                     }, 1000); 
                 });
             });
         }
 
-        // 4. ALTRI BOTTONI E SOCKETS (Radar base)
-        document.getElementById('btn-ricarica').addEventListener('click', () => {
-            chrome.storage.local.remove(['ultimoTokenScansionato', 'ultimoRisultatoScan'], avviaRadar);
+        // 🌍 4. CAMBIO LINGUA LIVE
+        const langBtns = document.querySelectorAll('.lang-btn');
+        langBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const newLang = e.currentTarget.getAttribute('data-lang');
+                if (newLang !== currentLang) {
+                    currentLang = newLang; // Aggiorna la lingua
+                    chrome.storage.local.set({ userLanguage: newLang }, () => {
+                        costruisciInterfacciaLive(tokenMint); // Ricarica tutta la grafica istantaneamente
+                        document.getElementById('btn-user-profile').click(); // Riapre il pannello utente per mostrare il cambio
+                    });
+                }
+            });
         });
+
+        // 5. ALTRI BOTTONI E SOCKETS (Radar base)
+        const btnRicarica = document.getElementById('btn-ricarica');
+        if (btnRicarica) {
+            btnRicarica.addEventListener('click', () => {
+                chrome.storage.local.remove(['ultimoTokenScansionato', 'ultimoRisultatoScan'], avviaRadar);
+            });
+        }
 
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
         if (btnCopilot) {
             btnCopilot.addEventListener('click', async () => {
-                btnCopilot.innerText = "⏳ Analisi in corso...";
+                btnCopilot.innerText = t('copilot_analyzing');
                 btnCopilot.style.background = "#555";
                 btnCopilot.style.pointerEvents = "none";
                 copilotResult.style.display = "block";
-                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>Lettura parametri vitali...</span>";
+                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
                 
                 try {
                     const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
@@ -548,116 +798,122 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     const dataResp = await resp.json();
                     
-                    let tattica = dataResp.tattica || "⚠️ Errore AI";
-                    let puntoRottura = dataResp.puntoRottura || "Dati illeggibili.";
+                    let tattica = dataResp.tattica || "⚠️ Error AI";
+                    let puntoRottura = dataResp.puntoRottura || "Data Unreadable";
                     let azione = dataResp.azione || "ATTESA";
                     let actionColor = azione.includes("FUGG") || azione.includes("VEND") ? "#ff4d4d" : (azione.includes("COMPR") ? "#00e676" : "#ffaa00");
                     
                     copilotResult.innerHTML = `
                         <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">1. Tattica:</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
                         <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">2. Previsione:</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
-                        <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">Azione Consigliata: ${azione}</div>
+                        <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">Azione: ${azione}</div>
                     `;
                 } catch(e) {
-                    copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Errore Copilota: ${e.message}</div>`;
+                    copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
                 } finally {
-                    btnCopilot.innerText = "🔄 Ri-analizza";
+                    btnCopilot.innerText = t('copilot_reanalyze');
                     btnCopilot.style.background = "#b366ff";
                     btnCopilot.style.pointerEvents = "auto";
                 }
             });
         }
 
-        socket.off('nuovo_trade_live');
-        socket.on('nuovo_trade_live', (trade) => {
-            resettaTimerNoia();
-            const tapeList = document.getElementById('live-tape-list');
-            if (tapeList) {
-                if (tapeList.innerHTML.includes('In ascolto')) tapeList.innerHTML = '';
-                const isBuy = trade.tipo.includes("BUY");
-                const color = isBuy ? "#00e676" : "#ff4d4d";
-                const el = document.createElement('div');
-                el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color};`;
-                
-                el.innerHTML = `
-                    <div style="display: flex; flex-direction: column; width: 100%;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="font-weight: bold;">${trade.tipo} ${trade.sol} SOL</span>
-                            <span title="${trade.zooTag}">${trade.zooIcon}</span>
+        // ======================= SOCKET.IO LOGIC =======================
+        if (typeof socket !== 'undefined') {
+            socket.off('nuovo_trade_live');
+            socket.on('nuovo_trade_live', (trade) => {
+                resettaTimerNoia();
+                const tapeList = document.getElementById('live-tape-list');
+                if (tapeList) {
+                    if (tapeList.innerHTML.includes('scolto') || tapeList.innerHTML.includes('isten') || tapeList.innerHTML.includes('等待') || tapeList.innerHTML.includes('Écoute')) tapeList.innerHTML = '';
+                    const isBuy = trade.tipo.includes("BUY");
+                    const color = isBuy ? "#00e676" : "#ff4d4d";
+                    const el = document.createElement('div');
+                    el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color};`;
+                    
+                    el.innerHTML = `
+                        <div style="display: flex; flex-direction: column; width: 100%;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                <span style="font-weight: bold;">${trade.tipo} ${trade.sol} SOL</span>
+                                <span title="${trade.zooTag}">${trade.zooIcon}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
+                                <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
+                                <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none;">🔍 Solscan</a>
+                            </div>
+                        </div>`;
+                    tapeList.prepend(el);
+                    if (tapeList.children.length > 10) tapeList.removeChild(tapeList.lastChild);
+                }
+
+                if (typeof orderFlowWindow !== 'undefined') {
+                    orderFlowWindow.push(trade);
+                    const tenSecondsAgo = Date.now() - 10000;
+                    orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
+
+                    let buyVol = 0; let sellVol = 0;
+                    orderFlowWindow.forEach(t => { if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol); else sellVol += parseFloat(t.sol); });
+
+                    const totalVol = buyVol + sellVol;
+                    let buyPressure = 50;
+                    if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
+
+                    if (window.liveMetrics) {
+                        window.liveMetrics = { history: window.liveMetrics.history, buyVol, sellVol, buyPressure };
+                    }
+
+                    const barGreen = document.getElementById('flow-bar-green');
+                    const pctText = document.getElementById('flow-percentage');
+                    if (barGreen && pctText) {
+                        barGreen.style.width = `${buyPressure}%`;
+                        pctText.innerText = `${buyPressure.toFixed(1)}% BUY`;
+                        pctText.style.color = buyPressure >= 50 ? "#00e676" : "#ff4d4d";
+                        document.getElementById('flow-vol-buy').innerText = `${buyVol.toFixed(1)} SOL`;
+                        document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
+                    }
+                }
+            });
+
+            socket.off('spy_alert');
+            socket.on('spy_alert', (data) => {
+                const feed = document.getElementById('spy-feed-list');
+                if (feed) {
+                    if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
+                    const alertCard = document.createElement('div');
+                    alertCard.style.cssText = "background: #330000; border: 1px solid #ff0000; padding: 8px; margin-bottom: 6px; border-radius: 4px; font-family: monospace;";
+                    alertCard.innerHTML = `
+                        <div style="color: #ff0000; font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #ff4444; padding-bottom: 4px; margin-bottom: 6px;">
+                            🚨 SYBIL DUMP
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
-                            <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
-                            <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none;">🔍 Solscan</a>
+                        <div style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 6px;">${data.messaggio}</div>
+                    `;
+                    feed.prepend(alertCard);
+                    const tabSpy = document.getElementById('tab-spy');
+                    if (tabSpy) { tabSpy.style.color = "#ff007f"; tabSpy.style.animation = "pulseRed 1s infinite"; }
+                }
+            });
+
+            socket.off('autopsia_sniper_live');
+            socket.on('autopsia_sniper_live', (data) => {
+                const feed = document.getElementById('spy-feed-list');
+                if (feed) {
+                    if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
+                    const card = document.createElement('div');
+                    card.style.cssText = `background:#161821; border-top: 3px solid ${data.colore}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="color:#b366ff; font-weight:bold; font-size:0.85em;">⚙️ Quant X-Ray</span>
+                            <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${data.esito}</span>
                         </div>
-                    </div>`;
-                tapeList.prepend(el);
-                if (tapeList.children.length > 10) tapeList.removeChild(tapeList.lastChild);
-            }
-
-            orderFlowWindow.push(trade);
-            const tenSecondsAgo = Date.now() - 10000;
-            orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
-
-            let buyVol = 0; let sellVol = 0;
-            orderFlowWindow.forEach(t => { if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol); else sellVol += parseFloat(t.sol); });
-
-            const totalVol = buyVol + sellVol;
-            let buyPressure = 50;
-            if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
-
-            window.liveMetrics = { history: window.liveMetrics.history, buyVol, sellVol, buyPressure };
-
-            const barGreen = document.getElementById('flow-bar-green');
-            const pctText = document.getElementById('flow-percentage');
-            if (barGreen && pctText) {
-                barGreen.style.width = `${buyPressure}%`;
-                pctText.innerText = `${buyPressure.toFixed(1)}% BUY`;
-                pctText.style.color = buyPressure >= 50 ? "#00e676" : "#ff4d4d";
-                document.getElementById('flow-vol-buy').innerText = `${buyVol.toFixed(1)} SOL`;
-                document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
-            }
-        });
-
-        socket.off('spy_alert');
-        socket.on('spy_alert', (data) => {
-            const feed = document.getElementById('spy-feed-list');
-            if (feed) {
-                if (feed.innerHTML.includes('In attesa')) feed.innerHTML = '';
-                const alertCard = document.createElement('div');
-                alertCard.style.cssText = "background: #330000; border: 1px solid #ff0000; padding: 8px; margin-bottom: 6px; border-radius: 4px; font-family: monospace;";
-                alertCard.innerHTML = `
-                    <div style="color: #ff0000; font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #ff4444; padding-bottom: 4px; margin-bottom: 6px;">
-                        🚨 SYBIL DUMP RILEVATO
-                    </div>
-                    <div style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 6px;">${data.messaggio}</div>
-                `;
-                feed.prepend(alertCard);
-                const tabSpy = document.getElementById('tab-spy');
-                if (tabSpy) { tabSpy.style.color = "#ff007f"; tabSpy.style.animation = "pulseRed 1s infinite"; }
-            }
-        });
-
-        socket.off('autopsia_sniper_live');
-        socket.on('autopsia_sniper_live', (data) => {
-            const feed = document.getElementById('spy-feed-list');
-            if (feed) {
-                if (feed.innerHTML.includes('In attesa')) feed.innerHTML = '';
-                const card = document.createElement('div');
-                card.style.cssText = `background:#161821; border-top: 3px solid ${data.colore}; padding: 12px; border-radius:6px; margin-bottom:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);`;
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="color:#b366ff; font-weight:bold; font-size:0.85em;">⚙️ Raggi X Quantitativi</span>
-                        <span style="background:${data.colore}20; border:1px solid ${data.colore}; color:${data.colore}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.7em;">${data.esito}</span>
-                    </div>
-                    <div style="color:#aaa; font-size:0.8em; margin-bottom:8px;">Wallet: <span style="color:#fff;">${data.walletSpia.substring(0,6)}...</span></div>
-                    <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; font-size:0.85em; color:#e0e0e0; margin-bottom:10px;">${data.motivo}</div>
-                    <div style="text-align:center;"><a href="https://pump.fun/${data.mint}" target="_blank" style="background:#222; border:1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">💊 Pump.fun</a></div>
-                `;
-                feed.prepend(card);
-            }
-        });
+                        <div style="color:#aaa; font-size:0.8em; margin-bottom:8px;">Wallet: <span style="color:#fff;">${data.walletSpia.substring(0,6)}...</span></div>
+                        <div style="background:#0a0c10; border:1px solid #2d3142; padding:8px; border-radius:4px; font-size:0.85em; color:#e0e0e0; margin-bottom:10px;">${data.motivo}</div>
+                        <div style="text-align:center;"><a href="https://pump.fun/${data.mint}" target="_blank" style="background:#222; border:1px solid #444; color:#00ffcc; padding:4px 8px; border-radius:4px; text-decoration:none; font-size:0.8em; font-weight:bold;">💊 Pump.fun</a></div>
+                    `;
+                    feed.prepend(card);
+                }
+            });
+        }
     }
-
     // =========================================================
     // 📊 DATI STATICI E CARDS 
     // =========================================================
@@ -665,12 +921,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 📊 DATI STATICI E CARDS 
     // =========================================================
     function popolaInterfacciaStatica(data, tokenMint) {
-        
-        // 1. INIETTA L'INDICE NEL PIANO INFERIORE (Senza toccare l'omino!)
         const hudStats = document.getElementById('hud-stats-container');
         if (hudStats && data.hud) {
             document.getElementById('hud-header').style.borderBottom = `2px solid ${data.hud.color}`;
-            hudStats.style.display = 'flex'; // Fa comparire magicamente la sezione
+            hudStats.style.display = 'flex'; 
             hudStats.innerHTML = `
                 <div>
                     <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Solana Memecoin Index</div>
@@ -682,21 +936,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        // 2. FASE 2 DEL TIMER: Dati base caricati!
         const mintStatus = document.getElementById('mint-loading-status');
         if (mintStatus) {
-            mintStatus.innerHTML = `✅ Dati Base`;
+            mintStatus.innerHTML = t('loading_base');
             mintStatus.style.color = `#00e676`;
             mintStatus.style.animation = `none`;
         }
 
-        // 3. AUTOSPIA BUNDLE & DEV
         const staticBox = document.getElementById('static-analysis-box');
         if (!staticBox) return;
         
         let reportHTML = "";
         if (data.advice) {
-            // OVERRIDE FRONTEND: IL DEV GIOVANE E' SCAM
             let devText = data.advice.devStatus || "";
             let devColor = '#00ffcc'; 
             let devIcon = '👨‍💻';
@@ -704,29 +955,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (devText.toUpperCase().match(/GIOVAN|FRESH|GIORNI|DAYS|NEW/)) {
                 devColor = '#ff4d4d'; 
                 devIcon = '🚨';
-                devText += " <br><span style='color:#ff4d4d; font-size:0.85em; font-weight:bold;'>⚠️ ALTO RISCHIO RUG (Wallet creato apposta).</span>";
+                devText += ` <br><span style='color:#ff4d4d; font-size:0.85em; font-weight:bold;'>${t('high_risk_rug')}</span>`;
             } else if (devText.toUpperCase().match(/SERIAL|FARMER/)) {
                 devColor = '#ffaa00'; 
                 devIcon = '⚠️';
             }
 
-            // OVERRIDE FRONTEND: 0% HOLDER = BUNDLE NASCOSTO
             let bundleText = data.advice.topHoldersStatus || "";
-            let bundleColor = bundleText.match(/ATTENZIONE|RISCHIO|0%/) ? '#ffaa00' : '#00ffcc';
+            let bundleColor = bundleText.match(/ATTENZIONE|RISCHIO|0%|RISK/) ? '#ffaa00' : '#00ffcc';
             
             if (bundleText.includes('0%')) {
                 bundleColor = '#ffaa00'; 
-                bundleText += " <br><span style='color:#ffaa00; font-size:0.85em; font-weight:bold;'>⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato le prime candele in segreto!</span>";
+                bundleText += ` <br><span style='color:#ffaa00; font-size:0.85em; font-weight:bold;'>${t('risk_bundle')}</span>`;
             }
             
             reportHTML += `
                 <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 15px;">
                     <div style="background: linear-gradient(90deg, ${devColor}20, transparent); border-left: 4px solid ${devColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
-                        <div style="font-size: 0.7em; color: ${devColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">${devIcon} Storico Sviluppatore</div>
+                        <div style="font-size: 0.7em; color: ${devColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">${devIcon} ${t('dev_history')}</div>
                         <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${devText}</div>
                     </div>
                     <div style="background: linear-gradient(90deg, ${bundleColor}20, transparent); border-left: 4px solid ${bundleColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
-                        <div style="font-size: 0.7em; color: ${bundleColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">🛡️ Analisi Supply</div>
+                        <div style="font-size: 0.7em; color: ${bundleColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">🛡️ ${t('supply_analysis')}</div>
                         <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${bundleText}</div>
                     </div>
                 </div>`;
@@ -769,7 +1019,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 100);
 
         try {
-            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}`, {
+            // 👉 URL 3 AGGIORNATO CON LINGUA
+            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
                 headers: { "ngrok-skip-browser-warning": "true" }
             });
             const data = await response.json();
@@ -777,23 +1028,31 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(timerInterval); // Ferma il cronometro
 
             if (data.success) {
+                // 👉 TESTI SOSTITUITI CON LE VARIABILI DI TRADUZIONE
                 container.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ Verdetto Giudice</span>
+                        <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ ${t('judge_title')}</span>
                         <div style="display:flex; gap: 6px; align-items:center;">
-                            <span style="color:#888; font-family:monospace; font-size:0.7em;">Fatto in ${sec.toFixed(1)}s</span>
+                            <span style="color:#888; font-family:monospace; font-size:0.7em;">${t('done_in')} ${sec.toFixed(1)}s</span>
                             <button id="btn-refresh-judge" style="background: #c084fc; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7em;">🔄</button>
                         </div>
                     </div>
                     ${data.verdetto}
                 `;
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
+
+                // Aggiorna il semaforo in alto in "✅ Report Completo" nella lingua corretta
+                const mintStatus = document.getElementById('mint-loading-status');
+                if (mintStatus) {
+                    mintStatus.innerHTML = t('loading_complete');
+                }
+
             } else {
-                container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Errore AI: ${data.verdetto}</div>`;
+                container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto}</div>`;
             }
         } catch (error) {
             clearInterval(timerInterval);
-            container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">❌ Errore di connessione al Giudice.</div>`;
+            container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">❌ Connection error.</div>`;
         }
     }
 

@@ -1,6 +1,30 @@
 {
   "trades": [
     {
+      "data": "22/08/2026, 17:01:23",
+      "mint": "9LBGwf8kXdm95py717BpRF9VZJ5DXvDyiQRxm65QixFk",
+      "pnl": -0.0193,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "22/08/2026, 17:00:44",
+      "mint": "9VGms1v6X2tLjziThyFGSk4SxwFpgnK72MxKXPYpump",
+      "pnl": 0.07827,
+      "esito": "✅ WIN"
+    },
+    {
+      "data": "22/08/2026, 16:58:11",
+      "mint": "9GLMGmvQSxmkeVcjB38if5gjcN8uTyX5LchiLCHwR3uK",
+      "pnl": -0.08496,
+      "esito": "❌ LOSS"
+    },
+    {
+      "data": "22/08/2026, 16:39:23",
+      "mint": "7K3bH6rEZqBtFn1urDTh4jbJ5SStRez6VdFgoNhcpump",
+      "pnl": -0.02949,
+      "esito": "❌ LOSS"
+    },
+    {
       "data": "22/08/2026, 16:16:41",
       "mint": "H33HnCHk8UCa6QXwJegD2ijCKaazFPBWViLVhPufpump",
       "pnl": 0.05332,
@@ -679,6 +703,6 @@
       "esito": "❌ LOSS"
     }
   ],
-  "bilancio": -93.93069750713488,
+  "bilancio": -93.98617757649666,
   "openPositions": {}
 }
