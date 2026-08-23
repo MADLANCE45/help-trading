@@ -1440,38 +1440,40 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
-        // Estraiamo i dati già "digeriti" dal tuo algoritmo
-        let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
-        let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
-        let devStatusStr = datiIniziali?.advice?.devStatus || "Ignota";
-        let bundleInfo = datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato";
-        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
+        // 🧹 FILTRO DI SANIFICAZIONE: Rimuove tutte le virgolette doppie dai dati in ingresso.
+        // Se l'IA non vede virgolette doppie nei dati, non le userà nella risposta, evitando il crash!
+        const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
 
-        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA (Pre-Filtro)
+        let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Nessun dato Sybil");
+        let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump");
+        let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Ignota");
+        let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato");
+        let liquidita = pulisciTesto(datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti");
+
+        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
         let aiMandate = "Analizza i dati in modo estremamente cinico. Sei spietato e cerchi sempre lo scam.";
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
-            aiMandate = "🔴 MANDATO DI SISTEMA (INVIOLABILE): IL DEV E' UNO SCAMMER (WALLET NUOVO O FAKE). TI E' ASSOLUTAMENTE VIETATO SUPERARE IL PUNTEGGIO GLOBALE DI 35. 'Affidabilità Dev' DEVE ESSERE MASSIMO 15. DEVI INIZIARE IL VERDETTO CON [AVOID]. E' VIETATO DIRE CHE E' PULITO.";
+            aiMandate = "🔴 MANDATO (INVIOLABILE): DEV SCAMMER. GLOBAL SCORE DEVE ESSERE MASSIMO 35. DEV SCORE MASSIMO 15. INIZIA VERDETTO CON [AVOID].";
         } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
-            aiMandate = "🟠 MANDATO DI SISTEMA: RILEVATO BUNDLE ESTREMAMENTE PERICOLOSO. IL PUNTEGGIO 'Integrità Supply' DEVE ESSERE SOTTO IL 30 E IL GLOBALE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
+            aiMandate = "🟠 MANDATO: BUNDLE PERICOLOSO. SUPPLY SCORE SOTTO IL 30. GLOBAL SCORE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
         }
 
         const promptLaboratorio = `
-Sei il "Giudice Supremo", lo spietato analista on-chain di un fondo speculativo su Solana.
+Sei il "Giudice Supremo", spietato analista on-chain di un fondo speculativo su Solana.
 
 ${aiMandate}
 
 REGOLE GENERALI SUL TRADING MEMECOIN:
 1. Le memecoin si tradano in minuti, vanno a zero in poche ore.
-2. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
-3. ETICHETTE: Usa sempre [AVOID] (scam, fuggi), [SCALP] (entra/esci in 2 minuti), o [RIDE] (pompa iper-forte, massimo 1 ora).
+2. MAI LUNGO TERMINE: VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
+3. Usa SEMPRE uno di questi tag all'inizio del verdetto: [AVOID], [SCALP], o [RIDE].
 
-🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
-L'intero testo che restituirai per il Giudizio Algoritmico, i nomi delle metriche (es. invece di "Integrità Supply" usa l'equivalente tradotto) e i relativi tooltip, DEVE ESSERE TRADOTTO TASSATIVAMENTE IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
-Il JSON deve essere formattato in questo modo.
+🔥 REGOLA LINGUISTICA:
+Traduci TUTTO il JSON in lingua: ${lingua.toUpperCase()}.
 
 DATI VERIFICATI DA ELABORARE:
 - Mercato/Volumi: ${liquidita}
@@ -1480,18 +1482,20 @@ DATI VERIFICATI DA ELABORARE:
 - Info Sviluppatore: ${devStatusStr}
 - Info Supply/Bundle: ${bundleInfo}
 
-SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA.
-DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
+ATTENZIONE - REGOLE JSON INVIOLABILI:
+1. L'output deve essere ESCLUSIVAMENTE codice JSON valido.
+2. NON usare MAI virgolette doppie (") all'interno dei testi descrittivi. Usa SOLO l'apostrofo (').
+3. I punteggi (score) scritti sotto sono solo ESEMPI. Devi calcolare tu i veri valori da 0 a 100!
 
-🔴 REGOLA DI SINTASSI JSON (CRITICA):
-1. Il codice JSON DEVE essere strutturato rigorosamente con le virgolette doppie (") per i nomi delle chiavi e per racchiudere le stringhe.
-2. ALL'INTERNO delle frasi che scrivi, è SEVERAMENTE VIETATO inserire altre virgolette doppie. Se devi citare o evidenziare una parola dentro al testo, usa SOLO l'apostrofo singolo (').
-
-Formato obbligatorio:
+Restituisci esattamente questo formato JSON:
 {
-  "global_score": 30,
+  "global_score": 45,
+  "verdetto_finale": "[AVOID] Inserisci qui il tuo verdetto reale calcolato senza usare virgolette...",
   "metrics": [
-    { "name": "[Nome Metrica tradotto in ${lingua.toUpperCase()}]", "score": 25, "tooltip": "[Tooltip tradotto in ${lingua.toUpperCase()}]" }
+    { "name": "Supply Integrity", "score": 25, "tooltip": "Analisi reale supply..." },
+    { "name": "Developer Trust", "score": 10, "tooltip": "Analisi reale dev..." },
+    { "name": "Sybil Resistance", "score": 80, "tooltip": "Analisi reale sybil..." },
+    { "name": "Micro-Dump Risk", "score": 40, "tooltip": "Analisi reale dump..." }
   ]
 }`;
         // (QUI SOTTO IL RESTO DEL TUO CODICE PER CHIAMARE GEMINI CHE HAI GIA')
