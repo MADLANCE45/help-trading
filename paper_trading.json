@@ -1,6 +1,12 @@
 {
   "trades": [
     {
+      "data": "23/08/2026, 10:00:43",
+      "mint": "Ft2E4vpbRab75utnY9cUfmsKAX16rAnt44wq3e6Xpump",
+      "pnl": -0.09993,
+      "esito": "❌ LOSS"
+    },
+    {
       "data": "23/08/2026, 09:57:36",
       "mint": "2dBpjYiuFfbwaPXvG6t4hYWucFGZKF7N4iRAJ1DWpump",
       "pnl": -0.09639,
@@ -835,6 +841,6 @@
       "esito": "❌ LOSS"
     }
   ],
-  "bilancio": -95.14021585216331,
+  "bilancio": -95.24014483225318,
   "openPositions": {}
 }

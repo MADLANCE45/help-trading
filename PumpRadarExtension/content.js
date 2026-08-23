@@ -10,96 +10,113 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // 🚀 GOLDEN ALERT (Popup Intelligente)
     // =========================================================
-    socket.on('golden_signal_found', async (segnale) => {
-        const actualMint = typeof segnale === 'string' ? segnale : (segnale.mint || "Errore_Mint");
-        
-        let alertBox = document.getElementById('golden-alert-box');
-        if (!alertBox) {
-            alertBox = document.createElement('div');
-            alertBox.id = 'golden-alert-box';
-            alertBox.style.cssText = `
-                position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-                width: 90%; max-width: 320px; background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%);
-                border: 1px solid #00ffcc; box-shadow: 0 10px 25px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 204, 0.3);
-                padding: 12px; border-radius: 10px; z-index: 999999; color: white;
-                font-family: 'Segoe UI', Tahoma, sans-serif; box-sizing: border-box;
-                animation: pulseGlow 2s infinite;
-                transition: transform 0.2s;
-            `;
-            alertBox.addEventListener('mouseenter', () => alertBox.style.animationPlayState = 'paused');
-            alertBox.addEventListener('mouseleave', () => alertBox.style.animationPlayState = 'running');
-            document.body.appendChild(alertBox);
-        }
+    // 🧠 Inizializza la memoria anti-spam globale (viene creata una sola volta)
+            if (typeof window.whaleCooldown === 'undefined') window.whaleCooldown = new Set();
 
-        // Se il server è in "Bypass Velocità", non ha calcolato i SOL. Mettiamo "Lettura Live..."
-        const solSpesi = segnale.solSpent || segnale.buyVol;
-        const solText = solSpesi ? `${solSpesi} SOL` : `<span style="color:#aaa; font-size:0.9em;">Lettura WSS...</span>`;
-
-        alertBox.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 255, 204, 0.3); padding-bottom:8px; margin-bottom:10px;">
-                <div style="display:flex; align-items:center; gap: 8px;">
-                    <span style="font-size: 1.2em;">🚨</span>
-                    <span style="color:#00ffcc; font-weight:900; font-size:1em; letter-spacing: 1px;">${t('whale_title')}</span>
-                </div>
-                <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">✕</button>
-            </div>
-            
-            <div id="golden-stats-${actualMint}" style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: monospace; font-size: 0.85em; min-height: 70px;">
-                <div style="text-align: center; color: #888; font-size: 0.9em; margin-top: 15px; animation: pulseGlow 1s infinite;">🔄 ${t('loading_analysis')}</div>
-            </div>
-
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; flex: 1; transition: 0.2s;">${t('copy_mint')}</button>
-                <a href="https://pump.fun/${actualMint}" target="_blank" style="flex: 2; text-align:center; background: linear-gradient(90deg, #00ffcc, #00b38f); color:#000; text-decoration:none; padding:8px; border-radius:6px; font-weight:900; font-size: 0.85em; letter-spacing:1px; box-shadow: 0 4px 10px rgba(0, 255, 204, 0.3);">
-                    ${t('open_pump')}
-                </a>
-            </div>
-        `;
-        
-        document.getElementById('close-golden-alert').addEventListener('click', () => alertBox.remove());
-        const copyBtn = document.getElementById('copy-golden-mint');
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(actualMint).then(() => {
-                copyBtn.innerText = "✅ Copiato!"; copyBtn.style.background = "#00e676"; copyBtn.style.color = "#000";
-                setTimeout(() => { copyBtn.innerText = "📋 Copia Mint"; copyBtn.style.background = "#2a2d3d"; copyBtn.style.color = "#fff"; }, 2000);
-            });
-        });
-        
-        // RECUPERO DATI DEXSCREENER CON RISPOSTA INTELLIGENTE
-        try {
-            const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${actualMint}`);
-            const dexData = await dexRes.json();
-            const pair = (dexData.pairs && dexData.pairs.length > 0) ? dexData.pairs[0] : null;
-            
-            const statsContainer = document.getElementById(`golden-stats-${actualMint}`);
-            
-            if (statsContainer && pair) {
-                const mc = pair.fdv || pair.marketCap || 0;
-                const liq = pair.liquidity?.usd || 0;
+            socket.off('golden_signal_found'); // 🧹 Pulisce ascoltatori vecchi per evitare raddoppiamenti
+            socket.on('golden_signal_found', async (segnale) => {
+                const actualMint = typeof segnale === 'string' ? segnale : (segnale.mint || "Errore_Mint");
                 
-                // 🔥 Calcolo progressi della Bonding Curve di Pump.fun
-                let liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Liquidità:</span> <span style="color:#fff; font-weight:bold;">$${liq.toLocaleString()}</span></div>`;
-                if (liq === 0 && mc > 0) {
-                    const curvePercent = Math.min(100, (mc / 80000) * 100).toFixed(1);
-                    liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('curve_title')}</span> <span style="color:#c084fc; font-weight:bold;">${curvePercent}${t('curve_completed')}</span></div>`;
+                // 🛡️ FILTRO ANTI-SPAM (SALVAVITA)
+                // Se questo token è già nella memoria "recente", blocca l'esecuzione e non fare nulla!
+                if (window.whaleCooldown.has(actualMint)) return;
+                
+                // Se è nuovo, inseriscilo nella memoria
+                window.whaleCooldown.add(actualMint);
+                // ...e cancellalo dalla memoria dopo 120.000 millisecondi (2 minuti esatti)
+                setTimeout(() => window.whaleCooldown.delete(actualMint), 120000);
+
+
+                // =======================================================
+                // 👇 DA QUI IN POI È IL TUO CODICE GRAFICO INTOCCATO 👇
+                // =======================================================
+                let alertBox = document.getElementById('golden-alert-box');
+                if (!alertBox) {
+                    alertBox = document.createElement('div');
+                    alertBox.id = 'golden-alert-box';
+                    alertBox.style.cssText = `
+                        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                        width: 90%; max-width: 320px; background: linear-gradient(135deg, #12151f 0%, #0a0c10 100%);
+                        border: 1px solid #00ffcc; box-shadow: 0 10px 25px rgba(0,0,0,0.9), 0 0 15px rgba(0, 255, 204, 0.3);
+                        padding: 12px; border-radius: 10px; z-index: 999999; color: white;
+                        font-family: 'Segoe UI', Tahoma, sans-serif; box-sizing: border-box;
+                        animation: pulseGlow 2s infinite;
+                        transition: transform 0.2s;
+                    `;
+                    alertBox.addEventListener('mouseenter', () => alertBox.style.animationPlayState = 'paused');
+                    alertBox.addEventListener('mouseleave', () => alertBox.style.animationPlayState = 'running');
+                    document.body.appendChild(alertBox);
                 }
 
-                statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Market Cap:</span> <span style="color:#fff; font-weight:bold;">$${mc.toLocaleString()}</span></div>
-                    ${liqRow}
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol 5m:</span> <span style="color:#ffaa00; font-weight:bold;">$${(pair.volume?.m5 || 0).toLocaleString()}</span></div>
-                `;
-            } else if (statsContainer) {
-                statsContainer.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
-                    <div style="text-align:center; padding: 6px; background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; border-radius: 4px; color:#ff4d4d; font-size:0.85em; font-weight: bold;">
-                        ${t('whale_new')}<br><span style="font-size:0.8em; color:#e0e0e0; font-weight:normal;">${t('whale_inv')}</span>
+                // Se il server è in "Bypass Velocità", non ha calcolato i SOL. Mettiamo "Lettura Live..."
+                const solSpesi = segnale.solSpent || segnale.buyVol;
+                const solText = solSpesi ? `${solSpesi} SOL` : `<span style="color:#aaa; font-size:0.9em;">Lettura WSS...</span>`;
+
+                alertBox.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0, 255, 204, 0.3); padding-bottom:8px; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap: 8px;">
+                            <span style="font-size: 1.2em;">🚨</span>
+                            <span style="color:#00ffcc; font-weight:900; font-size:1em; letter-spacing: 1px;">${t('whale_title')}</span>
+                        </div>
+                        <button id="close-golden-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.2em;">✕</button>
+                    </div>
+                    
+                    <div id="golden-stats-${actualMint}" style="background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 10px; margin-bottom: 10px; font-family: monospace; font-size: 0.85em; min-height: 70px;">
+                        <div style="text-align: center; color: #888; font-size: 0.9em; margin-top: 15px; animation: pulseGlow 1s infinite;">🔄 ${t('loading_analysis')}</div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="copy-golden-mint" style="background: #2a2d3d; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; flex: 1; transition: 0.2s;">${t('copy_mint')}</button>
+                        <a href="https://pump.fun/${actualMint}" target="_blank" style="flex: 2; text-align:center; background: linear-gradient(90deg, #00ffcc, #00b38f); color:#000; text-decoration:none; padding:8px; border-radius:6px; font-weight:900; font-size: 0.85em; letter-spacing:1px; box-shadow: 0 4px 10px rgba(0, 255, 204, 0.3);">
+                            ${t('open_pump')}
+                        </a>
                     </div>
                 `;
-            }
-        } catch(e) {}
-    });
+                
+                document.getElementById('close-golden-alert').addEventListener('click', () => alertBox.remove());
+                const copyBtn = document.getElementById('copy-golden-mint');
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(actualMint).then(() => {
+                        copyBtn.innerText = "✅ Copiato!"; copyBtn.style.background = "#00e676"; copyBtn.style.color = "#000";
+                        setTimeout(() => { copyBtn.innerText = "📋 Copia Mint"; copyBtn.style.background = "#2a2d3d"; copyBtn.style.color = "#fff"; }, 2000);
+                    });
+                });
+                
+                // RECUPERO DATI DEXSCREENER CON RISPOSTA INTELLIGENTE
+                try {
+                    const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${actualMint}`);
+                    const dexData = await dexRes.json();
+                    const pair = (dexData.pairs && dexData.pairs.length > 0) ? dexData.pairs[0] : null;
+                    
+                    const statsContainer = document.getElementById(`golden-stats-${actualMint}`);
+                    
+                    if (statsContainer && pair) {
+                        const mc = pair.fdv || pair.marketCap || 0;
+                        const liq = pair.liquidity?.usd || 0;
+                        
+                        // 🔥 Calcolo progressi della Bonding Curve di Pump.fun
+                        let liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Liquidità:</span> <span style="color:#fff; font-weight:bold;">$${liq.toLocaleString()}</span></div>`;
+                        if (liq === 0 && mc > 0) {
+                            const curvePercent = Math.min(100, (mc / 80000) * 100).toFixed(1);
+                            liqRow = `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('curve_title')}</span> <span style="color:#c084fc; font-weight:bold;">${curvePercent}${t('curve_completed')}</span></div>`;
+                        }
+
+                        statsContainer.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span style="color:#888;">Market Cap:</span> <span style="color:#fff; font-weight:bold;">$${mc.toLocaleString()}</span></div>
+                            ${liqRow}
+                            <div style="display:flex; justify-content:space-between;"><span style="color:#888;">Vol 5m:</span> <span style="color:#ffaa00; font-weight:bold;">$${(pair.volume?.m5 || 0).toLocaleString()}</span></div>
+                        `;
+                    } else if (statsContainer) {
+                        statsContainer.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; margin-bottom: 6px;"><span style="color:#888;">${t('action')}</span> <span style="color:#00ffcc; font-weight:bold;">${t('whale_buy')}</span></div>
+                            <div style="text-align:center; padding: 6px; background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; border-radius: 4px; color:#ff4d4d; font-size:0.85em; font-weight: bold;">
+                                ${t('whale_new')}<br><span style="font-size:0.8em; color:#e0e0e0; font-weight:normal;">${t('whale_inv')}</span>
+                            </div>
+                        `;
+                    }
+                } catch(e) {}
+            });
 
     let orderFlowWindow = [];
     window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };

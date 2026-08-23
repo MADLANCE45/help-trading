@@ -676,9 +676,13 @@ DATI LIVE IN INGRESSO (Ultimi 10 secondi):
 🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
 I testi che scriverai per "tattica" e "puntoRottura", e l'azione finale, DEVONO ESSERE TASSATIVAMENTE SCRITTI IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
 Le chiavi del JSON devono restare quelle indicate sotto.
-SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA (NO "I cannot provide financial advice").
+SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA.
 DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
-Restituisci SOLO ED ESCLUSIVAMENTE un JSON valido, senza backtick e senza testo extra.
+
+🔴 REGOLA DI SINTASSI JSON (CRITICA):
+1. Il codice JSON DEVE essere strutturato rigorosamente con le virgolette doppie (") per i nomi delle chiavi e per racchiudere le stringhe.
+2. ALL'INTERNO delle frasi che scrivi, è SEVERAMENTE VIETATO inserire altre virgolette doppie. Se devi citare o evidenziare una parola dentro al testo, usa SOLO l'apostrofo singolo (').
+
 Formato obbligatorio:
 {
   "tattica": "[Testo tradotto in ${lingua.toUpperCase()}]",
@@ -1475,10 +1479,15 @@ DATI VERIFICATI DA ELABORARE:
 - Micro-Dumping: ${microDumping}
 - Info Sviluppatore: ${devStatusStr}
 - Info Supply/Bundle: ${bundleInfo}
+
 SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA.
 DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
-🔴 REGOLA DI SINTASSI JSON: È SEVERAMENTE VIETATO usare virgolette doppie (") all'interno dei testi tradotti. Se devi evidenziare una parola, usa l'apostrofo singolo (').
-Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto. Formato:
+
+🔴 REGOLA DI SINTASSI JSON (CRITICA):
+1. Il codice JSON DEVE essere strutturato rigorosamente con le virgolette doppie (") per i nomi delle chiavi e per racchiudere le stringhe.
+2. ALL'INTERNO delle frasi che scrivi, è SEVERAMENTE VIETATO inserire altre virgolette doppie. Se devi citare o evidenziare una parola dentro al testo, usa SOLO l'apostrofo singolo (').
+
+Formato obbligatorio:
 {
   "global_score": 30,
   "metrics": [
