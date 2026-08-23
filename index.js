@@ -697,7 +697,8 @@ Formato obbligatorio:
             body: JSON.stringify({
                 model: "openai/gpt-oss-20b", 
                 messages: [{ role: "user", content: promptCopilot }],
-                temperature: 0.1
+                temperature: 0.1,
+                response_format: { type: "json_object" }
             })
         });
 
@@ -1474,8 +1475,9 @@ DATI VERIFICATI DA ELABORARE:
 - Micro-Dumping: ${microDumping}
 - Info Sviluppatore: ${devStatusStr}
 - Info Supply/Bundle: ${bundleInfo}
-SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA (NO "I cannot provide financial advice").
+SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA.
 DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
+🔴 REGOLA DI SINTASSI JSON: È SEVERAMENTE VIETATO usare virgolette doppie (") all'interno dei testi tradotti. Se devi evidenziare una parola, usa l'apostrofo singolo (').
 Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto. Formato:
 {
   "global_score": 30,
@@ -1495,7 +1497,8 @@ Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto. 
             body: JSON.stringify({
                 model: "openai/gpt-oss-20b",
                 messages: [{ role: "user", content: promptLaboratorio }],
-                temperature: 0.1 
+                temperature: 0.1,
+                response_format: { type: "json_object" }
             })
         });
 
@@ -1777,7 +1780,8 @@ Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto.
             body: JSON.stringify({
                 model: "openai/gpt-oss-20b",
                 messages: [{ role: "user", content: promptLaboratorio }],
-                temperature: 0.1 
+                temperature: 0.1,
+                response_format: { type: "json_object" }
             })
         });
 

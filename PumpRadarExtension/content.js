@@ -252,13 +252,11 @@ const TRANSLATIONS = {
 
 function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['en'][key] || key; }
 
-// 🧠 TRADUTTORE UNIVERSALE (Adesso colpisce TUTTE le frasi italiane del Server!)
-// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
-// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
-// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano dal Backend)
+// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano Globale)
 function traduciDalBackend(testo) {
     if (!testo) return "";
     return testo
+        // --- Trading ---
         .replace(/HA COMPRATO:/gi, "BOUGHT:")
         .replace(/HA VENDUTO:/gi, "SOLD:")
         .replace(/HA COMPRATO/gi, "BOUGHT")
@@ -270,6 +268,7 @@ function traduciDalBackend(testo) {
         .replace(/Trader Umano/gi, "Human Trader")
         .replace(/Algo Trader/gi, "Algo Trader")
         .replace(/Uscita dalla posizione/gi, "Exiting position")
+        // --- Avvisi ---
         .replace(/TOKEN MORTO/gi, "DEAD TOKEN")
         .replace(/Zero volumi da 25s.*/gi, "Zero volume. Change coin!")
         .replace(/Giudizio Algoritmico/gi, "Algorithmic Judgment")
@@ -277,14 +276,30 @@ function traduciDalBackend(testo) {
         .replace(/wallet scaricano/gi, "wallets dumping")
         .replace(/wallet stanno scaricando un totale di/gi, "wallets dumping")
         .replace(/SOL in 2s!/gi, "SOL in 2s!")
+        // --- Dati Sviluppatore ---
         .replace(/DEV: SCONOSCIUTO/gi, "DEV: UNKNOWN")
+        .replace(/Sospetto - /gi, "Suspicious - ")
+        .replace(/Dev molto giovane/gi, "Very young dev")
         .replace(/DEV: Giovane/gi, "DEV: Young")
+        .replace(/Wallet giovane/gi, "Young wallet")
+        .replace(/e Fake Dev/gi, "and Fake Dev")
+        .replace(/ma non fake/gi, "but not fake")
         .replace(/senza traccia/gi, "no history")
         .replace(/rischio alto/gi, "high risk")
+        .replace(/alto rischio/gi, "high risk")
         .replace(/token lanciati/gi, "tokens launched")
-        .replace(/POSITIVO: bundle supply 0% controllata/gi, "CLEAN: 0% bundle supply controlled")
+        // --- Dati Supply ---
+        .replace(/POSITIVO:/gi, "CLEAN:")
+        .replace(/Top holders non controllano supply/gi, "Top holders do not control supply")
+        .replace(/Top holders controllano/gi, "Top holders control")
+        .replace(/controllata dai top holder/gi, "controlled by top holders")
+        .replace(/dei top holders/gi, "from top holders")
+        .replace(/della bundle/gi, "of the bundle")
         .replace(/nessun potere centrale/gi, "no central power")
-        .replace(/nessun controllo/gi, "no central power");
+        .replace(/nessun controllo/gi, "no central power")
+        .replace(/- Sicuro/gi, "- Safe")
+        .replace(/Sicuro/gi, "Safe")
+        .replace(/Ignota/gi, "Unknown");
 }
 // 🎨 GENERATORE UNIVERSALE CARD SPY (Usato sia per la Diretta che per lo Storico)
 function generaHTMLCardSpy(data) {
@@ -325,8 +340,8 @@ function generaHTMLCardSpy(data) {
                 hudHeader.style.animation = 'pulseRed 2.5s infinite';
                 hudHeader.innerHTML = `
                     <div style="width: 100%; text-align: center;">
-                        <div style="font-size: 1.2em; font-weight: 900; color: #ff4d4d; letter-spacing: 2px;">💀 TOKEN MORTO 💀</div>
-                        <div style="font-size: 0.75em; color: #fff; margin-top: 4px;">Zero volumi da 25s. Cambia moneta!</div>
+                        <div style="font-size: 1.2em; font-weight: 900; color: #ff4d4d; letter-spacing: 2px;">${t('dead_token')}</div>
+                        <div style="font-size: 0.75em; color: #fff; margin-top: 4px;">${t('dead_desc')}</div>
                     </div>
                 `;
             }
@@ -819,81 +834,31 @@ function generaHTMLCardSpy(data) {
         }
 
         // ======================= SOCKET.IO LOGIC =======================
-        // ======================= SOCKET.IO LOGIC =======================
         if (typeof socket !== 'undefined') {
+            
+            // Inizializza variabile per pulizia intelligente (anti-lag estremo)
+            if (typeof window.tapePulito === 'undefined') window.tapePulito = false;
+
             socket.off('nuovo_trade_live');
             socket.on('nuovo_trade_live', (trade) => {
                 resettaTimerNoia();
                 
+                // Sicurezza: convertiamo l'importo in numero per evitare errori
+                const solAmount = parseFloat(trade.sol) || 0;
+                
                 // ==========================================
-                // 🔔 ALLARME TRACKER: C'E' UN NOSTRO WALLET?
+                // 1. ORDER FLOW (Matematica in background, calcola TUTTO senza laggare)
                 // ==========================================
-                // ==========================================
-                // 🔔 ALLARME TRACKER: C'E' UN NOSTRO WALLET?
-                // ==========================================
-                if (window.activeTrackedWallets && window.activeTrackedWallets.length > 0) {
-                    const walletTrovato = window.activeTrackedWallets.find(w => w.address === trade.wallet);
-                    
-                    // CONTROLLA SE IL WALLET ESISTE E SE LE NOTIFICHE SONO ATTIVE (notify !== false)
-                    if (walletTrovato && walletTrovato.notify !== false) {
-                        const isAcquisto = trade.tipo.includes("BUY");
-                        const azioneColor = isAcquisto ? "#00e676" : "#ff4d4d";
-                        const azioneTesto = isAcquisto ? t('tracker_action_buy') : t('tracker_action_sell'); 
-                        
-                        let notificaTracker = document.createElement('div');
-                        notificaTracker.style.cssText = `
-                            position: fixed; bottom: 20px; left: 20px;
-                            width: 280px; background: #0a0c10; border-left: 4px solid ${azioneColor};
-                            box-shadow: 0 4px 15px rgba(0,0,0,0.8); padding: 12px; border-radius: 6px;
-                            z-index: 9999999; color: white; font-family: monospace;
-                            animation: slideInLeft 0.5s ease-out;
-                        `;
-                        notificaTracker.innerHTML = `
-                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                                <strong style="color:${azioneColor};">🎯 TRACKER: ${walletTrovato.name}</strong>
-                                <span style="cursor:pointer; color:#888;" onclick="this.parentElement.parentElement.remove()">✕</span>
-                            </div>
-                            <div style="font-size:0.9em; margin-bottom: 4px;"><b>${azioneTesto}</b></div>
-                            <div style="color:#00ffcc; font-weight:bold;">Importo: ${trade.sol} SOL</div>
-                        `;
-                        document.body.appendChild(notificaTracker);
-                        
-                        setTimeout(() => { if (document.body.contains(notificaTracker)) notificaTracker.remove(); }, 7000);
-                    }
-                }
-                // ==========================================
-                // ==========================================
-
-                const tapeList = document.getElementById('live-tape-list');
-                if (tapeList) {
-                    if (tapeList.innerHTML.includes('scolto') || tapeList.innerHTML.includes('isten') || tapeList.innerHTML.includes('等待') || tapeList.innerHTML.includes('Écoute')) tapeList.innerHTML = '';
-                    const isBuy = trade.tipo.includes("BUY");
-                    const color = isBuy ? "#00e676" : "#ff4d4d";
-                    const el = document.createElement('div');
-                    el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color};`;
-                    
-                    el.innerHTML = `
-                        <div style="display: flex; flex-direction: column; width: 100%;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <span style="font-weight: bold;">${trade.tipo} ${trade.sol} SOL</span>
-                                <span title="${trade.zooTag}">${trade.zooIcon}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
-                                <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
-                                <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none;">🔍 Solscan</a>
-                            </div>
-                        </div>`;
-                    tapeList.prepend(el);
-                    if (tapeList.children.length > 10) tapeList.removeChild(tapeList.lastChild);
-                }
-
                 if (typeof orderFlowWindow !== 'undefined') {
                     orderFlowWindow.push(trade);
                     const tenSecondsAgo = Date.now() - 10000;
                     orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
 
                     let buyVol = 0; let sellVol = 0;
-                    orderFlowWindow.forEach(t => { if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol); else sellVol += parseFloat(t.sol); });
+                    orderFlowWindow.forEach(t => { 
+                        if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol) || 0; 
+                        else sellVol += parseFloat(t.sol) || 0; 
+                    });
 
                     const totalVol = buyVol + sellVol;
                     let buyPressure = 50;
@@ -913,15 +878,94 @@ function generaHTMLCardSpy(data) {
                         document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
                     }
                 }
+
+                // ==========================================
+                // 🔔 2. ALLARME TRACKER WALLET
+                // ==========================================
+                if (window.activeTrackedWallets && window.activeTrackedWallets.length > 0) {
+                    const walletTrovato = window.activeTrackedWallets.find(w => w.address === trade.wallet);
+                    
+                    if (walletTrovato && walletTrovato.notify !== false) {
+                        const isAcquisto = trade.tipo.includes("BUY");
+                        const azioneColor = isAcquisto ? "#00e676" : "#ff4d4d";
+                        const azioneTesto = isAcquisto ? t('tracker_action_buy') : t('tracker_action_sell'); 
+                        
+                        let notificaTracker = document.createElement('div');
+                        notificaTracker.style.cssText = `
+                            position: fixed; bottom: 20px; left: 20px;
+                            width: 280px; background: #0a0c10; border-left: 4px solid ${azioneColor};
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.8); padding: 12px; border-radius: 6px;
+                            z-index: 9999999; color: white; font-family: monospace;
+                            animation: slideInLeft 0.5s ease-out;
+                        `;
+                        notificaTracker.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <strong style="color:${azioneColor};">🎯 TRACKER: ${walletTrovato.name}</strong>
+                                <span class="btn-chiudi-tracker" style="cursor:pointer; color:#888; font-size:1.2em; font-weight:bold;">✕</span>
+                            </div>
+                            <div style="font-size:0.9em; margin-bottom: 4px;"><b>${azioneTesto}</b></div>
+                            <div style="color:#00ffcc; font-weight:bold;">Importo: ${solAmount.toFixed(2)} SOL</div>
+                        `;
+                        document.body.appendChild(notificaTracker);
+                        
+                        notificaTracker.querySelector('.btn-chiudi-tracker').addEventListener('click', () => {
+                            notificaTracker.remove();
+                        });
+                        
+                        setTimeout(() => { if (document.body.contains(notificaTracker)) notificaTracker.remove(); }, 7000);
+                    }
+                }
+
+                // ==========================================
+                // 🔴 3. LIVE TAPE VISIVO (Fix Anti-Freeze Estremo)
+                // ==========================================
+                const tapeList = document.getElementById('live-tape-list');
+                if (tapeList) {
+                    
+                    // Pulizia iniziale intelligente (eseguita una sola volta, zero stress CPU)
+                    if (!window.tapePulito) {
+                        tapeList.innerHTML = '';
+                        window.tapePulito = true;
+                    }
+
+                    // 🔥 FILTRO SALVAVITA: Stampa a schermo SOLO i trade umani (> 0.02 SOL)
+                    if (solAmount > 0.02) {
+                        const isBuy = trade.tipo.includes("BUY");
+                        const color = isBuy ? "#00e676" : "#ff4d4d";
+                        const el = document.createElement('div');
+                        el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color}; margin-bottom: 4px;`;
+                        
+                        el.innerHTML = `
+                            <div style="display: flex; flex-direction: column; width: 100%;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span style="font-weight: bold;">${trade.tipo} ${solAmount.toFixed(2)} SOL</span>
+                                    <span title="${trade.zooTag}">${trade.zooIcon}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
+                                    <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
+                                    <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none;">🔍 Solscan</a>
+                                </div>
+                            </div>`;
+                        
+                        tapeList.prepend(el);
+                        
+                        // Pulizia super-veloce della memoria (max 15 item visibili)
+                        while (tapeList.children.length > 15) {
+                            tapeList.removeChild(tapeList.lastChild);
+                        }
+                    }
+                }
             });
 
+            // ==========================================
+            // 🚨 ALTRI EVENTI
+            // ==========================================
             socket.off('spy_alert');
             socket.on('spy_alert', (data) => {
                 const feed = document.getElementById('spy-feed-list');
                 if (feed) {
                     if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待')) feed.innerHTML = '';
                     
-                    // 👉 TRADUCIAMO LA FRASE "RAFFICA SYBIL..." CHE ARRIVA DAL SERVER
                     let msgTradotto = traduciDalBackend(data.messaggio);
 
                     const alertCard = document.createElement('div');
@@ -938,14 +982,13 @@ function generaHTMLCardSpy(data) {
                 }
             });
 
-            // 🔥 IL BLOCCO AUTOPSIA ORA È DIVENTATO MINIMALISTA:
             socket.off('autopsia_sniper_live');
             socket.on('autopsia_sniper_live', (data) => {
                 aggiungiSpyCardHTML(data, true);
             });
 
         } // <-- QUESTA CHIUDE: if (typeof socket !== 'undefined')
-    } // <-- QUESTA CHIUDE LA FUNZIONE PRINCIPALE (configuraEventiBase o costruisciInterfacciaLive)
+    } // <-- QUESTA CHIUDE LA FUNZIONE PRINCIPALE (configuraEventiBase)
     // =========================================================
     // 📊 DATI STATICI E CARDS 
     // =========================================================
