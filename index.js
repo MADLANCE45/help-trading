@@ -461,90 +461,55 @@ const groqKeys = rawKeyEnv.replace(/['"\s]/g, '').split(',').filter(k => k.lengt
 let currentGroqIndex = 0;
 
 async function interrogaAgente(nomeAgente, prompt) {
-    let tentativi = 0;
-    const maxTentativi = groqKeys.length === 0 ? 1 : groqKeys.length;
+    try {
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
 
-    while (tentativi < maxTentativi) {
-        const apiKey = groqKeys[currentGroqIndex] || "";
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { 
+                "Authorization": `Bearer ${apiKey}`, 
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "Solana Radar Bot",
+                "Content-Type": "application/json" 
+            },
+            body: JSON.stringify({
+                model: "deepseek/deepseek-chat", 
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.1,
+                response_format: { type: "json_object" }
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        let rawText = data.choices[0].message.content;
+        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const startIdx = cleanText.indexOf('{');
+        const endIdx = cleanText.lastIndexOf('}');
         
-        try {
-            const url = `https://api.groq.com/openai/v1/chat/completions`;
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({ 
-                    model: "openai/gpt-oss-20b",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" } 
-                })
-            });
-
-            const data = await response.json();
-
-            // 🛑 CONTROLLO RATE LIMIT
-            if (response.status === 429 || (data.error && data.error.message.includes("Rate limit"))) {
-                console.log(`⚠️ [Agente ${nomeAgente}] Chiave ${currentGroqIndex + 1} esaurita (TPD). Ricarico l'arma...`);
-                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; // Ruota la chiave
-                tentativi++;
-                continue; // Ritenta istantaneamente con la nuova chiave
-            }
-
-            if (!response.ok) throw new Error(data.error?.message || "Errore API Groq");
-
-            const text = data.choices[0].message.content;
-            
-            // Pulizia di sicurezza nel caso l'IA inserisca markdown sfuggito
-            let pulito = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-            
-            // 🔥 FIX 3: Avvolgiamo il parsing in un try-catch. Se Groq delira, entra in Safe Mode invece di far crashare il server.
-            try {
-                return JSON.parse(pulito);
-            } catch (parseError) {
-                console.error(`❌ Errore Parsing JSON Agente [${nomeAgente}]:`, pulito);
-                throw new Error("JSON generato non valido");
-            }
-            
-        } catch (error) {
-            // Se l'errore sollevato dal catch è un Rate Limit "mascherato", ruota. Altrimenti entra in Safe Mode.
-            if (error.message.includes("Rate limit") || error.message.includes("429")) {
-                console.log(`⚠️ [Agente ${nomeAgente}] Limite raggiunto. Cambio chiave...`);
-                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
-                tentativi++;
-            } else {
-                console.error(`❌ Errore Agente [${nomeAgente}]:`, error.message);
-                
-                return { 
-                    errore: true, 
-                    messaggio: "Agente offline o dati corrotti",
-                    devStatus: "⚠️ SCONOSCIUTO - Errore API", 
-                    volumeStatus: "⚠️ SCONOSCIUTO - Errore API", 
-                    topHoldersStatus: "⚠️ SCONOSCIUTO - Errore API",
-                    sybilStatus: "⚠️ SCONOSCIUTO - Errore API", 
-                    estimatedRugTime: "⏱️ SCONOSCIUTO",
-                    strategy: `⛔ BLOCCO API: Passaggio in safe-mode.`,
-                    tradeSetup: `⏳ Attendi la stabilizzazione del nodo.`
-                };
-            }
+        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+            cleanText = cleanText.substring(startIdx, endIdx + 1);
+            return JSON.parse(cleanText);
+        } else {
+            throw new Error(`OpenRouter non ha generato JSON`);
         }
+
+    } catch (error) {
+        console.error(`❌ Errore Agente [${nomeAgente}]:`, error.message);
+        return { 
+            errore: true, 
+            messaggio: "Agente offline o Rate Limit raggiunto",
+            devStatus: "⚠️ SCONOSCIUTO", 
+            volumeStatus: "⚠️ SCONOSCIUTO", 
+            topHoldersStatus: "⚠️ SCONOSCIUTO",
+            sybilStatus: "⚠️ SCONOSCIUTO", 
+            estimatedRugTime: "⏱️ SCONOSCIUTO",
+            strategy: `⛔ BLOCCO API: Passaggio in safe-mode.`,
+            tradeSetup: `WAIT`
+        };
     }
-    
-    // 🔥 SE ESCE DAL CICLO WHILE: TUTTE le chiavi sono bruciate.
-    console.error(`❌ Errore Agente [${nomeAgente}]: TUTTE le chiavi in Rate Limit.`);
-    return { 
-        errore: true, 
-        messaggio: "Rate Limit Globale raggiunto",
-        devStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-        volumeStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-        topHoldersStatus: "⚠️ SCONOSCIUTO - Rate Limit",
-        sybilStatus: "⚠️ SCONOSCIUTO - Rate Limit", 
-        estimatedRugTime: "⏱️ SCONOSCIUTO",
-        strategy: `⛔ RATE LIMIT GLOBALE: Cambia chiavi nel file .env`,
-        tradeSetup: `⏳ API KO.`
-    };
 }
 // 🔥 2.2 IL COORDINATORE DELLO SCIAME (Sostituisce generateTacticalAdviceAI)
 // 🔥 2.2 L'AGENTE MASTER (Sostituisce lo Swarm per evitare i limiti API di Google)
@@ -689,17 +654,21 @@ Formato obbligatorio:
   "puntoRottura": "[Testo tradotto in ${lingua.toUpperCase()}]",
   "azione": "[Azione tradotta in ${lingua.toUpperCase()}, es: BUY, SELL, COMPRARE, VENDRE, 买]"
 }`;
-        // (QUI SOTTO IL RESTO DEL TUO CODICE PER CHIAMARE GEMINI CHE HAI GIA')
 
-        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API mancanti");
-        const apiKey = groqKeys[currentGroqIndex];
-        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
+        // 🚀 CONNESSIONE A OPENROUTER (Modello DeepSeek)
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
 
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            headers: { 
+                "Authorization": `Bearer ${apiKey}`, 
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "Solana Radar Bot",
+                "Content-Type": "application/json" 
+            },
             body: JSON.stringify({
-                model: "openai/gpt-oss-20b", 
+                model: "deepseek/deepseek-chat", // Modello intelligente e velocissimo
                 messages: [{ role: "user", content: promptCopilot }],
                 temperature: 0.1,
                 response_format: { type: "json_object" }
@@ -709,29 +678,23 @@ Formato obbligatorio:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 TRAPPOLA SUPREMA (Groq/JSON Fix)
+        // 🪤 TRAPPOLA SUPREMA
         let rawText = data.choices[0].message.content;
-        
-        // 1. Rimuovi i backtick markdown
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
-        // 2. Isola solo ed esclusivamente ciò che c'è tra le parentesi graffe
         const startIdx = cleanText.indexOf('{');
         const endIdx = cleanText.lastIndexOf('}');
         
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Groq non ha generato JSON: "${rawText.substring(0, 50)}..."`);
+            throw new Error(`OpenRouter non ha generato JSON: "${rawText.substring(0, 50)}..."`);
         }
 
-        // 3. Fai il parsing sicuro
         const aiResult = JSON.parse(cleanText);
         res.json(aiResult);
 
     } catch (error) {
         console.error("❌ Errore Copilota:", error.message);
-        // Questo salvagente impedisce all'estensione di mostrare l'errore JSON nel frontend
         res.status(200).json({
             tattica: "Ricalcolo in corso o Rate Limit raggiunto.",
             puntoRottura: error.message,
@@ -751,18 +714,18 @@ async function analizzaCabalaSupply(mintPubKey) {
             if (acc.uiAmount < 5000000) continue; 
             const pct = (acc.uiAmount / 1000000000) * 100;
             try {
-                await delay(200); 
+              
                 const accountInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
                 if (!accountInfo.value || !accountInfo.value.data.parsed) continue;
                 const ownerWallet = accountInfo.value.data.parsed.info.owner;
                 
-                await delay(200); 
+                
                 const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 50 });
                 if (sigs.length === 0) continue; // 🔥
                 if (sigs.length < 5) sybilCount++;
                 
                 const oldestTx = sigs[sigs.length - 1]; 
-                await delay(200); 
+               
                 const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
                 
                 let funder = "Sconosciuto";
@@ -810,7 +773,7 @@ async function analizzaMicroDumping(mintPubKey) {
                 const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
                 if (sigs.length < 3) continue; 
 
-                await delay(200);
+          
                 const txs = await solanaConnection.getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
                 let vendite = 0;
                 
@@ -966,7 +929,7 @@ async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
 
         let pumpFunInteractions = 0; let altriTokenTrovati = new Set();
         const recentSigs = sigs.slice(0, 15).map(s => s.signature);
-        await delay(200);
+       
         const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
 
         txs.forEach(tx => {
@@ -1180,7 +1143,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         // 🛡️ 2° RESPIRO: Prima di controllare i bot del blocco 0
         await delay(200);
         const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
-        await delay(200); 
+      
         
         let currentFdv = 0; let pairCreatedAt = null; 
         try {
@@ -1206,7 +1169,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
-        await delay(200);
+        
         console.log("⚡ Estrazione Firme e Base...");
         
         let signatures = [];
@@ -1222,7 +1185,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             cabalaData = await analizzaCabalaSupply(mintPubKey);
         } catch (e) {}
 
-        await delay(200);
+       
 
         // 🧠 2. IDENTIFICAZIONE DEL DEV E DELL'ETÀ DEL TOKEN
         let walletAgeDays = null;
@@ -1246,8 +1209,13 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
             if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
                 devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
                 
-                fedinaDev = await analizzaFedinaPenaleDev(devWallet, tokenMint);
-                walletAgeDays = await calcolaEtaWallet(devWallet);
+                // 🔥 BOOST VELOCITÀ: Controlla fedina e età del wallet contemporaneamente!
+                const [risultatoFedina, risultatoEta] = await Promise.all([
+                    analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
+                    calcolaEtaWallet(devWallet).catch(() => null)
+                ]);
+                fedinaDev = risultatoFedina;
+                walletAgeDays = risultatoEta;
                 if (walletAgeDays !== null) {
                     walletAgeHours = walletAgeDays * 24;
                     if (walletAgeDays < 1) {
@@ -1262,19 +1230,16 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         // 📊 3. CALCOLO VOLUMI E ORDER FLOW
         console.log("⚡ Estrazione Transazioni (UBI & Order Flow unificati)...");
-        const recentSigs = signatures.slice(0, 20).map(s => s.signature);
-        let parsedTxs = [];
-        
-        for (let i = 0; i < recentSigs.length; i += 10) {
-            const chunk = recentSigs.slice(i, i + 10);
-            await delay(300);
-            try {
-                const chunkTxs = await solanaConnection.getParsedTransactions(chunk, { maxSupportedTransactionVersion: 0 });
-                parsedTxs.push(...chunkTxs);
-            } catch(e) {
-                console.log(`⚠️ Helius Drop nel chunk ${i}, procedo col prossimo...`);
-            }
-        }
+        console.log("⚡ Estrazione Transazioni (Order Flow rapido)...");
+const recentSigs = signatures.slice(0, 10).map(s => s.signature); // Solo le ultime 10 (bastano e avanzano)
+let parsedTxs = [];
+
+try {
+    // Zero cicli For lenti, spariamo la chiamata in blocco unico!
+    parsedTxs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+} catch(e) {
+    console.log("⚠️ Helius ha skippato le tx parsed, uso i metadati base.");
+}
 
         const ubiData = analizzaUBI_Locale(parsedTxs);
         const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
@@ -1282,10 +1247,13 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         await delay(200);
 
         // 🕵️ 4. ANALISI MANIPOLAZIONE
-        console.log("⚡ Analisi Dump e Sybil Tree...");
-        const microDumpData = await analizzaMicroDumping(mintPubKey);
-        const sybilData = await analizzaGrafoSybil(mintPubKey);
-
+        console.log("⚡ Analisi Dump e Sybil Tree in parallelo...");
+        
+        // 🔥 BOOST VELOCITÀ: Spariamo le API nello stesso momento!
+        const [microDumpData, sybilData] = await Promise.all([
+            analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, testo: "Nessun dump" })),
+            analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" }))
+        ]);
         // 🔥 5. LO SCIAME AI ENTRA IN AZIONE
         const tacticalAdvice = await eseguiSwarmIntelligence(
             walletAgeHours, 
@@ -1425,7 +1393,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 });
 
 // =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (GPT-OSS-20B)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (OpenRouter - DeepSeek)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
@@ -1440,8 +1408,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     }
 
     try {
-        // 🧹 FILTRO DI SANIFICAZIONE: Rimuove tutte le virgolette doppie dai dati in ingresso.
-        // Se l'IA non vede virgolette doppie nei dati, non le userà nella risposta, evitando il crash!
+        // 🧹 FILTRO DI SANIFICAZIONE (Anti-Crash JSON)
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
 
         let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Nessun dato Sybil");
@@ -1450,11 +1417,11 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato");
         let liquidita = pulisciTesto(datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti");
 
-        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA
+        // 🔥 IL GUINZAGLIO MATEMATICO
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
-        let aiMandate = "Analizza i dati in modo estremamente cinico. Sei spietato e cerchi sempre lo scam.";
+        let aiMandate = "Analizza i dati in modo estremamente cinico, ma sii oggettivo se i dati sono buoni.";
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
             aiMandate = "🔴 MANDATO (INVIOLABILE): DEV SCAMMER. GLOBAL SCORE DEVE ESSERE MASSIMO 35. DEV SCORE MASSIMO 15. INIZIA VERDETTO CON [AVOID].";
@@ -1462,53 +1429,62 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             aiMandate = "🟠 MANDATO: BUNDLE PERICOLOSO. SUPPLY SCORE SOTTO IL 30. GLOBAL SCORE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
         }
 
+        // 🧠 IL NUOVO PROMPT INTELLIGENTE (Risolve la Dissonanza Cognitiva)
         const promptLaboratorio = `
-Sei il "Giudice Supremo", spietato analista on-chain di un fondo speculativo su Solana.
+You are the "Supreme Judge", a ruthless on-chain quantitative analyst for Solana memecoins.
+Evaluate the provided data with strict mathematical rigor.
 
 ${aiMandate}
 
-REGOLE GENERALI SUL TRADING MEMECOIN:
-1. Le memecoin si tradano in minuti, vanno a zero in poche ore.
-2. MAI LUNGO TERMINE: VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
-3. Usa SEMPRE uno di questi tag all'inizio del verdetto: [AVOID], [SCALP], o [RIDE].
-
-🔥 REGOLA LINGUISTICA:
-Traduci TUTTO il JSON in lingua: ${lingua.toUpperCase()}.
-
-DATI VERIFICATI DA ELABORARE:
-- Mercato/Volumi: ${liquidita}
-- Rete Sybil: ${sybilStatus}
+VERIFIED ON-CHAIN DATA:
+- Market/Volume: ${liquidita}
+- Sybil Network: ${sybilStatus}
 - Micro-Dumping: ${microDumping}
-- Info Sviluppatore: ${devStatusStr}
-- Info Supply/Bundle: ${bundleInfo}
+- Developer Info: ${devStatusStr}
+- Supply/Bundle: ${bundleInfo}
 
-ATTENZIONE - REGOLE JSON INVIOLABILI:
-1. L'output deve essere ESCLUSIVAMENTE codice JSON valido.
-2. NON usare MAI virgolette doppie (") all'interno dei testi descrittivi. Usa SOLO l'apostrofo (').
-3. I punteggi (score) scritti sotto sono solo ESEMPI. Devi calcolare tu i veri valori da 0 a 100!
+🎯 BUNDLE PREDICTION RULES:
+If you detect a Bundle or Sybil Tree, calculate the predatory intent:
+1. Assume the bundle bought at launch (Between $5k and $30k Market Cap).
+2. Bundles typically dump between 2x and 4x (Between $60k and $90k MC, right before the Raydium graduation).
+3. Include this exact MC exit prediction in the "Supply Integrity" tooltip and the final verdict.
 
-Restituisci esattamente questo formato JSON:
+🎯 CORE TAGGING RULE (SCORE -> TAG):
+Your "global_score" must reflect the weighted average of the 4 metrics.
+- If global_score >= 75: MUST use the [RIDE] tag (Organic momentum, solid structure).
+- If global_score between 45 and 74: MUST use the [SCALP] tag (Speculative, fast in/out).
+- If global_score < 45: MUST use the [AVOID] tag (Scam, extreme bundle risk, or dead token).
+
+🔥 LINGUISTIC RULE:
+You MUST translate ALL output texts (verdict, names, tooltips) into this language: ${lingua.toUpperCase()}.
+NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
+
+JSON FORMAT:
 {
-  "global_score": 45,
-  "verdetto_finale": "[AVOID] Inserisci qui il tuo verdetto reale calcolato senza usare virgolette...",
+  "global_score": 85,
+  "verdetto_finale": "[RIDE] Write the translated verdict here. Include bundle dump MC prediction if applicable...",
   "metrics": [
-    { "name": "Supply Integrity", "score": 25, "tooltip": "Analisi reale supply..." },
-    { "name": "Developer Trust", "score": 10, "tooltip": "Analisi reale dev..." },
-    { "name": "Sybil Resistance", "score": 80, "tooltip": "Analisi reale sybil..." },
-    { "name": "Micro-Dump Risk", "score": 40, "tooltip": "Analisi reale dump..." }
+    { "name": "Supply Integrity", "score": 90, "tooltip": "Translated supply analysis + dump prediction..." },
+    { "name": "Developer Trust", "score": 95, "tooltip": "Translated dev analysis..." },
+    { "name": "Sybil Resistance", "score": 95, "tooltip": "Translated sybil analysis..." },
+    { "name": "Micro-Dump Risk", "score": 90, "tooltip": "Translated dump analysis..." }
   ]
 }`;
-        // (QUI SOTTO IL RESTO DEL TUO CODICE PER CHIAMARE GEMINI CHE HAI GIA')
 
-        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi API non trovate nel .env");
-        const apiKey = groqKeys[currentGroqIndex];
-        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
-        
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        // 🚀 CONNESSIONE A OPENROUTER (Modello DeepSeek da 10$)
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
-            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            headers: { 
+                "Authorization": `Bearer ${apiKey}`, 
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "Solana Radar Bot",
+                "Content-Type": "application/json" 
+            },
             body: JSON.stringify({
-                model: "openai/gpt-oss-20b",
+                model: "deepseek/deepseek-chat", 
                 messages: [{ role: "user", content: promptLaboratorio }],
                 temperature: 0.1,
                 response_format: { type: "json_object" }
@@ -1518,11 +1494,9 @@ Restituisci esattamente questo formato JSON:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 TRAPPOLA SUPREMA (Groq/JSON Fix)
+        // 🪤 TRAPPOLA SUPREMA (Parsing JSON Infallibile)
         let rawText = data.choices[0].message.content;
-        
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
         const startIdx = cleanText.indexOf('{');
         const endIdx = cleanText.lastIndexOf('}');
         
@@ -1535,7 +1509,7 @@ Restituisci esattamente questo formato JSON:
         const aiResult = JSON.parse(cleanText);
         
         const globalScore = aiResult.global_score || 50;
-        const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
+        const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
 
         let verdettoTesto = aiResult.verdetto_finale || "";
         verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">🛑 AVOID</span>');
@@ -1545,7 +1519,7 @@ Restituisci esattamente questo formato JSON:
         let barsHTML = "";
         if(aiResult.metrics && aiResult.metrics.length > 0) {
             aiResult.metrics.forEach(m => {
-                const barColor = m.score >= 70 ? "#00e676" : (m.score >= 40 ? "#ffaa00" : "#ff4d4d");
+                const barColor = m.score >= 75 ? "#00e676" : (m.score >= 45 ? "#ffaa00" : "#ff4d4d");
                 barsHTML += `
                     <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
                         <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 4px; color: #ccc; font-weight: bold; text-transform: uppercase;">
@@ -1598,14 +1572,7 @@ Restituisci esattamente questo formato JSON:
         res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore: ${error.message}</div>` });
     }
 });
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// =====================================================================
-// ⚖️ CORE 2: IL GIUDICE SUPREMO (Gemini Flash - Connessione Diretta REST)
-// =====================================================================
-// =====================================================================
-// ⚖️ CORE 2: IL GIUDICE SUPREMO (Gemini 1.5 Pro - REST Nativo)
-// =====================================================================
 // =====================================================================
 // 🧠 MOTORE 1: PROFILAZIONE ALGORITMICA WALLET (Ingegneria Inversa)
 // =====================================================================
@@ -1721,156 +1688,10 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
 // 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Sostituisce Gemini in Axiom)
 // =====================================================================
 
-// =====================================================================
+//NUOVO!
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
 // =====================================================================
-// =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
-// =====================================================================
-app.get('/api/laboratorio/:tokenMint', async (req, res) => {
-    const tokenMint = req.params.tokenMint;
-    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
-    
-    if (!datiIniziali) {
-        return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
-    }
 
-    try {
-        // Estraiamo i dati già "digeriti" dal tuo algoritmo
-        let sybilStatus = datiIniziali?.sybil?.testo || "Nessun dato Sybil";
-        let microDumping = datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump";
-        let devStatusStr = datiIniziali?.advice?.devStatus || "Ignota";
-        let bundleInfo = datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato";
-        let liquidita = datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti";
-
-        // 🔥 IL GUINZAGLIO MATEMATICO PER L'IA (Pre-Filtro)
-        const devTxtStr = devStatusStr.toUpperCase();
-        const bundleTxtStr = bundleInfo.toUpperCase();
-        
-        let aiMandate = "Analizza i dati in modo estremamente cinico. Sei spietato e cerchi sempre lo scam.";
-        
-        if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
-            aiMandate = "🔴 MANDATO DI SISTEMA (INVIOLABILE): IL DEV E' UNO SCAMMER (WALLET NUOVO O FAKE). TI E' ASSOLUTAMENTE VIETATO SUPERARE IL PUNTEGGIO GLOBALE DI 35. 'Affidabilità Dev' DEVE ESSERE MASSIMO 15. DEVI INIZIARE IL VERDETTO CON [AVOID]. E' VIETATO DIRE CHE E' PULITO.";
-        } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
-            aiMandate = "🟠 MANDATO DI SISTEMA: RILEVATO BUNDLE ESTREMAMENTE PERICOLOSO. IL PUNTEGGIO 'Integrità Supply' DEVE ESSERE SOTTO IL 30 E IL GLOBALE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
-        }
-
-        const promptLaboratorio = `
-Sei il "Giudice Supremo", lo spietato analista on-chain di un fondo speculativo su Solana.
-
-${aiMandate}
-
-REGOLE GENERALI SUL TRADING MEMECOIN:
-1. Le memecoin si tradano in minuti, vanno a zero in poche ore.
-2. MAI LUNGO TERMINE: È SEVERAMENTE VIETATO usare frasi come "investimento a lungo termine", "hold", "sicuro".
-3. ETICHETTE: Usa sempre [AVOID] (scam, fuggi), [SCALP] (entra/esci in 2 minuti), o [RIDE] (pompa iper-forte, massimo 1 ora).
-
-DATI VERIFICATI DA ELABORARE:
-- Mercato/Volumi: ${liquidita}
-- Rete Sybil: ${sybilStatus}
-- Micro-Dumping: ${microDumping}
-- Info Sviluppatore: ${devStatusStr}
-- Info Supply/Bundle: ${bundleInfo}
-
-Restituisci SOLO ED ESCLUSIVAMENTE codice JSON. Nessun backtick, nessun saluto.
-{
-  "global_score": 30,
-  "metrics": [
-    { "name": "Integrità Supply", "score": 25, "tooltip": "..." },
-    { "name": "Stabilità Volumi", "score": 60, "tooltip": "..." },
-    { "name": "Affidabilità Dev", "score": 10, "tooltip": "..." }
-  ],
-  "verdetto_finale": "[AVOID] Dev truffatore confermato. Scappare."
-}`;
-
-        if (!groqKeys || groqKeys.length === 0) throw new Error("Chiavi GROQ non trovate nel .env");
-        const apiKey = groqKeys[currentGroqIndex];
-        currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
-        
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-                model: "openai/gpt-oss-20b",
-                messages: [{ role: "user", content: promptLaboratorio }],
-                temperature: 0.1,
-                response_format: { type: "json_object" }
-            })
-        });
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-
-        let testoJson = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-        if (!testoJson.startsWith('{')) testoJson = testoJson.substring(testoJson.indexOf('{'));
-        if (!testoJson.endsWith('}')) testoJson = testoJson.substring(0, testoJson.lastIndexOf('}') + 1);
-
-        const aiResult = JSON.parse(testoJson);
-        
-        const globalScore = aiResult.global_score || 50;
-        const mainColor = globalScore >= 70 ? "#00e676" : (globalScore >= 40 ? "#ffaa00" : "#ff4d4d");
-
-        let verdettoTesto = aiResult.verdetto_finale || "";
-        verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">🛑 AVOID</span>');
-        verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">⚡ SCALP</span>');
-        verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">🏄‍♂️ RIDE</span>');
-
-        let barsHTML = "";
-        if(aiResult.metrics && aiResult.metrics.length > 0) {
-            aiResult.metrics.forEach(m => {
-                const barColor = m.score >= 70 ? "#00e676" : (m.score >= 40 ? "#ffaa00" : "#ff4d4d");
-                barsHTML += `
-                    <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 4px; color: #ccc; font-weight: bold; text-transform: uppercase;">
-                            <span>${m.name}</span>
-                            <span style="color: ${barColor};">${m.score}%</span>
-                        </div>
-                        <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
-                            <div style="width: ${m.score}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
-                        </div>
-                        <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4;">
-                            ${m.tooltip}
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        const reportHTML = `
-            <style>
-                .metric-container:hover .metric-tooltip { display: block !important; }
-                .donut-chart {
-                    width: 90px; height: 90px; border-radius: 50%;
-                    background: conic-gradient(${mainColor} ${globalScore}%, #161821 0);
-                    display: flex; align-items: center; justify-content: center;
-                    position: relative; box-shadow: 0 0 15px ${mainColor}40; flex-shrink: 0;
-                }
-                .donut-inner {
-                    width: 78px; height: 78px; background: #0a0c10; border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center;
-                    flex-direction: column; position: absolute; z-index: 2;
-                }
-                .donut-inner span { z-index: 3; position: relative; }
-            </style>
-
-            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
-                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
-                    <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
-                    <div style="flex-grow: 1;">
-                        <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Giudizio Algoritmico</span>
-                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
-                            ${verdettoTesto}
-                        </div>
-                    </div>
-                </div>
-                <div style="padding-right: 5px;">${barsHTML}</div>
-            </div>
-        `;
-        res.json({ success: true, verdetto: reportHTML });
-    } catch (error) {
-        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore: ${error.message}</div>` });
-    }
-});
 // =====================================================================
 // 5. LIVE SPY RADAR
 // =====================================================================
@@ -1992,6 +1813,8 @@ const MIN_U_INDEX = 0.30; // Almeno 60% dei wallet devono essere unici (Anti-Was
 // =====================================================================
 const activeSniperSubs = new Map(); 
 const posizioniAperte = new Map(); // 🧠 Ricorda a quanto siamo entrati per chiudere insieme alla balena
+const paracadutiAperti = new Map(); // 🪂 Memoria dei timer di sicurezza per evitare doppie chiusure
+
 io.on("connection", (socket) => {
     console.log("🔌 Un nuovo terminale (Estensione) si è connesso al Radar Live!");
 
@@ -2053,19 +1876,53 @@ function avviaAscoltoBersaglio(walletAddress) {
                 if (isBuy) {
                     console.log(`\n🕵️ [TARGET ACQUISITO] La Balena ${walletAddress.substring(0,6)} ha COMPRATO ${tokenMint.substring(0,6)}...`);
                     
-                    // 🔥 BYPASS TOTALE: Spara al terminale all'istante senza aspettare analisi!
+                    // 🔥 BYPASS TOTALE: Spara al terminale all'istante
                     io.emit('golden_signal_found', { mint: tokenMint });
                     
-                    // (Lasciamo l'analisi in background solo per scriverla nei log)
+                    // 1. Otteniamo il prezzo di mercato in questo esatto millisecondo
+                    const mcEntrata = await ottieniPrezzoToken(tokenMint);
+                    
+                    if (mcEntrata) {
+                        // 2. Pulizia: se c'era già un paracadute per questo token, disinnescalo
+                        if (paracadutiAperti.has(trackerKey)) {
+                            clearTimeout(paracadutiAperti.get(trackerKey));
+                        }
+
+                        // 3. Salviamo la posizione in memoria
+                        posizioniAperte.set(trackerKey, mcEntrata);
+
+                        // 4. Inneschiamo il NUOVO paracadute a 4 minuti (240.000 ms)
+                        const timeoutId = setTimeout(async () => {
+                            if (posizioniAperte.has(trackerKey)) {
+                                console.log(`\n⏱️ [PARACADUTE ALERT] La balena holda da 4 min ${tokenMint.substring(0,6)}... Chiudo trade di sicurezza!`);
+                                posizioniAperte.delete(trackerKey);
+                                paracadutiAperti.delete(trackerKey);
+                                await chiudiPosizioneStalker(tokenMint, mcEntrata);
+                            }
+                        }, 240000); 
+
+                        paracadutiAperti.set(trackerKey, timeoutId);
+                    }
+
+                    // (Lasciamo l'analisi in background)
                     valutaEsplosivitaToken(tokenMint, walletAddress);
+
                 } else {
-                    // 🚨 LA BALENA STA VENDENDO! Dobbiamo controllare se siamo dentro!
+                    // 🚨 LA BALENA STA VENDENDO! 
                     if (posizioniAperte.has(trackerKey)) {
                         console.log(`\n🚨 [COPY-SELL ALERT] La Balena sta DUMPANDO ${tokenMint.substring(0,6)}! Esco immediatamente a mercato!`);
                         const mcEntrata = posizioniAperte.get(trackerKey);
-                        posizioniAperte.delete(trackerKey); // Togliamo dalla memoria
                         
-                        // Chiudiamo il trade istantaneamente
+                        // 1. Togliamo dalla memoria
+                        posizioniAperte.delete(trackerKey); 
+                        
+                        // 2. DISINNESCHIAMO IL PARACADUTE (Altrimenti venderebbe di nuovo a vuoto tra 4 minuti)
+                        if (paracadutiAperti.has(trackerKey)) {
+                            clearTimeout(paracadutiAperti.get(trackerKey));
+                            paracadutiAperti.delete(trackerKey);
+                        }
+                        
+                        // 3. Chiudiamo il trade
                         await chiudiPosizioneStalker(tokenMint, mcEntrata);
                     }
                 }

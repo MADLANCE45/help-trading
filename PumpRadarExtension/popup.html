@@ -5,13 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meme Saver</title>
     <style>
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 350px; /* Blocca la larghezza esatta del popup */
+            box-sizing: border-box; /* Questa è la magia che centra i bordi */
+            overflow-x: hidden; /* Uccide la barra di scorrimento invisibile */
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            width: 320px;
             background-color: #1a1a1a;
             color: #ffffff;
-            margin: 0;
-            padding: 15px;
+            padding: 15px !important; 
         }
         
         /* 🔥 STILE PER IL NUOVO HEADER COMPATTO */

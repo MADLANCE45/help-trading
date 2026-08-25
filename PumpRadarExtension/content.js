@@ -407,20 +407,23 @@ function generaHTMLCardSpy(data) {
                 } else {
                     
                     // 👉 URL 2 AGGIORNATO CON LINGUA
-                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
-                        headers: { "ngrok-skip-browser-warning": "true" }
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.error) throw new Error(data.error);
-                        chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
-                        popolaInterfacciaStatica(data, tokenMint);
-                        avviaLaboratorioGemini(tokenMint);
-                    })
-                    .catch(err => {
-                        const staticBox = document.getElementById('static-analysis-box');
-                        if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
-                    });
+                    // 👉 URL 2 AGGIORNATO CON LINGUA
+fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
+    headers: { "ngrok-skip-browser-warning": "true" }
+})
+.then(res => res.json())
+.then(data => {
+    if (data.error) throw new Error(data.error);
+    chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
+    popolaInterfacciaStatica(data, tokenMint);
+    
+    // 👉 LA CHIAMATA ALL'IA PARTE SOLO DOPO CHE I DATI BASE SONO STATI ESTRATTI!
+    avviaLaboratorioGemini(tokenMint);
+})
+.catch(err => {
+    const staticBox = document.getElementById('static-analysis-box');
+    if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
+});
                 }
             });
             });
