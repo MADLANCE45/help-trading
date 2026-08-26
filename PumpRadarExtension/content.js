@@ -391,41 +391,48 @@ function generaHTMLCardSpy(data) {
                     return;
                 }
 
-                // Ora la lingua è pronta al 100%, possiamo costruire l'interfaccia!
                 costruisciInterfacciaLive(tokenMint);
                 resettaTimerNoia();
 
-                chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
-                if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan) {
-                    popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
-                    avviaLaboratorioGemini(tokenMint); 
-                    
-                    // 👉 URL 1 AGGIORNATO CON LINGUA
-                    fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
-                        headers: { "ngrok-skip-browser-warning": "true" }
-                    }).catch(() => {});
-                } else {
-                    
-                    // 👉 URL 2 AGGIORNATO CON LINGUA
-                    // 👉 URL 2 AGGIORNATO CON LINGUA
-fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
-    headers: { "ngrok-skip-browser-warning": "true" }
-})
-.then(res => res.json())
-.then(data => {
-    if (data.error) throw new Error(data.error);
-    chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
-    popolaInterfacciaStatica(data, tokenMint);
-    
-    // 👉 LA CHIAMATA ALL'IA PARTE SOLO DOPO CHE I DATI BASE SONO STATI ESTRATTI!
-    avviaLaboratorioGemini(tokenMint);
-})
-.catch(err => {
-    const staticBox = document.getElementById('static-analysis-box');
-    if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
-});
-                }
-            });
+                // 🔥 RECUPERA IL WALLET SALVATO INSIEME ALLA MEMORIA
+                chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan', 'userConnectedWallet'], (memoria) => {
+                    const userWallet = memoria.userConnectedWallet || "null";
+                   
+
+                    if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan) {
+                        popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
+                        avviaLaboratorioGemini(tokenMint); 
+                        
+                        // 👉 FETCH IN BACKGROUND CON HEADER WALLET
+                        fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
+                            headers: { 
+                                "ngrok-skip-browser-warning": "true",
+                                "x-wallet-address": userWallet 
+                            }
+                        }).catch(() => {});
+                    } else {
+                        
+                        // 👉 FETCH PRINCIPALE CON HEADER WALLET
+                        fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
+                            headers: { 
+                                "ngrok-skip-browser-warning": "true",
+                                "x-wallet-address": userWallet 
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.error) throw new Error(data.error);
+                            chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
+                            popolaInterfacciaStatica(data, tokenMint);
+                            
+                            avviaLaboratorioGemini(tokenMint);
+                        })
+                        .catch(err => {
+                            const staticBox = document.getElementById('static-analysis-box');
+                            if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
+                        });
+                    }
+                });
             });
         });
     }
@@ -540,7 +547,18 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                                 <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">🇫🇷 FR</button>
                             </div>
                         </div>
-
+                        <!-- 🧠 SELETTORE IA (Solo Premium) -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                            <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase;">🧠 Modello IA (Premium)</strong>
+                            <div style="margin-top: 6px;">
+                                <select id="user-ai-model" style="width: 100%; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none; cursor: pointer;">
+                                    <option value="deepseek/deepseek-chat">DeepSeek V3 (Rapido - Default)</option>
+                                    <option value="openai/gpt-4o">GPT-4o (Istituzionale)</option>
+                                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Analitico)</option>
+                                </select>
+                                <div style="color: #888; font-size: 0.65em; margin-top: 4px;">Sbloccato solo con piano Annuale.</div>
+                            </div>
+                        </div>
                         <!-- SELETTORE AVATAR MEME LOCALI -->
                         <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #2d3142;">
                             <img class="avatar-option" data-src="${av1}" src="${av1}" title="Avatar 1">
@@ -549,6 +567,7 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                             <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
                         </div>
 
+                        
                         <!-- 💎 HUB ACCOUNT WEB (IL PORTALE PRO) -->
                         <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
                             <div style="width: 40px; height: 40px; margin: 0 auto 8px; background: rgba(0, 255, 204, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3em; border: 1px solid rgba(0, 255, 204, 0.3);">💎</div>
@@ -556,16 +575,22 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                             
                             <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span>${t('status_label')}</span> <span style="color: #ff4d4d; font-weight: bold;">${t('status_disconnected')}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span>${t('cloud_wallet_label')}</span> <span>---</span>
+                                    <span>${t('status_label')}</span> 
+                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">Syncing...</span>
                                 </div>
                             </div>
-                            <p style="color: #888; font-size: 0.7em; line-height: 1.4; margin-bottom: 12px;">${t('pro_desc')}</p>
-                            <button id="btn-login-web" style="width: 100%; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 6px; font-weight: 900; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.75em;">
-                                ${t('btn_connect_web')}
-                            </button>
+                            
+                            <p style="color: #888; font-size: 0.75em; line-height: 1.4; margin-bottom: 12px;">Incolla qui la tua <b>Sync Key</b> dal sito web per attivare il piano.</p>
+                            
+                            <!-- 🔥 ECCO IL CAMPO DOVE POTRAI INCOLLARE IL CODICE -->
+                            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                                <input type="text" id="user-sync-key" placeholder="es. ms-pro-..." style="flex-grow: 1; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none;">
+                            </div>
+                            
+                            <div style="display: flex; gap: 8px;">
+                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sincronizza</button>
+                                <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Ottieni Chiave</a>
+                            </div>
                         </div>
 
                         <!-- 1. API HELIUS -->
@@ -718,7 +743,7 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
             });
         }
 
-        // 3. CARICA E SALVA CONFIGURAZIONI E AVATAR
+        // 3. CARICA CONFIGURAZIONI E AVATAR
         const av1 = chrome.runtime.getURL("avatar1.png");
         let selectedAvatarUrl = av1; 
 
@@ -740,6 +765,11 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                 if (document.getElementById('user-tp')) document.getElementById('user-tp').value = res.userConfig.takeProfit || "";
                 if (document.getElementById('user-sl')) document.getElementById('user-sl').value = res.userConfig.stopLoss || "";
                 
+                // CARICA SCELTA IA
+                if (document.getElementById('user-ai-model')) {
+                    document.getElementById('user-ai-model').value = res.userConfig.aiModel || "deepseek/deepseek-chat";
+                }
+                
                 if (res.userConfig.avatarUrl) {
                     selectedAvatarUrl = res.userConfig.avatarUrl;
                     document.getElementById('current-user-avatar').src = selectedAvatarUrl;
@@ -749,12 +779,13 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                     });
                 }
             } else {
-                // Se non c'è config salvata, attiva di default il primo avatar
                 avatarOptions[0].classList.add('active');
             }
         });
 
-        // Logica pulsante Salva
+        // =========================================================
+        // 🔥 LOGICA PULSANTE SALVA CONFIGURAZIONI GENERALI + IA
+        // =========================================================
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
             btnSaveConfig.addEventListener('click', () => {
@@ -764,12 +795,13 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                     slippage: document.getElementById('user-slippage') ? document.getElementById('user-slippage').value.trim() : "",
                     takeProfit: document.getElementById('user-tp') ? document.getElementById('user-tp').value.trim() : "",
                     stopLoss: document.getElementById('user-sl') ? document.getElementById('user-sl').value.trim() : "",
-                    avatarUrl: selectedAvatarUrl
+                    avatarUrl: selectedAvatarUrl,
+                    aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat"
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
                     btnSaveConfig.style.background = '#00e676';
-                    btnSaveConfig.innerHTML = t('btn_saved'); 
+                    btnSaveConfig.innerHTML = "Salvataggio..."; 
                     
                     if (newConfig.rpcUrl && typeof socket !== 'undefined') {
                         socket.emit('update_user_rpc', newConfig.rpcUrl);
@@ -777,15 +809,79 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
 
                     setTimeout(() => {
                         btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
-                        btnSaveConfig.innerHTML = t('btn_save'); 
+                        btnSaveConfig.innerHTML = "Salva Impostazioni"; // Usa t('btn_save') se hai la traduzione
                         
                         document.getElementById('tab-radar').click();
-                        viewUser.style.display = 'none';
-                        bottomNav.style.display = 'flex'; 
+                        const viewUser = document.getElementById('view-user');
+                        const bottomNav = document.getElementById('bottom-tabs-nav');
+                        if (viewUser) viewUser.style.display = 'none';
+                        if (bottomNav) bottomNav.style.display = 'flex'; 
                     }, 1000); 
                 });
             });
         }
+
+
+        // =========================================================
+        // 💎 LOGICA SALVATAGGIO SYNC KEY (IL PORTALE PRO)
+        // =========================================================
+        const btnSaveSync = document.getElementById('btn-save-sync');
+        if (btnSaveSync) {
+            // 1. Appena si apre il menù, controlla se ha già una chiave salvata e aggiorna il badge
+            chrome.storage.local.get(['userAuthToken'], (res) => {
+                const badge = document.getElementById('account-status-badge');
+                if (res.userAuthToken) {
+                    if(document.getElementById('user-sync-key')) document.getElementById('user-sync-key').value = res.userAuthToken;
+                    if(badge) {
+                        badge.innerText = "CONNESSO ✅";
+                        badge.style.color = "#00e676";
+                    }
+                } else {
+                    if(badge) {
+                        badge.innerText = "SCOLLEGATO ❌";
+                        badge.style.color = "#ff4d4d";
+                    }
+                }
+            });
+
+            // 2. Quando l'utente clicca "Sincronizza"
+            btnSaveSync.addEventListener('click', () => {
+                const keyInput = document.getElementById('user-sync-key');
+                const key = keyInput ? keyInput.value.trim() : "";
+                
+                if (!key) {
+                    alert("⚠️ Incolla una chiave prima di sincronizzare!");
+                    return;
+                }
+
+                // 🔥 DEVICE LOCK: Generiamo un ID univoco per questo browser se non esiste
+                chrome.storage.local.get(['device_fingerprint'], (res) => {
+                    let fp = res.device_fingerprint;
+                    if (!fp) {
+                        fp = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+                        chrome.storage.local.set({ device_fingerprint: fp });
+                    }
+
+                    // Salviamo la chiave e l'ID
+                    chrome.storage.local.set({ userAuthToken: key }, () => {
+                        btnSaveSync.innerText = "Fatto!";
+                        btnSaveSync.style.background = "#00e676";
+                        btnSaveSync.style.color = "#000";
+                        
+                        setTimeout(() => {
+                            btnSaveSync.innerText = "Sincronizza";
+                            btnSaveSync.style.background = "#1a1c29";
+                            btnSaveSync.style.color = "#00ffcc";
+                            location.reload(); 
+                        }, 1500);
+                    });
+                });
+            });
+        }
+    
+
+        // 🌍 4. CAMBIO LINGUA LIVE
+        // ... (continua con il resto del tuo codice) ...
 
         // 🌍 4. CAMBIO LINGUA LIVE
         // 🌍 4. CAMBIO LINGUA LIVE (Fix Caricamento Infinito)
@@ -1082,6 +1178,9 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
     // =========================================================
     // ⚖️ IL GIUDICE SUPREMO
     // =========================================================
+    // =========================================================
+    // ⚖️ IL GIUDICE SUPREMO (Con Controllo PRO)
+    // =========================================================
     async function avviaLaboratorioGemini(tokenMint) {
         let container = document.getElementById('gemini-report-container');
         if (!container) {
@@ -1115,16 +1214,27 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
         }, 100);
 
         try {
-            // 👉 URL 3 AGGIORNATO CON LINGUA
-            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            });
+        // 🔑 RECUPERA LA CHIAVE PRO E LA TARGA DEL DISPOSITIVO
+        // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
+        const storageRes = await chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'userConfig']);
+        const authToken = storageRes.userAuthToken || "null";
+        const deviceId = storageRes.device_fingerprint || "null";
+        const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat"; // 🔥 Prende la scelta
+
+        const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
+            headers: { 
+                "ngrok-skip-browser-warning": "true",
+                "x-auth-token": authToken, 
+                "x-device-id": deviceId,
+                "x-ai-model": requestedAi // 🔥 Invia la scelta dell'IA al Server!
+            }
+        });
             const data = await response.json();
             
             clearInterval(timerInterval); // Ferma il cronometro
 
             if (data.success) {
-                // 👉 TESTI SOSTITUITI CON LE VARIABILI DI TRADUZIONE
+                // 🟢 SCANSIONE ANDATA A BUON FINE (Crediti sufficienti)
                 container.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ ${t('judge_title')}</span>
@@ -1137,13 +1247,14 @@ fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?
                 `;
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
 
-                // Aggiorna il semaforo in alto in "✅ Report Completo" nella lingua corretta
                 const mintStatus = document.getElementById('mint-loading-status');
-                if (mintStatus) {
-                    mintStatus.innerHTML = t('loading_complete');
-                }
+                if (mintStatus) mintStatus.innerHTML = t('loading_complete');
 
+            } else if (data.limitReached) {
+                // 🟡 CREDITI FINITI: MOSTRA IL BANNER D'ORO PER IL PASSAGGIO A PRO
+                container.innerHTML = data.verdetto;
             } else {
+                // 🔴 ERRORE GENERICO DELL'IA
                 container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto}</div>`;
             }
         } catch (error) {

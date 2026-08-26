@@ -6,7 +6,10 @@ const http = require('http');
 const { Server } = require("socket.io");
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
+// Inserisci le tue chiavi Supabase (meglio se nel file .env)
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 // 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
 const originalWarn = console.warn;
 const originalError = console.error;
@@ -1051,6 +1054,81 @@ function analizzaOrderFlow_Locale(txs) {
     };
 }
 
+// 🛡️ THE GATEKEEPER: Paywall, Auth & Sicurezza Anti-Bypass
+// =====================================================================
+// =====================================================================
+// 🛡️ THE GATEKEEPER: Paywall, Auth & DEVICE LOCK Anti-Scrocco
+// =====================================================================
+async function checkAuthAndLimits(authToken, deviceId) { // 🔥 Aggiunto parametro deviceId
+    if (!authToken || authToken === 'null' || authToken === 'undefined' || authToken.trim() === '') {
+        return { authorized: false, message: "⚠️ Inserisci la tua Sync Key dal sito web per sbloccare il Radar." };
+    }
+
+    const cleanToken = authToken.trim();
+
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('sync_key', cleanToken)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!user) {
+            return { authorized: false, message: "❌ Sync Key non trovata o scaduta. Generane una nuova dal tuo profilo web." };
+        }
+
+        // 🔥 LOGICA DEVICE LOCK (Blocca chi condivide la chiave)
+        if (user.plan_type === 'pro' || user.plan_type === 'premium') {
+            if (!user.device_id) {
+                // Primo utilizzo: il server memorizza e "sposa" questo dispositivo
+                await supabase.from('users').update({ device_id: deviceId }).eq('sync_key', cleanToken);
+                console.log(`🔒 Dispositivo associato con successo alla chiave ${cleanToken}`);
+            } else if (user.device_id !== deviceId) {
+                // Uso fraudolento: la targa non corrisponde!
+                console.log(`🚨 TENTATIVO DI SCROCCO BLOCCATO! Chiave: ${cleanToken}`);
+                return { authorized: false, message: "❌ Questa chiave è già in uso su un altro dispositivo. L'account non può essere condiviso." };
+            }
+        }
+
+        const nowIso = new Date().toISOString();
+        const today = nowIso.split('T')[0];
+        const lastScanStr = user.last_scan_date ? user.last_scan_date.split('T')[0] : null;
+
+        // 👑 3. ADMIN
+        if (user.plan_type === 'admin') return { authorized: true, plan: "admin", scansLeft: "∞" };
+
+        // 💎 4. PREMIUM & PRO
+        if (user.plan_type === 'pro' || user.plan_type === 'premium') {
+            if (user.pro_expires_at && user.pro_expires_at > nowIso) {
+                return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
+            } else {
+                await supabase.from('users').update({ plan_type: 'free', device_id: null }).eq('sync_key', cleanToken);
+                user.plan_type = 'free'; 
+            }
+        }
+
+        // 🆓 5. FREE
+        if (user.plan_type === 'free' || !user.plan_type) {
+            if (lastScanStr !== today) {
+                await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('sync_key', cleanToken);
+                return { authorized: true, plan: "free", scansLeft: 4 };
+            } else {
+                if (user.scans_remaining <= 0) {
+                    return { authorized: false, limitReached: true, message: "🔒 Limite giornaliero (5/5). Passa al piano PRO o PREMIUM!" };
+                } else {
+                    const creditiRimasti = user.scans_remaining - 1;
+                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('sync_key', cleanToken);
+                    return { authorized: true, plan: "free", scansLeft: creditiRimasti };
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Auth Error (Safe Mode):", err.message);
+        return { authorized: false, message: "⚠️ Errore di rete con il database. Riprova tra poco." }; 
+    }
+}
 // =====================================================================
 // 4. API SCAN
 // =====================================================================
@@ -1393,22 +1471,49 @@ try {
 });
 
 // =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (OpenRouter - DeepSeek)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Blindato + Cambio Marce)
+// =====================================================================
+// =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
-    const tokenMint = req.params.tokenMint;
-    
-    // 👉 1. CATTURIAMO LA LINGUA
-    const lingua = req.query.lang || 'en'; 
-    
-    const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
-    
-    if (!datiIniziali) {
-        return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
-    }
-
+    // 🔥 TUTTO RACCHIUSO NEL TRY-CATCH PER EVITARE ERRORI CRITICI
     try {
-        // 🧹 FILTRO DI SANIFICAZIONE (Anti-Crash JSON)
+        const tokenMint = req.params.tokenMint;
+        const lingua = req.query.lang || 'en'; 
+
+        // 🛡️ 1. IL GATEKEEPER (Legge Chiave e Targa Dispositivo)
+        let rawToken = req.headers['x-auth-token'];
+        let deviceId = req.headers['x-device-id'] || "unknown";
+        const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
+        
+        console.log(`🔐 Controllo Auth Token: ${authToken} | Dispositivo: ${deviceId}`);
+        
+        // Passiamo chiave e targa al Guardiano
+        const authStatus = await checkAuthAndLimits(authToken, deviceId);
+        
+        if (!authStatus.authorized) {
+            return res.json({ 
+                success: false, 
+                limitReached: authStatus.limitReached,
+                verdetto: `
+                    <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
+                        <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
+                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESSO NEGATO</strong>
+                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message}</p>
+                        <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Gestisci Abbonamento</a>
+                    </div>
+                `
+            });
+        }
+
+        const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
+        
+        if (!datiIniziali) {
+            return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
+        }
+
+        // 🧹 FILTRO DI SANIFICAZIONE E PREPARAZIONE DATI
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
 
         let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Nessun dato Sybil");
@@ -1417,19 +1522,18 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato");
         let liquidita = pulisciTesto(datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti");
 
-        // 🔥 IL GUINZAGLIO MATEMATICO
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
-        let aiMandate = "Analizza i dati in modo estremamente cinico, ma sii oggettivo se i dati sono buoni.";
+        let aiMandate = "Analizza i dati in modo cinico, ma sii oggettivo se i dati sono buoni.";
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
-            aiMandate = "🔴 MANDATO (INVIOLABILE): DEV SCAMMER. GLOBAL SCORE DEVE ESSERE MASSIMO 35. DEV SCORE MASSIMO 15. INIZIA VERDETTO CON [AVOID].";
+            aiMandate = "🔴 MANDATO: DEV SCAMMER. GLOBAL SCORE DEVE ESSERE MASSIMO 35. DEV SCORE MASSIMO 15. INIZIA VERDETTO CON [AVOID].";
         } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
             aiMandate = "🟠 MANDATO: BUNDLE PERICOLOSO. SUPPLY SCORE SOTTO IL 30. GLOBAL SCORE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
         }
 
-        // 🧠 IL NUOVO PROMPT INTELLIGENTE (Risolve la Dissonanza Cognitiva)
+        // 🧠 PROMPT INGLESE
         const promptLaboratorio = `
 You are the "Supreme Judge", a ruthless on-chain quantitative analyst for Solana memecoins.
 Evaluate the provided data with strict mathematical rigor.
@@ -1471,9 +1575,33 @@ JSON FORMAT:
   ]
 }`;
 
-        // 🚀 CONNESSIONE A OPENROUTER (Modello DeepSeek da 10$)
+        // 🏎️ IL CAMBIO MARCE DELL'IA (Premium sceglie, gli altri usano DeepSeek)
+        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
+        let selectedModel = "deepseek/deepseek-chat"; // Default di sicurezza assoluta
+        
+        const premiumModels = [
+            "deepseek/deepseek-chat", 
+            "openai/gpt-4o", 
+            "anthropic/claude-3.5-sonnet"
+        ];
+
+        // Se l'utente è Premium o Admin, gli diamo il modello che ha scelto
+        if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
+            if (premiumModels.includes(requestedModel)) {
+                selectedModel = requestedModel;
+            } else {
+                selectedModel = "openai/gpt-4o"; // Fallback in caso di manomissione
+            }
+            console.log(`💎 [PREMIUM/ADMIN] IA Selezionata: ${selectedModel}`);
+        } else {
+            // Per utenti Base/Pro, forziamo sempre DeepSeek
+            selectedModel = "deepseek/deepseek-chat"; 
+            console.log(`🛡️ [STANDARD USER] IA Forzata a: ${selectedModel}`);
+        }
+
+        // 🚀 CONNESSIONE A OPENROUTER
         const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
+        if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -1484,7 +1612,7 @@ JSON FORMAT:
                 "Content-Type": "application/json" 
             },
             body: JSON.stringify({
-                model: "deepseek/deepseek-chat", 
+                model: selectedModel, // Modello dinamico basato sul piano
                 messages: [{ role: "user", content: promptLaboratorio }],
                 temperature: 0.1,
                 response_format: { type: "json_object" }
@@ -1494,7 +1622,6 @@ JSON FORMAT:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 TRAPPOLA SUPREMA (Parsing JSON Infallibile)
         let rawText = data.choices[0].message.content;
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const startIdx = cleanText.indexOf('{');
@@ -1503,7 +1630,7 @@ JSON FORMAT:
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Risposta IA non JSON: "${rawText.substring(0, 50)}..."`);
+            throw new Error(`Risposta IA non valida`);
         }
 
         const aiResult = JSON.parse(cleanText);
@@ -1568,8 +1695,16 @@ JSON FORMAT:
             </div>
         `;
         res.json({ success: true, verdetto: reportHTML });
+    
     } catch (error) {
-        res.json({ success: false, verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">Errore: ${error.message}</div>` });
+        console.error("❌ ERRORE CRITICO BACKEND:", error.message);
+        res.json({ 
+            success: false, 
+            verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">
+                <strong>❌ Errore Backend:</strong><br>${error.message}
+                <br><br><span style="font-size:0.8em; color:#aaa;">Guarda il terminale Node.js per i dettagli.</span>
+            </div>` 
+        });
     }
 });
 
