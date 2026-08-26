@@ -499,6 +499,9 @@ function generaHTMLCardSpy(data) {
                 .avatar-option.active { border: 2px solid #00ffcc; opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,255,204,0.4); }
                 .lang-btn { flex: 1; border: 1px solid #444; border-radius: 4px; padding: 5px 2px; font-size: 0.75em; font-weight: bold; cursor: pointer; transition: 0.2s; }
                 .select-modern { width: 100%; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none; cursor: pointer; }
+                
+                /* 🔥 FIX: Evita che le opzioni del menù a tendina siano invisibili o trasparenti */
+                .select-modern option { background: #050608; color: #ffffff; font-family: Tahoma, sans-serif; font-weight: bold; }
             </style>
             
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: -8px;">
@@ -571,11 +574,10 @@ function generaHTMLCardSpy(data) {
                                 <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900;">🧠 AI Engine</strong>
                                 <span id="ai-lock-badge" style="font-size: 0.65em; background: #222; padding: 3px 6px; border-radius: 4px; color: #888; font-weight: bold; border: 1px solid #333;">🔒 FREE TIER</span>
                             </div>
-                            <!-- 🔥 FIX: Aggiunto background: #0a0c10; a tutte le option per correggere il bug grafico! -->
                             <select id="user-ai-model" disabled class="select-modern" style="cursor: not-allowed; transition: all 0.3s;">
-                                <option value="deepseek/deepseek-chat" style="background: #0a0c10; color: #fff;">DeepSeek V3 (Fast - Default)</option>
-                                <option value="openai/gpt-4o" style="background: #0a0c10; color: #fff;">GPT-4o (Institutional)</option>
-                                <option value="anthropic/claude-3.5-sonnet" style="background: #0a0c10; color: #fff;">Claude 3.5 Sonnet (Analytical)</option>
+                                <option value="deepseek/deepseek-chat">DeepSeek V3 (Fast - Default)</option>
+                                <option value="openai/gpt-4o">GPT-4o (Institutional)</option>
+                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Analytical)</option>
                             </select>
                             <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
                         </div>
@@ -584,21 +586,19 @@ function generaHTMLCardSpy(data) {
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
                             <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 8px; padding: 10px;">
                                 <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
-                                <!-- 🔥 FIX: Background scuro per le Option -->
                                 <select id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
-                                    <option value="standard" style="background: #0a0c10; color: #fff;">Standard (Public)</option>
-                                    <option value="mev_protect" style="background: #0a0c10; color: #fff;">MEV Shield (Secure)</option>
-                                    <option value="turbo" style="background: #0a0c10; color: #fff;">Turbo Node (Premium)</option>
+                                    <option value="standard">Standard (Public)</option>
+                                    <option value="mev_protect">MEV Shield (Secure)</option>
+                                    <option value="turbo">Turbo Node (Premium)</option>
                                 </select>
                             </div>
 
                             <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 8px; padding: 10px;">
                                 <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
-                                <!-- 🔥 FIX: Background scuro per le Option -->
                                 <select id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
-                                    <option value="safe" style="background: #0a0c10; color: #fff;">Safe (Scalp +20%)</option>
-                                    <option value="degen" style="background: #0a0c10; color: #fff;">Degen (Aim for 2x)</option>
-                                    <option value="moon" style="background: #0a0c10; color: #fff;">Moonshot (Hold)</option>
+                                    <option value="safe">Safe (Scalp +20%)</option>
+                                    <option value="degen">Degen (Aim for 2x)</option>
+                                    <option value="moon">Moonshot (Hold)</option>
                                 </select>
                             </div>
                         </div>
@@ -696,6 +696,9 @@ function generaHTMLCardSpy(data) {
     // =========================================================
     // 🎛️ EVENTI BASE E TABS
     // =========================================================
+    // =========================================================
+    // 🎛️ EVENTI BASE E TABS
+    // =========================================================
     function configuraEventiBase(tokenMint) {
         const tabs = ['radar', 'tracker', 'spy'];
         const viewUser = document.getElementById('view-user');
@@ -752,7 +755,7 @@ function generaHTMLCardSpy(data) {
                 selectedAvatarUrl = e.target.getAttribute('data-src');
                 document.getElementById('current-user-avatar').src = selectedAvatarUrl; 
                 
-                // 🔥 Auto-salva l'avatar immediatamente nel database del browser!
+                // Salva istantaneamente l'avatar
                 chrome.storage.local.get(['userConfig'], (configRes) => {
                     const newC = configRes.userConfig || {};
                     newC.avatarUrl = selectedAvatarUrl;
@@ -761,10 +764,12 @@ function generaHTMLCardSpy(data) {
             });
         });
 
-        // CARICAMENTO INIZIALE DELLA MEMORIA
+        // ==========================================
+        // CARICAMENTO INIZIALE DELLA MEMORIA E IA
+        // ==========================================
         chrome.storage.local.get(['userConfig', 'userAuthToken'], (res) => {
             if (res.userConfig) {
-                // Carica i menù a tendina (compresi i nuovi Route e Risk)
+                // Carica i menù a tendina 
                 if (document.getElementById('user-route-mode')) document.getElementById('user-route-mode').value = res.userConfig.routeMode || "standard";
                 if (document.getElementById('user-risk-profile')) document.getElementById('user-risk-profile').value = res.userConfig.riskProfile || "safe";
                 
@@ -780,9 +785,7 @@ function generaHTMLCardSpy(data) {
                 avatarOptions[0].classList.add('active');
             }
 
-            // ==========================================
-            // 🔥 LOGICA SBLOCCO IA PREMIUM E AUTO-SALVATAGGIO
-            // ==========================================
+            // LOGICA SBLOCCO IA PREMIUM E AUTO-SALVATAGGIO
             const aiSelect = document.getElementById('user-ai-model');
             const aiBadge = document.getElementById('ai-lock-badge');
             const aiText = document.getElementById('ai-upgrade-text');
@@ -832,7 +835,7 @@ function generaHTMLCardSpy(data) {
         });
 
         // =========================================================
-        // 🔥 PULSANTE: SAVE SETTINGS (Salva Route e Risk)
+        // 🔥 PULSANTE: SAVE SETTINGS
         // =========================================================
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
@@ -884,7 +887,7 @@ function generaHTMLCardSpy(data) {
                 const key = keyInput ? keyInput.value.trim() : "";
                 
                 if (!key) {
-                    alert("⚠️ Paste a Sync Key before saving!");
+                    alert("⚠️ Paste a Sync Key before syncing!");
                     return;
                 }
 
@@ -910,6 +913,7 @@ function generaHTMLCardSpy(data) {
                 });
             });
         }
+    
     
     
 
