@@ -488,7 +488,6 @@ function generaHTMLCardSpy(data) {
 
         contentDiv.innerHTML = `
             <style>
-                /* 🔥 FIX SCROLL JUMP: Blocca il fastidioso salto della rotellina */
                 #scroll-area, #live-tape-list, #spy-feed-list { overflow-anchor: none !important; }
                 @keyframes slideInLeft { 0% { transform: translateX(-100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
                 @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
@@ -499,47 +498,43 @@ function generaHTMLCardSpy(data) {
                 .avatar-option { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; opacity: 0.5; transition: 0.2s; object-fit: cover; }
                 .avatar-option.active { border: 2px solid #00ffcc; opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,255,204,0.4); }
                 .lang-btn { flex: 1; border: 1px solid #444; border-radius: 4px; padding: 5px 2px; font-size: 0.75em; font-weight: bold; cursor: pointer; transition: 0.2s; }
+                .select-modern { width: 100%; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none; cursor: pointer; }
             </style>
             
             <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: -8px;">
                 
-                <!-- 🔥 HEADER A DUE PIANI -->
+                <!-- HEADER -->
                 <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;">
-                    
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div>
-                            <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">${t('app_name')}</div>
-                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc;">${t('app_sub')}</div>
+                            <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Meme Saver</div>
+                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc;">Trading Terminal</div>
                         </div>
-                        <!-- AVATAR UTENTE (Con Etichetta) -->
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">${t('settings_btn')}</span>
-                            <div id="btn-user-profile" title="${t('settings_btn')}" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
+                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Settings</span>
+                            <div id="btn-user-profile" title="Settings" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
                                 <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                         </div>
-                    </div>
-
-                    <div id="hud-stats-container" style="display: none; justify-content: space-between; width: 100%; border-top: 1px dashed #2d3142; margin-top: 10px; padding-top: 8px;">
                     </div>
                 </div>
 
                 <div id="scroll-area" style="flex-grow: 1; overflow-y: auto; padding: 15px; padding-bottom: 25px;">
                     
-                    <!-- ⚙️ TAB SEGRETO: USER DASHBOARD -->
+                    <!-- USER DASHBOARD -->
                     <div id="view-user" style="display: none; height: 100%;">
                         
                         <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
                             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulseGlow 3s infinite;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             <div>
-                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px;">${t('control_room')}</h3>
-                                <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">${t('algo_settings')}</div>
+                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px;">Control Room</h3>
+                                <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">Algorithm Settings</div>
                             </div>
                         </div>
 
-                        <!-- 🌍 SELETTORE LINGUA (4 Lingue) -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;">
-                            <div style="font-size: 0.65em; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; text-align: center;">${t('lang_title')}</div>
+                        <!-- LANGUAGE SELECTOR -->
+                        <div style="background: #161821; border: 1px solid #2d3142; border-radius: 8px; padding: 8px 12px; margin-bottom: 15px;">
+                            <div style="font-size: 0.65em; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; text-align: center;">Interface Language</div>
                             <div style="display: flex; justify-content: space-between; gap: 6px;">
                                 <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'};">🇬🇧 EN</button>
                                 <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'};">🇮🇹 IT</button>
@@ -547,94 +542,94 @@ function generaHTMLCardSpy(data) {
                                 <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">🇫🇷 FR</button>
                             </div>
                         </div>
-                        <!-- 🧠 SELETTORE IA (Solo Premium) -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-                            <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase;">🧠 Modello IA (Premium)</strong>
-                            <div style="margin-top: 6px;">
-                                <select id="user-ai-model" style="width: 100%; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none; cursor: pointer;">
-                                    <option value="deepseek/deepseek-chat">DeepSeek V3 (Rapido - Default)</option>
-                                    <option value="openai/gpt-4o">GPT-4o (Istituzionale)</option>
-                                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Analitico)</option>
-                                </select>
-                                <div style="color: #888; font-size: 0.65em; margin-top: 4px;">Sbloccato solo con piano Annuale.</div>
+
+                        <!-- PRO PORTAL -->
+                        <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
+                            <div style="width: 40px; height: 40px; margin: 0 auto 8px; background: rgba(0, 255, 204, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3em; border: 1px solid rgba(0, 255, 204, 0.3);">💎</div>
+                            <strong style="color: #00ffcc; font-size: 1.05em; text-transform: uppercase; letter-spacing: 1px;">Pro Account Hub</strong>
+                            
+                            <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Account Status:</span> 
+                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">Syncing...</span>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                                <input type="text" id="user-sync-key" placeholder="Paste Sync Key..." style="flex-grow: 1; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none;">
+                            </div>
+                            
+                            <div style="display: flex; gap: 8px;">
+                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sync Key</button>
+                                <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
                             </div>
                         </div>
-                        <!-- SELETTORE AVATAR MEME LOCALI -->
-                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #2d3142;">
+
+                        <!-- AI SELECTOR -->
+                        <div style="background: #11121a; border: 1px solid #2d3142; border-left: 3px solid #a855f7; border-radius: 8px; padding: 12px; margin-bottom: 15px; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900;">🧠 AI Engine</strong>
+                                <span id="ai-lock-badge" style="font-size: 0.65em; background: #222; padding: 3px 6px; border-radius: 4px; color: #888; font-weight: bold; border: 1px solid #333;">🔒 FREE TIER</span>
+                            </div>
+                            <!-- 🔥 FIX: Aggiunto background: #0a0c10; a tutte le option per correggere il bug grafico! -->
+                            <select id="user-ai-model" disabled class="select-modern" style="cursor: not-allowed; transition: all 0.3s;">
+                                <option value="deepseek/deepseek-chat" style="background: #0a0c10; color: #fff;">DeepSeek V3 (Fast - Default)</option>
+                                <option value="openai/gpt-4o" style="background: #0a0c10; color: #fff;">GPT-4o (Institutional)</option>
+                                <option value="anthropic/claude-3.5-sonnet" style="background: #0a0c10; color: #fff;">Claude 3.5 Sonnet (Analytical)</option>
+                            </select>
+                            <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
+                        </div>
+
+                        <!-- TRADING ROUTE & RISK MANAGEMENT -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                            <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 8px; padding: 10px;">
+                                <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
+                                <!-- 🔥 FIX: Background scuro per le Option -->
+                                <select id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
+                                    <option value="standard" style="background: #0a0c10; color: #fff;">Standard (Public)</option>
+                                    <option value="mev_protect" style="background: #0a0c10; color: #fff;">MEV Shield (Secure)</option>
+                                    <option value="turbo" style="background: #0a0c10; color: #fff;">Turbo Node (Premium)</option>
+                                </select>
+                            </div>
+
+                            <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 8px; padding: 10px;">
+                                <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
+                                <!-- 🔥 FIX: Background scuro per le Option -->
+                                <select id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
+                                    <option value="safe" style="background: #0a0c10; color: #fff;">Safe (Scalp +20%)</option>
+                                    <option value="degen" style="background: #0a0c10; color: #fff;">Degen (Aim for 2x)</option>
+                                    <option value="moon" style="background: #0a0c10; color: #fff;">Moonshot (Hold)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- SCAN HISTORY -->
+                        <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                            <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px;">📚 Scan History</strong>
+                            <div style="font-size: 0.75em; color: #666; font-family: monospace; line-height: 1.5;">
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>FUKg...9xK</span> <span style="color: #ff4d4d;">[AVOID]</span></div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>8mvf...Xwv</span> <span style="color: #00e676;">[RIDE]</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>3Bkx...1oP</span> <span style="color: #ffaa00;">[SCALP]</span></div>
+                            </div>
+                        </div>
+
+                        <!-- AVATAR SELECTION -->
+                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #2d3142;">
                             <img class="avatar-option" data-src="${av1}" src="${av1}" title="Avatar 1">
                             <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
                             <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
                             <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
                         </div>
 
-                        
-                        <!-- 💎 HUB ACCOUNT WEB (IL PORTALE PRO) -->
-                        <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
-                            <div style="width: 40px; height: 40px; margin: 0 auto 8px; background: rgba(0, 255, 204, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3em; border: 1px solid rgba(0, 255, 204, 0.3);">💎</div>
-                            <strong style="color: #00ffcc; font-size: 1.05em; text-transform: uppercase; letter-spacing: 1px;">${t('pro_title')}</strong>
-                            
-                            <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span>${t('status_label')}</span> 
-                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">Syncing...</span>
-                                </div>
-                            </div>
-                            
-                            <p style="color: #888; font-size: 0.75em; line-height: 1.4; margin-bottom: 12px;">Incolla qui la tua <b>Sync Key</b> dal sito web per attivare il piano.</p>
-                            
-                            <!-- 🔥 ECCO IL CAMPO DOVE POTRAI INCOLLARE IL CODICE -->
-                            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-                                <input type="text" id="user-sync-key" placeholder="es. ms-pro-..." style="flex-grow: 1; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none;">
-                            </div>
-                            
-                            <div style="display: flex; gap: 8px;">
-                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sincronizza</button>
-                                <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Ottieni Chiave</a>
-                            </div>
-                        </div>
-
-                        <!-- 1. API HELIUS -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #4da6ff; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
-                            <strong style="color: #4da6ff; font-size: 0.8em; text-transform: uppercase;">${t('helius_title')}</strong>
-                            <div style="margin-top: 6px;">
-                                <input type="text" id="user-rpc-url" placeholder="${t('helius_placeholder')}" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.75em;">
-                                <div style="color: #888; font-size: 0.65em; margin-top: 3px;">${t('helius_desc')}</div>
-                            </div>
-                        </div>
-
-                        <!-- 2. SCUDO MEV -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #b366ff; border-radius: 8px; padding: 10px; margin-bottom: 10px;">
-                            <strong style="color: #b366ff; font-size: 0.8em; text-transform: uppercase;">${t('jito_title')}</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
-                                <div>
-                                    <label style="font-size: 0.68em; color: #aaa;">${t('jito_tip')}</label>
-                                    <input type="number" id="user-jito-tip" placeholder="0.001" step="0.001" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 0.68em; color: #aaa;">${t('slippage')}</label>
-                                    <input type="number" id="user-slippage" placeholder="5" style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3. RISK MANAGEMENT -->
-                        <div style="background: #161821; border: 1px solid #2d3142; border-left: 3px solid #ffaa00; border-radius: 8px; padding: 10px; margin-bottom: 12px;">
-                            <strong style="color: #ffaa00; font-size: 0.8em; text-transform: uppercase;">${t('risk_title')}</strong>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
-                                <div>
-                                    <label style="font-size: 0.68em; color: #aaa;">${t('take_profit')}</label>
-                                    <input type="number" id="user-tp" placeholder="150" style="width: 100%; box-sizing: border-box; background: rgba(0, 230, 118, 0.1); border: 1px solid #00e676; color: #00e676; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center; font-weight: bold;">
-                                </div>
-                                <div>
-                                    <label style="font-size: 0.68em; color: #aaa;">${t('stop_loss')}</label>
-                                    <input type="number" id="user-sl" placeholder="-20" style="width: 100%; box-sizing: border-box; background: rgba(255, 77, 77, 0.1); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 5px; border-radius: 4px; font-family: monospace; font-size: 0.75em; text-align: center; font-weight: bold;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 0.85em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;">
-                            ${t('btn_save')}
+                        <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 0.85em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; margin-bottom: 10px;">
+                            Save Settings
                         </button>
+
+                        <!-- DISCORD UNDERGROUND -->
+                        <a href="https://discord.gg/tuolinkanonimo" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.75em; cursor: pointer; transition: 0.2s;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+                            Join the Resistance (Discord)
+                        </a>
                     </div>
 
                     <!-- TAB 1: RADAR -->
@@ -642,9 +637,9 @@ function generaHTMLCardSpy(data) {
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">
                                 <span>🎯 ${tokenMint.substring(0,12)}...</span>
-                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">${t('loading_analysis')}</span>
+                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
                             </div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">${t('btn_reload')}</button>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">Reload</button>
                         </div>
                         ${copilotHTML}
                         ${orderFlowHTML}
@@ -654,13 +649,12 @@ function generaHTMLCardSpy(data) {
 
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">${t('tracker_title')}</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px;">Wallet Tracker</h3></div>
                         
-                        <!-- 🆕 NUOVA GRAFICA CON CAMPO NOME -->
                         <div style="display: flex; gap: 6px; margin-bottom: 15px; align-items: stretch;">
-                            <input type="text" id="new-wallet-name" placeholder="${t('tracker_name')}" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em;">
-                            <input type="text" id="new-wallet-input" placeholder="${t('tracker_placeholder')}" style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em;">${t('tracker_btn')}</button>
+                            <input type="text" id="new-wallet-name" placeholder="Name" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em;">
+                            <input type="text" id="new-wallet-input" placeholder="Paste Wallet..." style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em;">ADD</button>
                         </div>
                         
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
@@ -668,9 +662,9 @@ function generaHTMLCardSpy(data) {
 
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">${t('spy_title')}</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px;">Spy Radar</h3></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">${t('spy_waiting')}</div>
+                            <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">Waiting for whale transactions...</div>
                         </div>
                     </div>
                 </div>
@@ -678,13 +672,13 @@ function generaHTMLCardSpy(data) {
                 <!-- BOTTOM TABS -->
                 <div id="bottom-tabs-nav" style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_radar')}</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">📡</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Radar</span>
                     </div>
                     <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_tracker')}</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">💼</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Tracker</span>
                     </div>
                     <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">${t('nav_spy')}</span>
+                        <span style="font-size: 1.2em; margin-bottom: 2px;">🚨</span><span style="font-size: 0.6em; font-weight: 900; text-transform: uppercase;">Spy</span>
                     </div>
                 </div>
             </div>
@@ -699,12 +693,14 @@ function generaHTMLCardSpy(data) {
     // =========================================================
     // 🎛️ EVENTI BASE E TABS
     // =========================================================
+    // =========================================================
+    // 🎛️ EVENTI BASE E TABS
+    // =========================================================
     function configuraEventiBase(tokenMint) {
         const tabs = ['radar', 'tracker', 'spy'];
         const viewUser = document.getElementById('view-user');
         const bottomNav = document.getElementById('bottom-tabs-nav');
         
-        // 1. TABS STANDARD (In basso)
         function switchTab(activeId) {
             viewUser.style.display = 'none'; 
             bottomNav.style.display = 'flex'; 
@@ -727,7 +723,6 @@ function generaHTMLCardSpy(data) {
         }
         tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
 
-        // 2. TOGGLE USER DASHBOARD
         const btnUser = document.getElementById('btn-user-profile');
         if (btnUser) {
             btnUser.addEventListener('click', () => {
@@ -743,7 +738,9 @@ function generaHTMLCardSpy(data) {
             });
         }
 
-        // 3. CARICA CONFIGURAZIONI E AVATAR
+        // ==========================================
+        // 🔥 AUTO-SALVATAGGIO SKIN (AVATAR)
+        // ==========================================
         const av1 = chrome.runtime.getURL("avatar1.png");
         let selectedAvatarUrl = av1; 
 
@@ -754,21 +751,22 @@ function generaHTMLCardSpy(data) {
                 e.target.classList.add('active'); 
                 selectedAvatarUrl = e.target.getAttribute('data-src');
                 document.getElementById('current-user-avatar').src = selectedAvatarUrl; 
+                
+                // 🔥 Auto-salva l'avatar immediatamente nel database del browser!
+                chrome.storage.local.get(['userConfig'], (configRes) => {
+                    const newC = configRes.userConfig || {};
+                    newC.avatarUrl = selectedAvatarUrl;
+                    chrome.storage.local.set({ userConfig: newC });
+                });
             });
         });
 
-        chrome.storage.local.get(['userConfig'], (res) => {
+        // CARICAMENTO INIZIALE DELLA MEMORIA
+        chrome.storage.local.get(['userConfig', 'userAuthToken'], (res) => {
             if (res.userConfig) {
-                if (document.getElementById('user-rpc-url')) document.getElementById('user-rpc-url').value = res.userConfig.rpcUrl || "";
-                if (document.getElementById('user-jito-tip')) document.getElementById('user-jito-tip').value = res.userConfig.jitoTip || "";
-                if (document.getElementById('user-slippage')) document.getElementById('user-slippage').value = res.userConfig.slippage || "";
-                if (document.getElementById('user-tp')) document.getElementById('user-tp').value = res.userConfig.takeProfit || "";
-                if (document.getElementById('user-sl')) document.getElementById('user-sl').value = res.userConfig.stopLoss || "";
-                
-                // CARICA SCELTA IA
-                if (document.getElementById('user-ai-model')) {
-                    document.getElementById('user-ai-model').value = res.userConfig.aiModel || "deepseek/deepseek-chat";
-                }
+                // Carica i menù a tendina (compresi i nuovi Route e Risk)
+                if (document.getElementById('user-route-mode')) document.getElementById('user-route-mode').value = res.userConfig.routeMode || "standard";
+                if (document.getElementById('user-risk-profile')) document.getElementById('user-risk-profile').value = res.userConfig.riskProfile || "safe";
                 
                 if (res.userConfig.avatarUrl) {
                     selectedAvatarUrl = res.userConfig.avatarUrl;
@@ -781,80 +779,115 @@ function generaHTMLCardSpy(data) {
             } else {
                 avatarOptions[0].classList.add('active');
             }
+
+            // ==========================================
+            // 🔥 LOGICA SBLOCCO IA PREMIUM E AUTO-SALVATAGGIO
+            // ==========================================
+            const aiSelect = document.getElementById('user-ai-model');
+            const aiBadge = document.getElementById('ai-lock-badge');
+            const aiText = document.getElementById('ai-upgrade-text');
+            const token = res.userAuthToken || "";
+
+            const isPremium = token.includes('ms-premium-') || token.includes('admin');
+
+            if (aiSelect) {
+                if (isPremium) {
+                    aiSelect.disabled = false;
+                    aiSelect.style.color = "#00ffcc";
+                    aiSelect.style.border = "1px solid #a855f7";
+                    aiSelect.style.cursor = "pointer";
+                    aiSelect.style.background = "#0a0c10";
+                    
+                    aiBadge.innerText = "💎 PREMIUM";
+                    aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
+                    aiBadge.style.color = "#a855f7";
+                    aiBadge.style.border = "1px solid #a855f7";
+                    
+                    aiText.style.display = "none"; 
+                }
+
+                aiSelect.value = res.userConfig?.aiModel || "deepseek/deepseek-chat";
+
+                aiSelect.addEventListener('change', () => {
+                    chrome.storage.local.get(['userConfig'], (configRes) => {
+                        const newC = configRes.userConfig || {};
+                        newC.aiModel = aiSelect.value;
+                        
+                        chrome.storage.local.set({ userConfig: newC }, () => {
+                            aiBadge.innerText = "✓ SAVED";
+                            aiBadge.style.background = "rgba(0, 230, 118, 0.2)";
+                            aiBadge.style.color = "#00e676";
+                            aiBadge.style.border = "1px solid #00e676";
+                            
+                            setTimeout(() => { 
+                                aiBadge.innerText = "💎 PREMIUM"; 
+                                aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
+                                aiBadge.style.color = "#a855f7";
+                                aiBadge.style.border = "1px solid #a855f7";
+                            }, 1500);
+                        });
+                    });
+                });
+            }
         });
 
         // =========================================================
-        // 🔥 LOGICA PULSANTE SALVA CONFIGURAZIONI GENERALI + IA
+        // 🔥 PULSANTE: SAVE SETTINGS (Salva Route e Risk)
         // =========================================================
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
             btnSaveConfig.addEventListener('click', () => {
                 const newConfig = {
-                    rpcUrl: document.getElementById('user-rpc-url') ? document.getElementById('user-rpc-url').value.trim() : "",
-                    jitoTip: document.getElementById('user-jito-tip') ? document.getElementById('user-jito-tip').value.trim() : "",
-                    slippage: document.getElementById('user-slippage') ? document.getElementById('user-slippage').value.trim() : "",
-                    takeProfit: document.getElementById('user-tp') ? document.getElementById('user-tp').value.trim() : "",
-                    stopLoss: document.getElementById('user-sl') ? document.getElementById('user-sl').value.trim() : "",
                     avatarUrl: selectedAvatarUrl,
-                    aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat"
+                    aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
+                    routeMode: document.getElementById('user-route-mode') ? document.getElementById('user-route-mode').value : "standard",
+                    riskProfile: document.getElementById('user-risk-profile') ? document.getElementById('user-risk-profile').value : "safe"
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
                     btnSaveConfig.style.background = '#00e676';
-                    btnSaveConfig.innerHTML = "Salvataggio..."; 
+                    btnSaveConfig.innerHTML = "SAVED!"; 
                     
-                    if (newConfig.rpcUrl && typeof socket !== 'undefined') {
-                        socket.emit('update_user_rpc', newConfig.rpcUrl);
-                    }
-
                     setTimeout(() => {
                         btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
-                        btnSaveConfig.innerHTML = "Salva Impostazioni"; // Usa t('btn_save') se hai la traduzione
+                        btnSaveConfig.innerHTML = "SAVE SETTINGS"; 
                         
                         document.getElementById('tab-radar').click();
-                        const viewUser = document.getElementById('view-user');
-                        const bottomNav = document.getElementById('bottom-tabs-nav');
-                        if (viewUser) viewUser.style.display = 'none';
-                        if (bottomNav) bottomNav.style.display = 'flex'; 
                     }, 1000); 
                 });
             });
         }
 
-
         // =========================================================
-        // 💎 LOGICA SALVATAGGIO SYNC KEY (IL PORTALE PRO)
+        // 💎 LOGICA SALVATAGGIO SYNC KEY
         // =========================================================
         const btnSaveSync = document.getElementById('btn-save-sync');
         if (btnSaveSync) {
-            // 1. Appena si apre il menù, controlla se ha già una chiave salvata e aggiorna il badge
             chrome.storage.local.get(['userAuthToken'], (res) => {
                 const badge = document.getElementById('account-status-badge');
                 if (res.userAuthToken) {
                     if(document.getElementById('user-sync-key')) document.getElementById('user-sync-key').value = res.userAuthToken;
                     if(badge) {
-                        badge.innerText = "CONNESSO ✅";
+                        badge.innerText = "CONNECTED ✅";
                         badge.style.color = "#00e676";
                     }
                 } else {
                     if(badge) {
-                        badge.innerText = "SCOLLEGATO ❌";
+                        badge.innerText = "DISCONNECTED ❌";
                         badge.style.color = "#ff4d4d";
                     }
                 }
             });
 
-            // 2. Quando l'utente clicca "Sincronizza"
             btnSaveSync.addEventListener('click', () => {
                 const keyInput = document.getElementById('user-sync-key');
                 const key = keyInput ? keyInput.value.trim() : "";
                 
                 if (!key) {
-                    alert("⚠️ Incolla una chiave prima di sincronizzare!");
+                    alert("⚠️ Paste a Sync Key before saving!");
                     return;
                 }
 
-                // 🔥 DEVICE LOCK: Generiamo un ID univoco per questo browser se non esiste
                 chrome.storage.local.get(['device_fingerprint'], (res) => {
                     let fp = res.device_fingerprint;
                     if (!fp) {
@@ -862,14 +895,13 @@ function generaHTMLCardSpy(data) {
                         chrome.storage.local.set({ device_fingerprint: fp });
                     }
 
-                    // Salviamo la chiave e l'ID
                     chrome.storage.local.set({ userAuthToken: key }, () => {
-                        btnSaveSync.innerText = "Fatto!";
+                        btnSaveSync.innerText = "Done!";
                         btnSaveSync.style.background = "#00e676";
                         btnSaveSync.style.color = "#000";
                         
                         setTimeout(() => {
-                            btnSaveSync.innerText = "Sincronizza";
+                            btnSaveSync.innerText = "Sync Key";
                             btnSaveSync.style.background = "#1a1c29";
                             btnSaveSync.style.color = "#00ffcc";
                             location.reload(); 
@@ -878,6 +910,7 @@ function generaHTMLCardSpy(data) {
                 });
             });
         }
+    
     
 
         // 🌍 4. CAMBIO LINGUA LIVE
