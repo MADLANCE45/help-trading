@@ -882,6 +882,7 @@ function generaHTMLCardSpy(data) {
                 }
             });
 
+            // 2. Quando l'utente clicca "Sincronizza"
             btnSaveSync.addEventListener('click', () => {
                 const keyInput = document.getElementById('user-sync-key');
                 const key = keyInput ? keyInput.value.trim() : "";
@@ -891,8 +892,16 @@ function generaHTMLCardSpy(data) {
                     return;
                 }
 
+                // 🔥 FIX: VALIDAZIONE DELLA CHIAVE
+                // Accetta solo chiavi che iniziano con i prefissi corretti o la tua chiave admin
+                if (!key.startsWith("ms-pro-") && !key.startsWith("ms-premium-") && key !== "ms-admin-GODMODE-777") {
+                    alert("❌ Chiave non valida! Formato errato. Copiala dalla tua Dashboard Web.");
+                    return; // Ferma tutto, non salva e non ricarica
+                }
+
                 chrome.storage.local.get(['device_fingerprint'], (res) => {
                     let fp = res.device_fingerprint;
+                    // ... [il resto del codice sotto rimane uguale] ...
                     if (!fp) {
                         fp = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
                         chrome.storage.local.set({ device_fingerprint: fp });

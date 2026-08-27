@@ -1057,69 +1057,99 @@ function analizzaOrderFlow_Locale(txs) {
 // 🛡️ THE GATEKEEPER: Paywall, Auth & Sicurezza Anti-Bypass
 // =====================================================================
 // =====================================================================
-// 🛡️ THE GATEKEEPER: Paywall, Auth & DEVICE LOCK Anti-Scrocco
+// 🛡️ THE GATEKEEPER: Paywall, Free Tier, Device Lock & Reset
 // =====================================================================
-async function checkAuthAndLimits(authToken, deviceId) { // 🔥 Aggiunto parametro deviceId
-    if (!authToken || authToken === 'null' || authToken === 'undefined' || authToken.trim() === '') {
-        return { authorized: false, message: "⚠️ Inserisci la tua Sync Key dal sito web per sbloccare il Radar." };
+async function checkAuthAndLimits(authToken, deviceId) {
+    const cleanToken = (authToken && authToken !== 'null' && authToken !== 'undefined') ? authToken.trim() : null;
+    const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
+
+    if (!cleanDevice) {
+        return { authorized: false, message: "⚠️ Errore Estensione: ID Dispositivo mancante. Ricarica la pagina." };
     }
 
-    const cleanToken = authToken.trim();
-
     try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('sync_key', cleanToken)
-            .maybeSingle();
+        let user = null;
 
-        if (error) throw error;
+        // 🟢 CASO 1: L'UTENTE HA INSERITO UNA CHIAVE PRO/PREMIUM
+        if (cleanToken) {
+            const { data, error } = await supabase.from('users').select('*').eq('sync_key', cleanToken).maybeSingle();
+            if (error) throw error;
+            user = data;
 
-        if (!user) {
-            return { authorized: false, message: "❌ Sync Key non trovata o scaduta. Generane una nuova dal tuo profilo web." };
-        }
+            if (!user) return { authorized: false, message: "❌ Sync Key non trovata o scaduta." };
 
-        // 🔥 LOGICA DEVICE LOCK (Blocca chi condivide la chiave)
-        if (user.plan_type === 'pro' || user.plan_type === 'premium') {
-            if (!user.device_id) {
-                // Primo utilizzo: il server memorizza e "sposa" questo dispositivo
-                await supabase.from('users').update({ device_id: deviceId }).eq('sync_key', cleanToken);
-                console.log(`🔒 Dispositivo associato con successo alla chiave ${cleanToken}`);
-            } else if (user.device_id !== deviceId) {
-                // Uso fraudolento: la targa non corrisponde!
-                console.log(`🚨 TENTATIVO DI SCROCCO BLOCCATO! Chiave: ${cleanToken}`);
-                return { authorized: false, message: "❌ Questa chiave è già in uso su un altro dispositivo. L'account non può essere condiviso." };
+            // DEVICE LOCK (Anti-Scrocco)
+            if (user.plan_type === 'pro' || user.plan_type === 'premium') {
+                if (!user.device_id) {
+                    await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
+                } else if (user.device_id !== cleanDevice) {
+                    return { authorized: false, message: "❌ Questa chiave è già in uso su un altro dispositivo." };
+                }
+            }
+        } 
+        // ⚪ CASO 2: L'UTENTE È FREE (Nessuna chiave inserita)
+        else {
+            const { data, error } = await supabase.from('users').select('*').eq('device_id', cleanDevice).eq('plan_type', 'free').maybeSingle();
+            if (error) throw error;
+            user = data;
+
+            // Se è la primissima volta che apre l'app, gli creiamo un profilo Free invisibile basato sull'ID del PC
+            if (!user) {
+                const now = new Date();
+                now.setHours(now.getHours() + 2); // Fuso orario Italia
+                
+                const { data: newUser, error: insertError } = await supabase.from('users').insert({
+                    device_id: cleanDevice,
+                    plan_type: 'free',
+                    scans_remaining: 5,
+                    last_scan_date: now.toISOString().split('T')[0] // Registriamo la data di oggi
+                }).select().single();
+
+                if (insertError) throw insertError;
+                user = newUser;
             }
         }
 
-        const nowIso = new Date().toISOString();
-        const today = nowIso.split('T')[0];
+        // --- DA QUI IN POI, ABBIAMO L'UTENTE. CONTROLLIAMO I LIMITI E LE DATE ---
+        
+        // 🔥 FIX FUSO ORARIO: Calcoliamo "oggi" basandoci sull'orario Europeo, non quello base di Londra
+        const currentData = new Date();
+        currentData.setHours(currentData.getHours() + 2); 
+        const today = currentData.toISOString().split('T')[0];
+        
         const lastScanStr = user.last_scan_date ? user.last_scan_date.split('T')[0] : null;
 
-        // 👑 3. ADMIN
+        // 👑 ADMIN
         if (user.plan_type === 'admin') return { authorized: true, plan: "admin", scansLeft: "∞" };
 
-        // 💎 4. PREMIUM & PRO
+        // 💎 PREMIUM & PRO
         if (user.plan_type === 'pro' || user.plan_type === 'premium') {
-            if (user.pro_expires_at && user.pro_expires_at > nowIso) {
+            if (user.pro_expires_at && user.pro_expires_at > new Date().toISOString()) {
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             } else {
-                await supabase.from('users').update({ plan_type: 'free', device_id: null }).eq('sync_key', cleanToken);
+                // Abbonamento scaduto, lo declassiamo a Free
+                await supabase.from('users').update({ plan_type: 'free', device_id: null }).eq('id', user.id);
                 user.plan_type = 'free'; 
             }
         }
 
-        // 🆓 5. FREE
+        // 🆓 FREE TIER (Gestione 5 Crediti e Reset Giornaliero Infallibile)
         if (user.plan_type === 'free' || !user.plan_type) {
             if (lastScanStr !== today) {
-                await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('sync_key', cleanToken);
+                // 🔥 È UN NUOVO GIORNO! Resettiamo i crediti a 5.
+                // Ne consumiamo subito 1 per la scansione attuale, quindi salviamo 4.
+                await supabase.from('users').update({ 
+                    scans_remaining: 4, 
+                    last_scan_date: today 
+                }).eq('id', user.id);
                 return { authorized: true, plan: "free", scansLeft: 4 };
             } else {
+                // È LO STESSO GIORNO
                 if (user.scans_remaining <= 0) {
-                    return { authorized: false, limitReached: true, message: "🔒 Limite giornaliero (5/5). Passa al piano PRO o PREMIUM!" };
+                    return { authorized: false, limitReached: true, message: "🔒 Hai esaurito le 5 scansioni di oggi. Inserisci una Sync Key PRO o PREMIUM." };
                 } else {
                     const creditiRimasti = user.scans_remaining - 1;
-                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('sync_key', cleanToken);
+                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('id', user.id);
                     return { authorized: true, plan: "free", scansLeft: creditiRimasti };
                 }
             }
