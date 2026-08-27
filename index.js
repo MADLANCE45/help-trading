@@ -625,13 +625,32 @@ async function analizzaBattitoCardiaco(mintPubKey) {
 // 🧠 MOTORE 1: IL COPILOTA TATTICO LIVE (Anti-Crash per GPT-OSS)
 // =====================================================================
 app.post('/api/copilot/:tokenMint', async (req, res) => {
-    const tokenMint = req.params.tokenMint;
-    const datiLive = req.body;
-    
-    // 👉 1. CATTURIAMO LA LINGUA CHE ARRIVA DALL'ESTENSIONE
-    const lingua = req.query.lang || 'en'; 
+    try { // 🔥 UN SOLO TRY PER TUTTO IL BLOCCO
+        
+        // 🛡️ 1. IL GATEKEEPER DEL COPILOT
+        let rawToken = req.headers['x-auth-token'];
+        let deviceId = req.headers['x-device-id'] || "unknown";
+        const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
+        
+        // Passiamo chiave e targa: se è Free scala 1 credito, se è PRO passa gratis!
+        const authStatus = await checkAuthAndLimits(authToken, deviceId);
+        
+        if (!authStatus.authorized) {
+            return res.json({ 
+                success: false, 
+                // Il Copilot si aspetta 'tattica' e 'puntoRottura', quindi mandiamo l'errore lì dentro!
+                tattica: "🔒 **Limite IA Giornaliero Raggiunto (0/5)**.",
+                puntoRottura: "Inserisci una Sync Key PRO o PREMIUM per continuare a chattare.",
+                azione: "UPGRADE"
+            });
+        }
 
-    try {
+        const tokenMint = req.params.tokenMint;
+        const datiLive = req.body;
+        
+        // 👉 2. CATTURIAMO LA LINGUA CHE ARRIVA DALL'ESTENSIONE
+        const lingua = req.query.lang || 'en'; 
+
         const promptCopilot = `
 Sei l'Assistente Tattico Quantitativo (Copilota) di un trader su Solana.
 Analizza i flussi in tempo reale per lo scalping estremo (durata trade: 1-3 minuti).
@@ -658,7 +677,7 @@ Formato obbligatorio:
   "azione": "[Azione tradotta in ${lingua.toUpperCase()}, es: BUY, SELL, COMPRARE, VENDRE, 买]"
 }`;
 
-        // 🚀 CONNESSIONE A OPENROUTER (Modello DeepSeek)
+        // 🚀 3. CONNESSIONE A OPENROUTER (Modello DeepSeek)
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
 
@@ -681,7 +700,7 @@ Formato obbligatorio:
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 TRAPPOLA SUPREMA
+        // 🪤 4. TRAPPOLA SUPREMA
         let rawText = data.choices[0].message.content;
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const startIdx = cleanText.indexOf('{');
@@ -693,12 +712,22 @@ Formato obbligatorio:
             throw new Error(`OpenRouter non ha generato JSON: "${rawText.substring(0, 50)}..."`);
         }
 
-        const aiResult = JSON.parse(cleanText);
-        res.json(aiResult);
+        const aiResult = JSON.parse(cleanText); 
+        
+        // 📦 5. RISPOSTA FINALE AL FRONTEND
+        res.json({
+            success: true,
+            tattica: aiResult.tattica,           // 🔥 Passa la tattica estratta dal JSON
+            puntoRottura: aiResult.puntoRottura, // 🔥 Passa il punto di rottura
+            azione: aiResult.azione,             // 🔥 Passa l'azione (BUY/SELL)
+            plan: authStatus.plan,               // 🔥 Passa il piano al frontend (es. 'free')
+            scansLeft: authStatus.scansLeft      // 🔥 Passa i crediti rimasti al frontend
+        });
 
-    } catch (error) {
+    } catch (error) { // 🔥 ECCO L'UNICO CATCH CHE CHIUDE TUTTO IL BLOCCO
         console.error("❌ Errore Copilota:", error.message);
         res.status(200).json({
+            success: false,
             tattica: "Ricalcolo in corso o Rate Limit raggiunto.",
             puntoRottura: error.message,
             azione: "ATTESA"
@@ -1511,16 +1540,37 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const tokenMint = req.params.tokenMint;
         const lingua = req.query.lang || 'en'; 
 
+        // 🛡️ IL GATEKEEPER DEL COPILOT
         // 🛡️ 1. IL GATEKEEPER (Legge Chiave e Targa Dispositivo)
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        console.log(`🔐 Controllo Auth Token: ${authToken} | Dispositivo: ${deviceId}`);
-        
         // Passiamo chiave e targa al Guardiano
         const authStatus = await checkAuthAndLimits(authToken, deviceId);
         
+        // 🔥 SE L'ACCESSO È NEGATO (o crediti finiti)
+        if (!authStatus.authorized) {
+            return res.json({ 
+                success: false, 
+                limitReached: authStatus.limitReached || false, // Evita errori
+                verdetto: `
+                    <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
+                        <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
+                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESSO NEGATO</strong>
+                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message || "Limite raggiunto."}</p>
+                        <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Gestisci Abbonamento</a>
+                    </div>
+                `
+            });
+        }
+
+        // ... [QUI SOTTO LASCIA IL TUO CODICE NORMALE CHE CHIAMA OPENROUTER] ...
+        
+        console.log(`🔐 Controllo Auth Token: ${authToken} | Dispositivo: ${deviceId}`);
+        
+        // Passiamo chiave e targa al Guardiano
+
         if (!authStatus.authorized) {
             return res.json({ 
                 success: false, 

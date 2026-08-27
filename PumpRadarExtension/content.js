@@ -558,8 +558,16 @@ function generaHTMLCardSpy(data) {
                                 </div>
                             </div>
                             
-                            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-                                <input type="text" id="user-sync-key" placeholder="Paste Sync Key..." style="flex-grow: 1; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none;">
+                            <!-- CAMPO CHIAVE CON OCCHIO (SVG) -->
+                            <div style="position: relative; margin-bottom: 12px;">
+                                <input type="password" id="user-sync-key" placeholder="Paste Sync Key..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px 35px 8px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none; transition: 0.2s;">
+                                
+                                <div id="toggle-key-visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center; transition: 0.2s;" title="Mostra/Nascondi">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </div>
                             </div>
                             
                             <div style="display: flex; gap: 8px;">
@@ -865,10 +873,6 @@ function generaHTMLCardSpy(data) {
                 });
             });
         }
-
-        // =========================================================
-        // 💎 LOGICA SALVATAGGIO SYNC KEY
-        // =========================================================
         // =========================================================
         // 💎 LOGICA SALVATAGGIO E LOGOUT SYNC KEY
         // =========================================================
@@ -930,6 +934,22 @@ function generaHTMLCardSpy(data) {
                     });
                 });
             });
+            const toggleVisibilityBtn = document.getElementById('toggle-key-visibility');
+        const keyInput = document.getElementById('user-sync-key');
+        
+        if (toggleVisibilityBtn && keyInput) {
+            toggleVisibilityBtn.addEventListener('click', () => {
+                if (keyInput.type === 'password') {
+                    keyInput.type = 'text'; // Mostra il testo
+                    toggleVisibilityBtn.style.color = '#00ffcc'; // L'occhio si illumina
+                } else {
+                    keyInput.type = 'password'; // Nasconde il testo
+                    toggleVisibilityBtn.style.color = '#666'; // L'occhio si spegne
+                }
+            });
+        }
+
+
         }
 
         // 🔥 LOGICA DI DISCONNESSIONE (LOGOUT)
@@ -944,13 +964,6 @@ function generaHTMLCardSpy(data) {
             });
         }
     
-    
-    
-    
-
-        // 🌍 4. CAMBIO LINGUA LIVE
-        // ... (continua con il resto del tuo codice) ...
-
         // 🌍 4. CAMBIO LINGUA LIVE
         // 🌍 4. CAMBIO LINGUA LIVE (Fix Caricamento Infinito)
         const langBtns = document.querySelectorAll('.lang-btn');
@@ -977,36 +990,83 @@ function generaHTMLCardSpy(data) {
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
         if (btnCopilot) {
-            btnCopilot.addEventListener('click', async () => {
-                btnCopilot.innerText = t('copilot_analyzing');
-                btnCopilot.style.background = "#555";
-                btnCopilot.style.pointerEvents = "none";
-                copilotResult.style.display = "block";
-                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
-                
+        btnCopilot.addEventListener('click', async () => {
+            btnCopilot.innerText = t('copilot_analyzing');
+            btnCopilot.style.background = "#555";
+            btnCopilot.style.pointerEvents = "none";
+            copilotResult.style.display = "block";
+            copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
+
+            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE E TARGA PRIMA DELLA FETCH
+            chrome.storage.local.get(['userAuthToken', 'device_fingerprint'], async (res) => {
+                const authToken = res.userAuthToken || "null";
+                const deviceId = res.device_fingerprint || "null";
+                const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
+
                 try {
                     const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
-                    const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}`, {
+                    
+                    // 🔥 2. FETCH AL SERVER CON HEADER DI SICUREZZA
+                    const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}?lang=${langParam}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            "ngrok-skip-browser-warning": "true",
+                            "x-auth-token": authToken,  // Manda la chiave al server!
+                            "x-device-id": deviceId     // Manda la targa al server!
+                        },
                         body: JSON.stringify(payloadDatiLive)
                     });
+                    
                     const dataResp = await resp.json();
                     
-                    // 👉 APPLICHIAMO LA TRADUZIONE AI DATI DEL COPILOTA
-                    let tattica = traduciDalBackend(dataResp.tattica || "⚠️ Error AI");
-                    let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
-                    let azione = traduciDalBackend(dataResp.azione || "ATTESA");
-                    
-                    const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
-                    const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
-                    let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
-                    
-                    copilotResult.innerHTML = `
-                        <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
-                        <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
-                        <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
-                    `;
+                    // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti?
+                    if (dataResp.success === false) {
+                        // Stampiamo il blocco paywall nella UI del Copilot
+                        copilotResult.innerHTML = `
+                            <div style="margin-bottom: 8px;"><strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br><span style="color:#e0e0e0;">${dataResp.puntoRottura || "Limite raggiunto"}</span></div>
+                            <div style="text-align: center; padding: 6px; border: 1px solid #ffaa00; color: #000; background: #ffaa00; font-weight: bold; border-radius: 4px;">${dataResp.azione || "UPGRADE"}</div>
+                        `;
+                        
+                        // Aggiorna il numerino in alto a destra a ZERO
+                        const badge = document.getElementById('ai-lock-badge');
+                        if (badge) {
+                            badge.innerText = "🚫 LIMIT (0/5)";
+                            badge.style.color = "#ff4d4d";
+                            badge.style.border = "1px solid #ff4d4d";
+                            badge.style.background = "rgba(255, 77, 77, 0.1)";
+                        }
+                        
+                    } else {
+                        // 🟢 4. SCANSIONE CONCLUSA: Il tuo codice originale per colorare l'azione
+                        let tattica = traduciDalBackend(dataResp.tattica || "⚠️ Error AI");
+                        let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
+                        let azione = traduciDalBackend(dataResp.azione || "ATTESA");
+                        
+                        const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
+                        const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
+                        let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
+                        
+                        copilotResult.innerHTML = `
+                            <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
+                            <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
+                            <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
+                        `;
+
+                        // 🔥 AGGIORNA IL NUMERINO DEI CREDITI
+                        const badge = document.getElementById('ai-lock-badge');
+                        if (badge) {
+                            if (dataResp.plan === 'free' && dataResp.scansLeft !== undefined) {
+                                badge.innerText = `🆓 FREE (${dataResp.scansLeft}/5)`;
+                                badge.style.color = "#fff";
+                                badge.style.background = "#222";
+                                badge.style.border = "1px solid #444";
+                            } else if (dataResp.plan === 'premium' || dataResp.plan === 'pro' || dataResp.plan === 'admin') {
+                                badge.innerText = "💎 UNLIMITED";
+                            }
+                        }
+                    }
+
                 } catch(e) {
                     copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
                 } finally {
@@ -1014,8 +1074,9 @@ function generaHTMLCardSpy(data) {
                     btnCopilot.style.background = "#b366ff";
                     btnCopilot.style.pointerEvents = "auto";
                 }
-            });
-        }
+            }); // Fine chrome.storage.local.get
+        });
+    }
 
         // ======================= SOCKET.IO LOGIC =======================
         if (typeof socket !== 'undefined') {
@@ -1282,21 +1343,22 @@ function generaHTMLCardSpy(data) {
         }, 100);
 
         try {
-        // 🔑 RECUPERA LA CHIAVE PRO E LA TARGA DEL DISPOSITIVO
-        // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
-        const storageRes = await chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'userConfig']);
-        const authToken = storageRes.userAuthToken || "null";
-        const deviceId = storageRes.device_fingerprint || "null";
-        const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat"; // 🔥 Prende la scelta
+            // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
+            const storageRes = await chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'userConfig']);
+            const authToken = storageRes.userAuthToken || "null";
+            const deviceId = storageRes.device_fingerprint || "null";
+            const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat"; 
 
-        const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
-            headers: { 
-                "ngrok-skip-browser-warning": "true",
-                "x-auth-token": authToken, 
-                "x-device-id": deviceId,
-                "x-ai-model": requestedAi // 🔥 Invia la scelta dell'IA al Server!
-            }
-        });
+            // 🔥 CHIAMATA AL SERVER PER IL GIUDICE
+            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
+                headers: { 
+                    "ngrok-skip-browser-warning": "true",
+                    "x-auth-token": authToken, 
+                    "x-device-id": deviceId,
+                    "x-ai-model": requestedAi 
+                }
+            });
+            
             const data = await response.json();
             
             clearInterval(timerInterval); // Ferma il cronometro
@@ -1331,9 +1393,9 @@ function generaHTMLCardSpy(data) {
                     }
                 }
 
-            } else if (data.limitReached) {
-                // 🟡 CREDITI FINITI: MOSTRA IL BANNER D'ORO PER IL PASSAGGIO A PRO
-                container.innerHTML = data.verdetto;
+            } else if (data.limitReached || data.success === false) {
+                // 🟡 CREDITI FINITI O ACCESSO NEGATO: MOSTRA IL BANNER D'ORO PER IL PASSAGGIO A PRO
+                container.innerHTML = data.verdetto; // 🔥 Qui stampa il riquadro d'oro che arriva da Node.js!
 
                 // AGGIORNA IL BADGE A ZERO
                 const badge = document.getElementById('ai-lock-badge');
@@ -1345,7 +1407,7 @@ function generaHTMLCardSpy(data) {
                 }
             } else {
                 // 🔴 ERRORE GENERICO DELL'IA O DI RETE
-                container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto}</div>`;
+                container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto || "Errore Sconosciuto"}</div>`;
             }
         } catch (error) {
             clearInterval(timerInterval);
