@@ -1727,8 +1727,8 @@ JSON FORMAT:
         res.json({ 
             success: true, 
             verdetto: reportHTML,
-            plan: authStatus.plan,
-            scansLeft: authStatus.scansLeft
+            plan: authStatus.plan,        // 🔥 INVIA IL PIANO (es. "free")
+            scansLeft: authStatus.scansLeft // 🔥 INVIA I CREDITI (es. 4)
         });
     
     } catch (error) {
