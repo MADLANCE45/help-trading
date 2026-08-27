@@ -563,7 +563,12 @@ function generaHTMLCardSpy(data) {
                             </div>
                             
                             <div style="display: flex; gap: 8px;">
-                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sync Key</button>
+                                <!-- Bottone Sync (Visibile se disconnesso) -->
+                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sync</button>
+                                
+                                <!-- 🔥 NUOVO: Bottone Log Out (Visibile se connesso) -->
+                                <button id="btn-logout-sync" style="display: none; flex: 1; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Log Out</button>
+                                
                                 <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
                             </div>
                         </div>
@@ -864,25 +869,36 @@ function generaHTMLCardSpy(data) {
         // =========================================================
         // 💎 LOGICA SALVATAGGIO SYNC KEY
         // =========================================================
+        // =========================================================
+        // 💎 LOGICA SALVATAGGIO E LOGOUT SYNC KEY
+        // =========================================================
         const btnSaveSync = document.getElementById('btn-save-sync');
+        const btnLogoutSync = document.getElementById('btn-logout-sync');
+
         if (btnSaveSync) {
             chrome.storage.local.get(['userAuthToken'], (res) => {
                 const badge = document.getElementById('account-status-badge');
                 if (res.userAuthToken) {
+                    // È CONNESSO
                     if(document.getElementById('user-sync-key')) document.getElementById('user-sync-key').value = res.userAuthToken;
                     if(badge) {
                         badge.innerText = "CONNECTED ✅";
                         badge.style.color = "#00e676";
                     }
+                    btnSaveSync.style.display = 'none'; // Nascondi Sync
+                    if(btnLogoutSync) btnLogoutSync.style.display = 'block'; // Mostra Log Out
                 } else {
+                    // È FREE TIER
                     if(badge) {
-                        badge.innerText = "DISCONNECTED ❌";
-                        badge.style.color = "#ff4d4d";
+                        badge.innerText = "FREE TIER 🆓";
+                        badge.style.color = "#aaa";
                     }
+                    btnSaveSync.style.display = 'block';
+                    if(btnLogoutSync) btnLogoutSync.style.display = 'none';
                 }
             });
 
-            // 2. Quando l'utente clicca "Sincronizza"
+            // LOGICA DI SALVATAGGIO CHIAVE
             btnSaveSync.addEventListener('click', () => {
                 const keyInput = document.getElementById('user-sync-key');
                 const key = keyInput ? keyInput.value.trim() : "";
@@ -892,16 +908,14 @@ function generaHTMLCardSpy(data) {
                     return;
                 }
 
-                // 🔥 FIX: VALIDAZIONE DELLA CHIAVE
-                // Accetta solo chiavi che iniziano con i prefissi corretti o la tua chiave admin
+                // VALIDAZIONE DELLA CHIAVE
                 if (!key.startsWith("ms-pro-") && !key.startsWith("ms-premium-") && key !== "ms-admin-GODMODE-777") {
-                    alert("❌ Chiave non valida! Formato errato. Copiala dalla tua Dashboard Web.");
-                    return; // Ferma tutto, non salva e non ricarica
+                    alert("❌ Chiave non valida! Copiala dalla tua Dashboard Web.");
+                    return;
                 }
 
                 chrome.storage.local.get(['device_fingerprint'], (res) => {
                     let fp = res.device_fingerprint;
-                    // ... [il resto del codice sotto rimane uguale] ...
                     if (!fp) {
                         fp = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
                         chrome.storage.local.set({ device_fingerprint: fp });
@@ -912,16 +926,24 @@ function generaHTMLCardSpy(data) {
                         btnSaveSync.style.background = "#00e676";
                         btnSaveSync.style.color = "#000";
                         
-                        setTimeout(() => {
-                            btnSaveSync.innerText = "Sync Key";
-                            btnSaveSync.style.background = "#1a1c29";
-                            btnSaveSync.style.color = "#00ffcc";
-                            location.reload(); 
-                        }, 1500);
+                        setTimeout(() => { location.reload(); }, 1000);
                     });
                 });
             });
         }
+
+        // 🔥 LOGICA DI DISCONNESSIONE (LOGOUT)
+        if (btnLogoutSync) {
+            btnLogoutSync.addEventListener('click', () => {
+                if (confirm("Vuoi scollegare l'account e tornare al piano FREE?")) {
+                    chrome.storage.local.remove('userAuthToken', () => {
+                        document.getElementById('user-sync-key').value = "";
+                        location.reload(); 
+                    });
+                }
+            });
+        }
+    
     
     
     
@@ -1296,11 +1318,33 @@ function generaHTMLCardSpy(data) {
                 const mintStatus = document.getElementById('mint-loading-status');
                 if (mintStatus) mintStatus.innerHTML = t('loading_complete');
 
+                // 🔥 AGGIORNAMENTO DEL NUMERINO DEI CREDITI NELLA UI
+                const badge = document.getElementById('ai-lock-badge');
+                if (badge) {
+                    if (data.plan === 'free') {
+                        badge.innerText = `🆓 FREE (${data.scansLeft}/5)`;
+                        badge.style.color = "#fff";
+                        badge.style.background = "#222";
+                        badge.style.border = "1px solid #444";
+                    } else if (data.plan === 'premium' || data.plan === 'pro' || data.plan === 'admin') {
+                        badge.innerText = "💎 UNLIMITED";
+                    }
+                }
+
             } else if (data.limitReached) {
                 // 🟡 CREDITI FINITI: MOSTRA IL BANNER D'ORO PER IL PASSAGGIO A PRO
                 container.innerHTML = data.verdetto;
+
+                // AGGIORNA IL BADGE A ZERO
+                const badge = document.getElementById('ai-lock-badge');
+                if (badge) {
+                    badge.innerText = "🚫 LIMIT (0/5)";
+                    badge.style.color = "#ff4d4d";
+                    badge.style.border = "1px solid #ff4d4d";
+                    badge.style.background = "rgba(255, 77, 77, 0.1)";
+                }
             } else {
-                // 🔴 ERRORE GENERICO DELL'IA
+                // 🔴 ERRORE GENERICO DELL'IA O DI RETE
                 container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto}</div>`;
             }
         } catch (error) {

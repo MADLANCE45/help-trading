@@ -1088,17 +1088,19 @@ async function checkAuthAndLimits(authToken, deviceId) {
             }
         } 
         // ⚪ CASO 2: L'UTENTE È FREE (Nessuna chiave inserita)
+        // ⚪ CASO 2: L'UTENTE È FREE (Nessuna chiave inserita)
         else {
             const { data, error } = await supabase.from('users').select('*').eq('device_id', cleanDevice).eq('plan_type', 'free').maybeSingle();
             if (error) throw error;
             user = data;
 
-            // Se è la primissima volta che apre l'app, gli creiamo un profilo Free invisibile basato sull'ID del PC
+            // Se è la primissima volta che apre l'app, gli creiamo un profilo Free invisibile
             if (!user) {
                 const now = new Date();
                 now.setHours(now.getHours() + 2); // Fuso orario Italia
                 
                 const { data: newUser, error: insertError } = await supabase.from('users').insert({
+                    wallet_address: "anon_" + cleanDevice, // 🔥 FIX CRITICO: Diamo a Supabase un finto wallet per non farlo arrabbiare!
                     device_id: cleanDevice,
                     plan_type: 'free',
                     scans_remaining: 5,
@@ -1134,22 +1136,19 @@ async function checkAuthAndLimits(authToken, deviceId) {
         }
 
         // 🆓 FREE TIER (Gestione 5 Crediti e Reset Giornaliero Infallibile)
+        // 🆓 FREE TIER (Gestione 5 Crediti e Reset Giornaliero Infallibile)
         if (user.plan_type === 'free' || !user.plan_type) {
             if (lastScanStr !== today) {
-                // 🔥 È UN NUOVO GIORNO! Resettiamo i crediti a 5.
-                // Ne consumiamo subito 1 per la scansione attuale, quindi salviamo 4.
-                await supabase.from('users').update({ 
-                    scans_remaining: 4, 
-                    last_scan_date: today 
-                }).eq('id', user.id);
+                // RESET: Nuovo giorno! Diamo 5 crediti e ne togliamo 1 per questa scansione.
+                await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('device_id', cleanDevice);
                 return { authorized: true, plan: "free", scansLeft: 4 };
             } else {
-                // È LO STESSO GIORNO
                 if (user.scans_remaining <= 0) {
-                    return { authorized: false, limitReached: true, message: "🔒 Hai esaurito le 5 scansioni di oggi. Inserisci una Sync Key PRO o PREMIUM." };
+                    return { authorized: false, limitReached: true, message: "🔒 Hai esaurito i 5 utilizzi IA di oggi. Incolla una Sync Key PRO o PREMIUM per non rimanere cieco sul mercato." };
                 } else {
                     const creditiRimasti = user.scans_remaining - 1;
-                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('id', user.id);
+                    // 🔥 FIX: Aggiorniamo tramite device_id per essere infallibili
+                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('device_id', cleanDevice);
                     return { authorized: true, plan: "free", scansLeft: creditiRimasti };
                 }
             }
@@ -1724,7 +1723,13 @@ JSON FORMAT:
                 <div style="padding-right: 5px;">${barsHTML}</div>
             </div>
         `;
-        res.json({ success: true, verdetto: reportHTML });
+        // Invia i dati al frontend includendo i crediti rimasti!
+        res.json({ 
+            success: true, 
+            verdetto: reportHTML,
+            plan: authStatus.plan,
+            scansLeft: authStatus.scansLeft
+        });
     
     } catch (error) {
         console.error("❌ ERRORE CRITICO BACKEND:", error.message);
@@ -1848,14 +1853,6 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
     }
 });
 
-
-// =====================================================================
-// 🧠 MOTORE 2: GIUDICE FORENSE TOKEN (Sostituisce Gemini in Axiom)
-// =====================================================================
-
-//NUOVO!
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Groq Dashboard)
-// =====================================================================
 
 // =====================================================================
 // 5. LIVE SPY RADAR
@@ -2254,9 +2251,9 @@ async function chiudiPosizioneStalker(tokenMint, mcEntrata) {
 // =====================================================================
 // Inserisci qui i wallet dei migliori trader che hai trovato
 const BALENE_AUTONOME = [
-    "38HGfTmj2y3Q3PPWpsfrMVHxdwvJJQvDP1HuT5DyjHQV",
-    //"EZzygUEZGLDgLG3JLapmpcEGTeJiEnXC8tVPXYXV63JG", // Il bot HFT
-    //"93kk52HkrH5pHEPyb2KM62mP4cWA1N5DaSgBgDzA2uT9"  // L'altro tuo target
+    // "38HGfTmj2y3Q3PPWpsfrMVHxdwvJJQvDP1HuT5DyjHQV",
+    // "EZzygUEZGLDgLG3JLapmpcEGTeJiEnXC8tVPXYXV63JG", // Il bot HFT
+    // "93kk52HkrH5pHEPyb2KM62mP4cWA1N5DaSgBgDzA2uT9"  // L'altro tuo target
 ];
 
 // Appena accendi il server, inizia a spiarli senza aspettare il frontend!
