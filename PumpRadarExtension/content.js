@@ -595,27 +595,39 @@ function generaHTMLCardSpy(data) {
                             <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
                         </div>
 
-                        <!-- TRADING ROUTE & RISK MANAGEMENT -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                            <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 8px; padding: 10px;">
-                                <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
-                                <select id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
-                                    <option value="standard">Standard (Public)</option>
-                                    <option value="mev_protect">MEV Shield (Secure)</option>
-                                    <option value="turbo">Turbo Node (Premium)</option>
-                                </select>
+                       <!-- TRADING ROUTE & RISK MANAGEMENT (COMING SOON) -->
+                        <div style="margin-bottom: 15px; border: 1px dashed #a855f7; border-radius: 8px; padding: 12px; background: rgba(168, 85, 247, 0.05);">
+                            
+                            <!-- 🔥 BADGE HYPE "COMING SOON" CENTRATO -->
+                            <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+                                <span style="background: linear-gradient(90deg, #ff007f, #a855f7); color: #fff; font-size: 0.65em; font-weight: 900; padding: 4px 12px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,0,127,0.4);">
+                                    🚧 V2: Auto-Trading Coming Soon
+                                </span>
                             </div>
+                            
+                            <!-- Contenitore Opacizzato e Bloccato -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; opacity: 0.4; pointer-events: none; filter: grayscale(30%);">
+                                
+                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 6px; padding: 10px;">
+                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
+                                    <select disabled id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
+                                        <option value="standard">Standard (Public)</option>
+                                        <option value="mev_protect">MEV Shield</option>
+                                        <option value="turbo">Turbo Node</option>
+                                    </select>
+                                </div>
 
-                            <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 8px; padding: 10px;">
-                                <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
-                                <select id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
-                                    <option value="safe">Safe (Scalp +20%)</option>
-                                    <option value="degen">Degen (Aim for 2x)</option>
-                                    <option value="moon">Moonshot (Hold)</option>
-                                </select>
+                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 6px; padding: 10px;">
+                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
+                                    <select disabled id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
+                                        <option value="safe">Safe (Scalp +20%)</option>
+                                        <option value="degen">Degen (Aim for 2x)</option>
+                                        <option value="moon">Moonshot (Hold)</option>
+                                    </select>
+                                </div>
+                                
                             </div>
                         </div>
-
                         <!-- SCAN HISTORY -->
                         <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                             <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px;">📚 Scan History</strong>
