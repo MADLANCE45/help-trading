@@ -689,63 +689,79 @@ async function analizzaBattitoCardiaco(mintPubKey) {
 // 🧠 MOTORE 1: IL COPILOTA TATTICO LIVE (Anti-Crash per GPT-OSS)
 
 app.post('/api/copilot/:tokenMint', async (req, res) => {
-    try { // 🔥 UN SOLO TRY PER TUTTO IL BLOCCO
-        
-        // 🛡️ 1. IL GATEKEEPER DEL COPILOT
+    // 🔥 FIX: Dichiariamo authStatus FUORI dal try, così il catch può leggerlo sempre senza crashare!
+    let authStatus = { plan: "free", scansLeft: 0 }; 
+
+    try {
+        // 1. IL GATEKEEPER DEL COPILOT
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        // Passiamo chiave e targa: se è Free scala 1 credito, se è PRO passa gratis!
-        const authStatus = await checkAuthAndLimits(authToken, deviceId);
+        authStatus = await checkAuthAndLimits(authToken, deviceId);
         
         if (!authStatus.authorized) {
             return res.json({ 
                 success: false, 
-                // Il Copilot si aspetta 'tattica' e 'puntoRottura', quindi mandiamo l'errore lì dentro!
-                tattica: "🔒 **Limite IA Giornaliero Raggiunto (0/5)**.",
-                puntoRottura: "Inserisci una Sync Key PRO o PREMIUM per continuare a chattare.",
-                azione: "UPGRADE"
+                tattica: "🔒 **Daily AI Limit Reached (0/5)**.",
+                puntoRottura: "Please insert a PRO or PREMIUM Sync Key to continue chatting.",
+                azione: "UPGRADE",
+                plan: authStatus.plan,
+                scansLeft: authStatus.scansLeft
             });
         }
 
         const tokenMint = req.params.tokenMint;
         const datiLive = req.body;
-        
-        // 👉 2. CATTURIAMO LA LINGUA CHE ARRIVA DALL'ESTENSIONE
         const lingua = req.query.lang || 'en'; 
 
         const promptCopilot = `
-Sei l'Assistente Tattico Quantitativo (Copilota) di un trader su Solana.
-Analizza i flussi in tempo reale per lo scalping estremo (durata trade: 1-3 minuti).
+You are the Tactical Quantitative Assistant (Copilot) for a Solana trader.
+Analyze real-time flows for extreme scalping (trade duration: 1-3 minutes).
 
-DATI LIVE IN INGRESSO (Ultimi 10 secondi):
-- Pressione Acquisto: ${datiLive.buyPressure}%
-- Volume Buy: ${datiLive.buyVol} SOL
-- Volume Sell: ${datiLive.sellVol} SOL
+LIVE DATA (Last 10 seconds):
+- Buy Pressure: ${datiLive.buyPressure}%
+- Buy Vol: ${datiLive.buyVol} SOL
+- Sell Vol: ${datiLive.sellVol} SOL
 
-🔥 REGOLA LINGUISTICA FONDAMENTALE (INVIOLABILE):
-I testi che scriverai per "tattica" e "puntoRottura", e l'azione finale, DEVONO ESSERE TASSATIVAMENTE SCRITTI IN LINGUA: ${lingua.toUpperCase()} (EN=Inglese, IT=Italiano, ZH=Cinese, FR=Francese).
-Le chiavi del JSON devono restare quelle indicate sotto.
-SEI UN BOT SENZ'ANIMA E UN PARSER DI DATI. È ASSOLUTAMENTE VIETATO FORNIRE SPIEGAZIONI, SALUTI O AVVISI DI SICUREZZA.
-DEVI RISPONDERE SOLO ED ESCLUSIVAMENTE CON IL CODICE JSON. LA TUA RISPOSTA DEVE INIZIARE CON "{" E FINIRE CON "}".
+🔥 CRITICAL RULE:
+You MUST translate ALL output texts into this language: ${lingua.toUpperCase()} (EN=English, IT=Italian, ZH=Chinese, FR=French).
+You are a soulless parser. NO greetings, NO warnings.
+ONLY output valid JSON. Use single quotes (') inside your sentences, NEVER double quotes.
 
-🔴 REGOLA DI SINTASSI JSON (CRITICA):
-1. Il codice JSON DEVE essere strutturato rigorosamente con le virgolette doppie (") per i nomi delle chiavi e per racchiudere le stringhe.
-2. ALL'INTERNO delle frasi che scrivi, è SEVERAMENTE VIETATO inserire altre virgolette doppie. Se devi citare o evidenziare una parola dentro al testo, usa SOLO l'apostrofo singolo (').
-
-Formato obbligatorio:
+FORMAT:
 {
-  "tattica": "[Testo tradotto in ${lingua.toUpperCase()}]",
-  "puntoRottura": "[Testo tradotto in ${lingua.toUpperCase()}]",
-  "azione": "[Azione tradotta in ${lingua.toUpperCase()}, es: BUY, SELL, COMPRARE, VENDRE, 买]"
+  "tattica": "[Translated Tactics text]",
+  "puntoRottura": "[Translated Prediction text]",
+  "azione": "[Translated Action, e.g. BUY, SELL, HOLD]"
 }`;
 
-        // 🚀 3. CONNESSIONE A OPENROUTER (Modello DeepSeek)
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
+        // 🏎️ IL CAMBIO MARCE DELL'IA (Ora definito correttamente anche nel Copilot!)
+        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
+        let selectedModel = "deepseek/deepseek-chat"; 
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const premiumModels = [
+            "deepseek/deepseek-chat", 
+            "openai/gpt-4o", 
+            "anthropic/claude-3.5-sonnet-20241022",
+            "anthropic/claude-3.5-sonnet:beta"
+        ];
+
+        if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
+            if (requestedModel.includes("claude-3.5-sonnet")) {
+                selectedModel = "anthropic/claude-3.5-sonnet-20241022";
+            } else if (premiumModels.includes(requestedModel)) {
+                selectedModel = requestedModel;
+            } else {
+                selectedModel = "openai/gpt-4o"; 
+            }
+        }
+
+        // 🚀 CONNESSIONE A OPENROUTER (Con Auto-Fallback)
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY");
+
+        let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: { 
                 "Authorization": `Bearer ${apiKey}`, 
@@ -754,17 +770,38 @@ Formato obbligatorio:
                 "Content-Type": "application/json" 
             },
             body: JSON.stringify({
-                model: "deepseek/deepseek-chat", // Modello intelligente e velocissimo
+                model: selectedModel, 
                 messages: [{ role: "user", content: promptCopilot }],
                 temperature: 0.1,
                 response_format: { type: "json_object" }
             })
         });
 
-        const data = await response.json();
+        let data = await response.json();
+
+        // 🪂 AUTO-FALLBACK: Se Claude od OpenRouter falliscono, passiamo a DeepSeek!
+        if (data.error) {
+            console.log(`⚠️ Copilot Model ${selectedModel} failed (${data.error.message}). Fallback to DeepSeek!`);
+            
+            response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${apiKey}`, 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({
+                    model: "deepseek/deepseek-chat",
+                    messages: [{ role: "user", content: promptCopilot }],
+                    temperature: 0.1,
+                    response_format: { type: "json_object" }
+                })
+            });
+            data = await response.json();
+        }
+
         if (data.error) throw new Error(data.error.message);
 
-        // 🪤 4. TRAPPOLA SUPREMA
+        // 🪤 PARSING DEL JSON
         let rawText = data.choices[0].message.content;
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const startIdx = cleanText.indexOf('{');
@@ -773,41 +810,32 @@ Formato obbligatorio:
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`OpenRouter non ha generato JSON: "${rawText.substring(0, 50)}..."`);
+            throw new Error(`Invalid JSON format from AI`);
         }
 
         const aiResult = JSON.parse(cleanText); 
         
-        // 📦 5. RISPOSTA FINALE AL FRONTEND
+        // 📦 RISPOSTA FINALE AL FRONTEND
         res.json({
             success: true,
-            tattica: aiResult.tattica,           // 🔥 Passa la tattica estratta dal JSON
-            puntoRottura: aiResult.puntoRottura, // 🔥 Passa il punto di rottura
-            azione: aiResult.azione,             // 🔥 Passa l'azione (BUY/SELL)
-            plan: authStatus.plan,               // 🔥 Passa il piano al frontend (es. 'free')
-            scansLeft: authStatus.scansLeft      // 🔥 Passa i crediti rimasti al frontend
+            tattica: aiResult.tattica,
+            puntoRottura: aiResult.puntoRottura,
+            azione: aiResult.azione,
+            plan: authStatus.plan,
+            scansLeft: authStatus.scansLeft
         });
 
     } catch (error) {
-        console.error("❌ CRITICAL BACKEND ERROR (Judge):", error.message);
+        console.error("❌ CRITICAL COPILOT ERROR:", error.message);
         
-        // 🌟 UX PREMIUM: Un banner grafico di emergenza integrato nello stile della UI
+        // 🌟 UX PREMIUM PER LA CHAT: Testo di emergenza diegetico, NESSUN HTML QUI!
         res.json({ 
-            success: true, // Manteniamo la struttura visiva
-            verdetto: `
-            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
-                <div style="display: flex; align-items: center; gap: 20px;">
-                    <div style="font-size: 2.5em; text-shadow: 0 0 10px #ffaa00;">⚠️</div>
-                    <div>
-                        <span style="font-size: 0.7em; color: #ffaa00; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">AI Network Interference</span>
-                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
-                            The quantity computing provider (OpenRouter) is temporarily unreachable due to traffic congestion. <br><strong style="color:#ffaa00;">No credit deducted. Try again in 5 seconds.</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>`,
-            plan: authStatus ? authStatus.plan : "premium",
-            scansLeft: authStatus ? authStatus.scansLeft : "∞"
+            success: true, // Impedisce al frontend di azzerare i crediti
+            tattica: "⚠️ **AI Network Interference**",
+            puntoRottura: "The compute provider is temporarily unreachable due to traffic congestion. No credits deducted. Please try again.",
+            azione: "STANDBY ⏳",
+            plan: authStatus.plan || "premium",
+            scansLeft: authStatus.scansLeft || "∞"
         });
     }
 });
@@ -1586,52 +1614,32 @@ try {
 });
 
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
-    // 🔥 TUTTO RACCHIUSO NEL TRY-CATCH PER EVITARE ERRORI CRITICI
+    // 🔥 FIX 1: Dichiariamo authStatus FUORI dal try per non far MAI crashare il catch
+    let authStatus = { plan: "free", scansLeft: 0 }; 
+
     try {
         const tokenMint = req.params.tokenMint;
         const lingua = req.query.lang || 'en'; 
 
-        // 🛡️ IL GATEKEEPER DEL COPILOT
         // 🛡️ 1. IL GATEKEEPER (Legge Chiave e Targa Dispositivo)
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        // Passiamo chiave e targa al Guardiano
-        const authStatus = await checkAuthAndLimits(authToken, deviceId);
+        // Assegniamo il valore alla variabile globale della rotta
+        authStatus = await checkAuthAndLimits(authToken, deviceId);
         
-        // 🔥 SE L'ACCESSO È NEGATO (o crediti finiti)
         if (!authStatus.authorized) {
             return res.json({ 
                 success: false, 
-                limitReached: authStatus.limitReached || false, // Evita errori
+                limitReached: authStatus.limitReached || false,
                 verdetto: `
                     <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
                         <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
                         <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESSO NEGATO</strong>
                         <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message || "Limite raggiunto."}</p>
-                        <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Gestisci Abbonamento</a>
-                    </div>
-                `
-            });
-        }
-
-        // ... [QUI SOTTO LASCIA IL TUO CODICE NORMALE CHE CHIAMA OPENROUTER] ...
-        
-        console.log(`🔐 Controllo Auth Token: ${authToken} | Dispositivo: ${deviceId}`);
-        
-        // Passiamo chiave e targa al Guardiano
-
-        if (!authStatus.authorized) {
-            return res.json({ 
-                success: false, 
-                limitReached: authStatus.limitReached,
-                verdetto: `
-                    <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
-                        <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
-                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESSO NEGATO</strong>
-                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message}</p>
                         <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Gestisci Abbonamento</a>
                     </div>
                 `
@@ -1653,6 +1661,8 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato");
         let liquidita = pulisciTesto(datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti");
 
+        let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap in fase di caricamento");
+
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
@@ -1664,7 +1674,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             aiMandate = "🟠 MANDATO: BUNDLE PERICOLOSO. SUPPLY SCORE SOTTO IL 30. GLOBAL SCORE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
         }
 
-        // 🧠 PROMPT INGLESE
+        // 🧠 PROMPT
         const promptLaboratorio = `
 You are the "Supreme Judge", a ruthless on-chain quantitative analyst for Solana memecoins.
 Evaluate the provided data with strict mathematical rigor.
@@ -1673,59 +1683,61 @@ ${aiMandate}
 
 VERIFIED ON-CHAIN DATA:
 - Market/Volume: ${liquidita}
+- Current MC Context: ${marketCapContext}
 - Sybil Network: ${sybilStatus}
 - Micro-Dumping: ${microDumping}
 - Developer Info: ${devStatusStr}
 - Supply/Bundle: ${bundleInfo}
 
-🎯 BUNDLE PREDICTION RULES:
-If you detect a Bundle or Sybil Tree, calculate the predatory intent:
-1. Assume the bundle bought at launch (Between $5k and $30k Market Cap).
-2. Bundles typically dump between 2x and 4x (Between $60k and $90k MC, right before the Raydium graduation).
-3. Include this exact MC exit prediction in the "Supply Integrity" tooltip and the final verdict.
+🎯 BUNDLE PREDICTION & LOGIC RULES (CRITICAL):
+1. READ the "Current MC Context".
+2. TRENCHES PHASE (Under $100k MC): If the token is new and you detect a bundle, warn about a potential dump between $60k and $90k (pre-Raydium graduation).
+3. GRADUATED PHASE (Over $100k MC): DO NOT mention the $60k-$90k dump. Analyze if the original bundle is now Micro-Dumping (distributing to retail) or holding for higher millions.
+4. Scale your verdict: A 3M MC coin moves very differently than a 10k MC coin. Adjust your tone accordingly.
 
-🎯 CORE TAGGING RULE (SCORE -> TAG):
-Your "global_score" must reflect the weighted average of the 4 metrics.
-- If global_score >= 75: MUST use the [RIDE] tag (Organic momentum, solid structure).
-- If global_score between 45 and 74: MUST use the [SCALP] tag (Speculative, fast in/out).
-- If global_score < 45: MUST use the [AVOID] tag (Scam, extreme bundle risk, or dead token).
+🎯 CORE TAGGING RULE:
+- If global_score >= 75: MUST use the [RIDE] tag.
+- If global_score between 45 and 74: MUST use the [SCALP] tag.
+- If global_score < 45: MUST use the [AVOID] tag.
 
 🔥 LINGUISTIC RULE:
-You MUST translate ALL output texts (verdict, names, tooltips) into this language: ${lingua.toUpperCase()}.
+You MUST translate ALL output texts into this language: ${lingua.toUpperCase()}.
 NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": 85,
-  "verdetto_finale": "[RIDE] Write the translated verdict here. Include bundle dump MC prediction if applicable...",
+  "verdetto_finale": "[RIDE] Write the translated verdict here. Include bundle behavior based on current MC phase...",
   "metrics": [
-    { "name": "Supply Integrity", "score": 90, "tooltip": "Translated supply analysis + dump prediction..." },
+    { "name": "Supply Integrity", "score": 90, "tooltip": "Translated supply analysis..." },
     { "name": "Developer Trust", "score": 95, "tooltip": "Translated dev analysis..." },
     { "name": "Sybil Resistance", "score": 95, "tooltip": "Translated sybil analysis..." },
     { "name": "Micro-Dump Risk", "score": 90, "tooltip": "Translated dump analysis..." }
   ]
 }`;
 
-        // 🏎️ IL CAMBIO MARCE DELL'IA (Premium sceglie, gli altri usano DeepSeek)
+        // 🏎️ IL CAMBIO MARCE DELL'IA 
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
-        let selectedModel = "deepseek/deepseek-chat"; // Default di sicurezza assoluta
+        let selectedModel = "deepseek/deepseek-chat"; 
         
+        // 🔥 FIX 2: Inseriamo CLAUDE 3.5 HAIKU come modello di punta per Anthropic
         const premiumModels = [
             "deepseek/deepseek-chat", 
             "openai/gpt-4o", 
-            "anthropic/claude-3.5-sonnet"
+            "anthropic/claude-3.5-haiku" // Ultra-veloce, stabilissimo e intelligente
         ];
 
-        // Se l'utente è Premium o Admin, gli diamo il modello che ha scelto
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            if (premiumModels.includes(requestedModel)) {
+            // Se l'utente clicca Claude sull'estensione, lo instradiamo automaticamente su Haiku
+            if (requestedModel.includes("claude")) {
+                selectedModel = "anthropic/claude-3.5-haiku";
+            } else if (premiumModels.includes(requestedModel)) {
                 selectedModel = requestedModel;
             } else {
-                selectedModel = "openai/gpt-4o"; // Fallback in caso di manomissione
+                selectedModel = "openai/gpt-4o"; 
             }
             console.log(`💎 [PREMIUM/ADMIN] IA Selezionata: ${selectedModel}`);
         } else {
-            // Per utenti Base/Pro, forziamo sempre DeepSeek
             selectedModel = "deepseek/deepseek-chat"; 
             console.log(`🛡️ [STANDARD USER] IA Forzata a: ${selectedModel}`);
         }
@@ -1734,7 +1746,7 @@ JSON FORMAT:
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: { 
                 "Authorization": `Bearer ${apiKey}`, 
@@ -1743,14 +1755,37 @@ JSON FORMAT:
                 "Content-Type": "application/json" 
             },
             body: JSON.stringify({
-                model: selectedModel, // Modello dinamico basato sul piano
+                model: selectedModel, 
                 messages: [{ role: "user", content: promptLaboratorio }],
                 temperature: 0.1,
                 response_format: { type: "json_object" }
             })
         });
 
-        const data = await response.json();
+        let data = await response.json();
+
+        // 🪂 FIX 3: AUTO-FALLBACK SE CLAUDE DA' ERRORE!
+        if (data.error) {
+            console.log(`⚠️ Giudice Model ${selectedModel} bloccato (${data.error.message}). Fallback su DeepSeek!`);
+            
+            response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${apiKey}`, 
+                    "HTTP-Referer": "http://localhost:3000",
+                    "X-Title": "Solana Radar Bot",
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({
+                    model: "deepseek/deepseek-chat",
+                    messages: [{ role: "user", content: promptLaboratorio }],
+                    temperature: 0.1,
+                    response_format: { type: "json_object" }
+                })
+            });
+            data = await response.json();
+        }
+
         if (data.error) throw new Error(data.error.message);
 
         let rawText = data.choices[0].message.content;
@@ -1761,7 +1796,7 @@ JSON FORMAT:
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Risposta IA non valida`);
+            throw new Error(`Risposta IA non valida o non in formato JSON`);
         }
 
         const aiResult = JSON.parse(cleanText);
@@ -1826,18 +1861,17 @@ JSON FORMAT:
             </div>
         `;
         
-        // Invia i dati al frontend includendo i crediti rimasti
         res.json({ 
             success: true, 
             verdetto: reportHTML,
-            plan: authStatus.plan,        // 🔥 INVIA IL PIANO (es. "free")
-            scansLeft: authStatus.scansLeft // 🔥 INVIA I CREDITI (es. 4)
+            plan: authStatus.plan,        
+            scansLeft: authStatus.scansLeft 
         });
     
     } catch (error) {
         console.error("❌ CRITICAL BACKEND ERROR:", error.message);
         
-        // 🌟 UX PREMIUM: Diegetic UI error handling (Tutto in Inglese)
+        // 🌟 UX PREMIUM: Ora non può più crashare perché authStatus è dichiarato in alto!
         res.json({ 
             success: true, 
             verdetto: `
@@ -1847,13 +1881,13 @@ JSON FORMAT:
                     <div>
                         <span style="font-size: 0.7em; color: #ffaa00; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">AI Network Interference</span>
                         <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
-                            The quantitative compute provider (OpenRouter) is temporarily unreachable due to network congestion. <br><strong style="color:#ffaa00;">No credits deducted. Please try again in 5 seconds.</strong>
+                            The compute provider is temporarily unreachable. <br><strong style="color:#ffaa00;">No credits deducted. Please try again.</strong>
                         </div>
                     </div>
                 </div>
             </div>`,
-            plan: authStatus ? authStatus.plan : "premium",
-            scansLeft: authStatus ? authStatus.scansLeft : "∞"
+            plan: authStatus.plan,
+            scansLeft: authStatus.scansLeft
         });
     }
 });
@@ -2581,6 +2615,52 @@ app.post('/api/verify-payment', async (req, res) => {
     console.error('Verification Error:', error);
     res.status(500).json({ error: 'Server verification failed.' });
   }
+});
+// =====================================================================
+// 🌐 DASHBOARD WEB & NETWORK HEALTH (Recuperati dal vecchio server)
+// =====================================================================
+
+// 1. Simulatore Token in Trend (Feed Live per la Dashboard Web)
+setInterval(() => {
+    const dummyTokens = ["BZKJ1Sap26qFin64RpBajaiYAxGhLudjKgUhZ6mupump", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "WIFvKP6v615L4p5xG4qgQ4q56xQ6x5x5x5x5x5x5x5x"];
+    const randomMint = dummyTokens[Math.floor(Math.random() * dummyTokens.length)];
+    
+    if (io) {
+        io.emit('newToken', {
+            symbol: randomMint.substring(0, 4).toUpperCase(),
+            address: randomMint,
+            liquidity: (Math.random() * 50 + 10).toFixed(2)
+        });
+    }
+}, 10000); 
+
+// 2. Endpoint Auth per la Dashboard Web (Verifica Login Utente)
+app.post('/api/auth/verify', async (req, res) => {
+    const { walletAddress } = req.body;
+    
+    try {
+        // Controlliamo il wallet nel DB di Supabase
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('wallet_address', walletAddress)
+            .maybeSingle();
+
+        if (error || !user) {
+            return res.json({ isValid: false, isPro: false });
+        }
+
+        // Restituiamo alla dashboard web lo stato dell'abbonamento
+        res.json({ 
+            isValid: true, 
+            isPro: user.plan_type === 'pro' || user.plan_type === 'premium',
+            scansRemaining: user.scans_remaining 
+        });
+
+    } catch (err) {
+        console.error("❌ Errore Auth Dashboard Web:", err.message);
+        res.json({ isValid: false, isPro: false });
+    }
 });
 server.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);

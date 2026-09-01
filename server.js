@@ -1,4 +1,4 @@
-require('dotenv').config(); // FONDAMENTALE: Deve essere la riga 1!
+/*require('dotenv').config(); // FONDAMENTALE: Deve essere la riga 1!
 
 const express = require('express');
 const cors = require('cors');
