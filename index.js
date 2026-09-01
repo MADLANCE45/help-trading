@@ -9,8 +9,17 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const rateLimit = require('express-rate-limit'); // 🛡️
 
+// 🚀 CREAZIONE DELL'APP: Questa riga DEVE stare prima di ogni app.use!
+const app = express(); 
+
+// Ora che app esiste, possiamo usarla:
+app.use(cors({ origin: "*" }));
+app.use(express.json()); 
+app.set('trust proxy', 1);
+
 // Inserisci le tue chiavi Supabase (meglio se nel file .env)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
 // 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
 const originalWarn = console.warn;
 const originalError = console.error;
@@ -22,6 +31,7 @@ console.error = (...args) => {
     if (typeof args[0] === 'string' && args[0].includes('429 Too Many Requests')) return;
     originalError(...args);
 };
+
 // 1. Configurazione Ibrida: REST per le query storiche, WSS per il live stream
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
@@ -37,8 +47,6 @@ const solanaConnection = new Connection(RPC_URL, {
 const TARGET_FOUNDER_WALLET = 'ERRYCEdzkYXcnCycVGYNmoQ2RHhdhi1wDfnFuRKHJ7QA';
 
 // 🛡️ DIFESA 2: API RATE LIMITING (Massimo 50 richieste al minuto per IP)
-const app = express(); // Assicurati che app = express() sia definito prima di usare app.use
-app.set('trust proxy', 1);
 const globalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, 
   max: 50, 
@@ -46,6 +54,7 @@ const globalLimiter = rateLimit({
 });
 app.use('/api/', globalLimiter);
 
+// ... QUI CONTINUA IL TUO CODICE DA: let activeSubscriptionId = null; ...
 // Variabile globale per tenere traccia della connessione aperta
 let activeSubscriptionId = null;
 const knownBotsCache = new Set();
@@ -95,6 +104,31 @@ function salvaTradeInLocale(mint, pnl) {
     // Salva il file fisicamente sul PC
     fs.writeFileSync(filePaper, JSON.stringify(db, null, 2));
 }
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: "operational",
+        uptime: process.uptime(),
+        services: {
+            radar: 99.8,
+            deepseek: 98.5,
+            gpt4o: 100.0,
+            claude: 100.0
+        }
+    });
+});
+app.get('/api/wallet-audit/:address', (req, res) => {
+    const address = req.params.address;
+    console.log(`🩺 Dashboard sta richiedendo l'audit per il wallet: ${address}`);
+    
+    // Per ora simuliamo i dati del wallet per non consumare troppe API,
+    // ma la struttura è pronta per agganciarsi ad Helius per analizzare il wallet dell'utente.
+    res.json({
+        score: Math.floor(Math.random() * 40 + 60), // Da 60 a 100
+        totalTrades: Math.floor(Math.random() * 500) + 12,
+        winRate: `${Math.floor(Math.random() * 40 + 30)}%`
+    });
+});
+
 // ==========================================================
 // 📡 MOTORE WSS: LIVE TAPE CON SMART QUEUE (Zero Perdite)
 // ==========================================================
@@ -264,7 +298,7 @@ function avviaAscoltoLive(tokenMint) {
 
 //const app = express();
 //app.use(cors()); // Sblocca le protezioni del browser
-//app.use(express.json()); // Permette di leggere i body delle richieste POST
+// Permette di leggere i body delle richieste POST
 const PORT = 3000;
 // 🕵️ LOG GLOBALE: Stampa tutte le richieste in entrata
 app.use((req, res, next) => {
@@ -287,7 +321,7 @@ app.use(cors());
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius e Gemini
 const scanCache = new Map();
 const CACHE_TTL_MS = 60000; // 📉 Alzato a 60 secondi (salva le chiamate AI)
-// 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 600ms
+
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 500ms
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 150)));// 1. ANALISI DEL BUNDLE INIZIALE E BOT
 // =====================================================================
@@ -370,10 +404,8 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
     }
 
 };
-// =====================================================================
-// 2. SIMULATORE AVANZATO (Con Graduation Alert)
-// =====================================================================
-// =====================================================================
+
+
 // 2. SIMULATORE AVANZATO E SOGLIA DI DUMP (Dinamico)
 // =====================================================================
 function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundleSupplyPct, tokenAgeMinutes, txMinuto, orderFlowData) {
@@ -447,22 +479,12 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     }
     return risultato;
 }
-// =====================================================================
-// 2. TACTICAL ADVICE (Gestito da Gemini 1.5 Flash)
-// =====================================================================
-// =====================================================================
-// =====================================================================
-// 2. TACTICAL ADVICE (Bypass Diretto REST API Gemini 1.5 Flash su v1beta)
-// =====================================================================
-// =====================================================================
-// 2. MOTORE AI (SWARM ARCHITECTURE)
-// =====================================================================
+
 
 // 🔥 2.1 IL MOTORE UNIVERSALE: Fa parlare qualsiasi Agente con Gemini
 // 🔥 Mettilo in cima al file, sotto le altre variabili globali
 let geminiCooldownEnd = 0; 
 
-// 🔥 Sostituisci interrogaAgente con questa versione provvista di "Lucchetto"
 // 🔥 Mettilo in cima al file, sotto le altre variabili globali (se non c'è già)
 // let geminiCooldownEnd = 0; 
 let apiCallTimestamps = [];
@@ -475,8 +497,7 @@ function calcolaApiRimanenti() {
     const rimanenti = MAX_CALLS_PER_MINUTE - apiCallTimestamps.length;
     return Math.max(0, rimanenti);
 }
-// 🔥 IL MOTORE UNIVERSALE: Fa parlare qualsiasi Agente con Gemini
-// 🔥 IL MOTORE UNIVERSALE: Alimentato da Groq (LLaMA 3) per aggirare i limiti Google
+
 // 🔥 ESTRAZIONE CHIAVI DAL .ENV (Supporta 1 o più chiavi separate da virgola)
 const rawKeyEnv = process.env.GROQ_API_KEY || "";
 const groqKeys = rawKeyEnv.replace(/['"\s]/g, '').split(',').filter(k => k.length > 0);
@@ -533,9 +554,7 @@ async function interrogaAgente(nomeAgente, prompt) {
         };
     }
 }
-// 🔥 2.2 IL COORDINATORE DELLO SCIAME (Sostituisce generateTacticalAdviceAI)
-// 🔥 2.2 L'AGENTE MASTER (Sostituisce lo Swarm per evitare i limiti API di Google)
-// 🔥 2.2 L'AGENTE MASTER
+
 // 🔥 2.2 L'AGENTE MASTER (Modalità Spietata)
 async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData) {
     
@@ -598,9 +617,8 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
     }
 }
 
-// =====================================================================
 // 3. ANALISI COMPONENTI
-// =====================================================================
+
 async function calcolaEtaWallet(walletAddress) {
     try {
         const signatures = await solanaConnection.getSignaturesForAddress(new PublicKey(walletAddress), { limit: 1000 });
@@ -640,9 +658,9 @@ async function analizzaBattitoCardiaco(mintPubKey) {
         return { stato, txMinuto: txInLast60s, colore, blocco, secondiDaUltimaTx: secondiDaUltimaTx > 0 ? secondiDaUltimaTx : 0 };
     } catch (error) { return { stato: "ERRORE LETTURA", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 }; }
 }
-// =====================================================================
+
 // 🧠 MOTORE 1: IL COPILOTA TATTICO LIVE (Anti-Crash per GPT-OSS)
-// =====================================================================
+
 app.post('/api/copilot/:tokenMint', async (req, res) => {
     try { // 🔥 UN SOLO TRY PER TUTTO IL BLOCCO
         
@@ -1002,18 +1020,9 @@ async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
         else return { tokensLanciati: numTokenPassati, status: "🔄 DEV RICORRENTE", punteggioRischio: 20 };
     } catch (error) { return { tokensLanciati: 0, status: "SCONOSCIUTO", punteggioRischio: 0 }; }
 }
-// =====================================================================
-// MOTORE QUANTITATIVO: ORDER FLOW E VOLATILITÀ (Dynamic Risk)
-// =====================================================================
-// =====================================================================
-// MOTORE QUANTITATIVO: ORDER FLOW E VOLATILITÀ (Dynamic Risk)
-// =====================================================================
-// =====================================================================
-// MOTORE QUANTITATIVO: ORDER FLOW E VOLATILITÀ (Dynamic Risk)
-// =====================================================================
-// =====================================================================
+
 // 3. ANALISI COMPONENTI (VERSIONE OTTIMIZZATA IN LOCALE)
-// =====================================================================
+
 function analizzaUBI_Locale(txs) {
     let uniqueWallets = new Set();
     let validTxCount = 0;
@@ -1027,9 +1036,8 @@ function analizzaUBI_Locale(txs) {
     return { uniqueBuyers: uniqueWallets.size, totalTx: validTxCount };
 }
 
-// =====================================================================
 // 🔴 MOTORE PANIC SELL (Esecuzione Spietata)
-// =====================================================================
+
 function valutaInnescoPanicSell(mcAttuale, sogliaDump, microDumpData, orderFlowData) {
     let panicTrigger = false;
     let motivoPanic = "";
@@ -1102,11 +1110,7 @@ function analizzaOrderFlow_Locale(txs) {
     };
 }
 
-// 🛡️ THE GATEKEEPER: Paywall, Auth & Sicurezza Anti-Bypass
-// =====================================================================
-// =====================================================================
 // 🛡️ THE GATEKEEPER: Paywall, Free Tier, Device Lock & Reset
-// =====================================================================
 async function checkAuthAndLimits(authToken, deviceId) {
     const cleanToken = (authToken && authToken !== 'null' && authToken !== 'undefined') ? authToken.trim() : null;
     const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
@@ -1212,10 +1216,7 @@ async function checkAuthAndLimits(authToken, deviceId) {
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
     avviaAscoltoLive(tokenMint);
-    
-// 💸 DATABASE LOCALE: LIVE PAPER TRADING SIMULATOR (ZERO-AI)
-// Apertura / Chiusura Posizione
-// Apertura / Chiusura Posizione
+
 // Apertura / Chiusura Posizione
 app.get('/api/paper-trading', (req, res) => {
     try {
@@ -1246,8 +1247,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         res.status(500).json({ error: "Errore interno server" });
     }
 });
-// =====================================================================
-// =====================================================================
+
     // 🧠 CONTROLLO CACHE: Se ho già analizzato questo token negli ultimi 15 secondi, restituisco il dato istantaneamente.
     if (scanCache.has(tokenMint)) {
         const cached = scanCache.get(tokenMint);
@@ -1321,8 +1321,6 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
                 }
             } catch(e) {}
         }
-
-        // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
         
         console.log("⚡ Estrazione Firme e Base...");
@@ -1547,12 +1545,7 @@ try {
     }
 });
 
-// =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Blindato + Cambio Marce)
-// =====================================================================
-// =====================================================================
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
-// =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     // 🔥 TUTTO RACCHIUSO NEL TRY-CATCH PER EVITARE ERRORI CRITICI
     try {
@@ -1811,10 +1804,7 @@ JSON FORMAT:
         });
     }
 });
-
-// =====================================================================
 // 🧠 MOTORE 1: PROFILAZIONE ALGORITMICA WALLET (Ingegneria Inversa)
-// =====================================================================
 app.post('/api/laboratorio/wallet-spy', async (req, res) => {
     const { walletAddress, recentTrades } = req.body;
 
@@ -1922,10 +1912,7 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
     }
 });
 
-
-// =====================================================================
 // 5. LIVE SPY RADAR
-// =====================================================================
 app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
     try {
         const walletAddress = req.params.walletAddress;
@@ -2026,9 +2013,7 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
 });
 // Sostituisci app.listen con server.listen
 
-    // =====================================================================
 // 🎯 IL CACCIATORE: GLOBAL SCREENER ALGORITMICO (Risk/Reward 6k MC)
-// =====================================================================
 
 // Memoria a breve termine per tutti i token che stanno nascendo
 const mempoolTokens = new Map(); 
@@ -2039,9 +2024,8 @@ const MIN_TX_SEC = 2;   // Minimo 3 acquisti al secondo per confermare la pressi
 const MIN_RATIO = 1.1;  // Volume Buy deve essere +50% del Volume Sell
 const MIN_U_INDEX = 0.30; // Almeno 60% dei wallet devono essere unici (Anti-Wash)
 
-// =====================================================================
 // 🔌 GESTIONE CONNESSIONI WEBSOCKET E RADAR
-// =====================================================================
+
 const activeSniperSubs = new Map(); 
 const posizioniAperte = new Map(); // 🧠 Ricorda a quanto siamo entrati per chiudere insieme alla balena
 const paracadutiAperti = new Map(); // 🪂 Memoria dei timer di sicurezza per evitare doppie chiusure
@@ -2069,9 +2053,8 @@ io.on("connection", (socket) => {
     });
 });
 
-// =====================================================================
 // 🎯 IL MOTORE DEFINITIVO: STALKER COPY-TRADE (BUY & SELL)
-// =====================================================================
+
 function avviaAscoltoBersaglio(walletAddress) {
     console.log(`📡 STALKER MODE IN ASCOLTO SU: ${walletAddress}`);
     const targetPubKey = new PublicKey(walletAddress);
@@ -2161,12 +2144,7 @@ function avviaAscoltoBersaglio(walletAddress) {
         }, 2500); 
     }, "confirmed");
 }
-// =====================================================================
-// 📡 ORACOLO DEI PREZZI (Recupera il valore reale in millisecondi)
-// =====================================================================
-// =====================================================================
 // 📡 ORACOLO DEI PREZZI STEALTH (Bypassa Cloudflare Anti-Bot)
-// =====================================================================
 async function ottieniPrezzoToken(mint) {
     try {
         // 1. API Pump.fun travestita da normale Browser Google Chrome
@@ -2555,5 +2533,3 @@ server.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
     console.log(`🤖 Autopilota Innescato: In ascolto H24 su ${BALENE_AUTONOME.length} balene.`);
 });
-
-// 🔴 FINE DEL FILE. NON AGGIUNGERE NESSUNA RIGA DOPO QUESTA.

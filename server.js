@@ -48,21 +48,6 @@ setInterval(() => {
     liquidity: (Math.random() * 50 + 10).toFixed(2)
   });
 }, 10000); 
-
-// --- 2. API: LA ROTTA MANCANTE CHE CAUSAVA "NODE OFFLINE" (La Dashboard) ---
-app.get('/api/wallet-audit/:address', (req, res) => {
-    const address = req.params.address;
-    console.log(`🩺 Dashboard sta richiedendo l'audit per il wallet: ${address}`);
-    
-    // Per ora simuliamo i dati del wallet per non consumare troppe API,
-    // ma la struttura è pronta per agganciarsi ad Helius per analizzare il wallet dell'utente.
-    res.json({
-        score: Math.floor(Math.random() * 40 + 60), // Da 60 a 100
-        totalTrades: Math.floor(Math.random() * 500) + 12,
-        winRate: `${Math.floor(Math.random() * 40 + 30)}%`
-    });
-});
-
 // --- 3. API REST: IL RADAR INTELLIGENTE (Colonna Destra / Estensione) CON GROQ ---
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
