@@ -8,7 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const rateLimit = require('express-rate-limit'); // 🛡️
-
+//const Groq = require('groq-sdk');
+//const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 // 🚀 CREAZIONE DELL'APP: Questa riga DEVE stare prima di ogni app.use!
 const app = express(); 
 
@@ -499,62 +500,88 @@ function calcolaApiRimanenti() {
 }
 
 // 🔥 ESTRAZIONE CHIAVI DAL .ENV (Supporta 1 o più chiavi separate da virgola)
+// 🔥 ESTRAZIONE CHIAVI GROQ DAL .ENV
 const rawKeyEnv = process.env.GROQ_API_KEY || "";
 const groqKeys = rawKeyEnv.replace(/['"\s]/g, '').split(',').filter(k => k.length > 0);
 let currentGroqIndex = 0;
 
+// 🔥 PAUSA TATTICA PER NON INTASARE LA RETE (Load Balancer)
+const delayGroq = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 🔥 2.1 IL MOTORE UNIVERSALE: Passato su QWEN (Groq) con THROTTLING e ROTAZIONE
 async function interrogaAgente(nomeAgente, prompt) {
-    try {
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("Chiave OPENROUTER_API_KEY mancante nel .env");
+    let tentativi = 0;
+    const maxTentativi = Math.max(1, groqKeys.length);
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { 
-                "Authorization": `Bearer ${apiKey}`, 
-                "HTTP-Referer": "http://localhost:3000",
-                "X-Title": "Solana Radar Bot",
-                "Content-Type": "application/json" 
-            },
-            body: JSON.stringify({
-                model: "deepseek/deepseek-chat", 
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.1,
-                response_format: { type: "json_object" }
-            })
-        });
+    while (tentativi < maxTentativi) {
+        const apiKey = groqKeys[currentGroqIndex];
 
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
+        try {
+            if (!apiKey) throw new Error("Chiave GROQ mancante nel .env");
 
-        let rawText = data.choices[0].message.content;
-        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const startIdx = cleanText.indexOf('{');
-        const endIdx = cleanText.lastIndexOf('}');
-        
-        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-            cleanText = cleanText.substring(startIdx, endIdx + 1);
-            return JSON.parse(cleanText);
-        } else {
-            throw new Error(`OpenRouter non ha generato JSON`);
+            // 🚦 PREVENZIONE INGORGO: Aspettiamo 800ms per "spalmare" le API Call nel minuto
+            // Questo trucco salva le tue 3 chiavi gratuite dal BAN per "Too Many Requests".
+            await delayGroq(800);
+
+            // 🚀 Chiamata a Groq tramite Fetch
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${apiKey}`, 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({
+                    model: "qwen/qwen3.8-27b", // 🔥 Modello d'élite per logica JSON ad altissima velocità
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.1,
+                    response_format: { type: "json_object" }
+                })
+            });
+
+            const data = await response.json();
+            
+            // Cattura errori esatti di Groq
+            if (!response.ok || data.error) {
+                const errorMsg = data.error ? data.error.message : `HTTP Status: ${response.status}`;
+                throw new Error(errorMsg); 
+            }
+
+            let rawText = data.choices[0].message.content;
+            
+            // Pulizia e parsing del JSON
+            let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const startIdx = cleanText.indexOf('{');
+            const endIdx = cleanText.lastIndexOf('}');
+            
+            if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+                cleanText = cleanText.substring(startIdx, endIdx + 1);
+                return JSON.parse(cleanText); // 🎉 Successo in 0.5s!
+            } else {
+                throw new Error(`Il modello non ha generato JSON valido`);
+            }
+
+        } catch (error) {
+            console.log(`⚠️ Groq Key ${currentGroqIndex + 1} occupata/Rate Limit. Ruoto... (${error.message})`);
+            
+            // Ruota istantaneamente alla chiave successiva
+            currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length; 
+            tentativi++;
         }
-
-    } catch (error) {
-        console.error(`❌ Errore Agente [${nomeAgente}]:`, error.message);
-        return { 
-            errore: true, 
-            messaggio: "Agente offline o Rate Limit raggiunto",
-            devStatus: "⚠️ SCONOSCIUTO", 
-            volumeStatus: "⚠️ SCONOSCIUTO", 
-            topHoldersStatus: "⚠️ SCONOSCIUTO",
-            sybilStatus: "⚠️ SCONOSCIUTO", 
-            estimatedRugTime: "⏱️ SCONOSCIUTO",
-            strategy: `⛔ BLOCCO API: Passaggio in safe-mode.`,
-            tradeSetup: `WAIT`
-        };
     }
-}
 
+    console.error(`❌ Errore Agente [${nomeAgente}]: Tutte le ${groqKeys.length} chiavi GROQ sono intasate.`);
+    return { 
+        errore: true, 
+        messaggio: "Traffico eccessivo sui nodi IA. Dati di sicurezza applicati.",
+        devStatus: "⚠️ SCONOSCIUTO", 
+        volumeStatus: "⚠️ SCONOSCIUTO", 
+        topHoldersStatus: "⚠️ SCONOSCIUTO",
+        sybilStatus: "⚠️ SCONOSCIUTO", 
+        estimatedRugTime: "⏱️ SCONOSCIUTO",
+        strategy: `⛔ BLOCCO TRAFFICO: Usa il Copilot per l'analisi manuale.`,
+        tradeSetup: `WAIT`
+    };
+}
 // 🔥 2.2 L'AGENTE MASTER (Modalità Spietata)
 async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData) {
     
@@ -761,13 +788,26 @@ Formato obbligatorio:
             scansLeft: authStatus.scansLeft      // 🔥 Passa i crediti rimasti al frontend
         });
 
-    } catch (error) { // 🔥 ECCO L'UNICO CATCH CHE CHIUDE TUTTO IL BLOCCO
-        console.error("❌ Errore Copilota:", error.message);
-        res.status(200).json({
-            success: false,
-            tattica: "Ricalcolo in corso o Rate Limit raggiunto.",
-            puntoRottura: error.message,
-            azione: "ATTESA"
+    } catch (error) {
+        console.error("❌ CRITICAL BACKEND ERROR (Judge):", error.message);
+        
+        // 🌟 UX PREMIUM: Un banner grafico di emergenza integrato nello stile della UI
+        res.json({ 
+            success: true, // Manteniamo la struttura visiva
+            verdetto: `
+            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <div style="font-size: 2.5em; text-shadow: 0 0 10px #ffaa00;">⚠️</div>
+                    <div>
+                        <span style="font-size: 0.7em; color: #ffaa00; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">AI Network Interference</span>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
+                            The quantity computing provider (OpenRouter) is temporarily unreachable due to traffic congestion. <br><strong style="color:#ffaa00;">No credit deducted. Try again in 5 seconds.</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+            plan: authStatus ? authStatus.plan : "premium",
+            scansLeft: authStatus ? authStatus.scansLeft : "∞"
         });
     }
 });
@@ -1776,7 +1816,7 @@ JSON FORMAT:
                 <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
                     <div style="flex-grow: 1;">
-                        <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Giudizio Algoritmico</span>
+                        <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Algorithmic Verdict</span>
                         <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
                             ${verdettoTesto}
                         </div>
@@ -1785,7 +1825,8 @@ JSON FORMAT:
                 <div style="padding-right: 5px;">${barsHTML}</div>
             </div>
         `;
-        // Invia i dati al frontend includendo i crediti rimasti!
+        
+        // Invia i dati al frontend includendo i crediti rimasti
         res.json({ 
             success: true, 
             verdetto: reportHTML,
@@ -1794,13 +1835,25 @@ JSON FORMAT:
         });
     
     } catch (error) {
-        console.error("❌ ERRORE CRITICO BACKEND:", error.message);
+        console.error("❌ CRITICAL BACKEND ERROR:", error.message);
+        
+        // 🌟 UX PREMIUM: Diegetic UI error handling (Tutto in Inglese)
         res.json({ 
-            success: false, 
-            verdetto: `<div style="color:#ff4d4d; border: 1px solid #ff4d4d; padding: 10px; border-radius: 4px; background: rgba(255,0,0,0.1);">
-                <strong>❌ Errore Backend:</strong><br>${error.message}
-                <br><br><span style="font-size:0.8em; color:#aaa;">Guarda il terminale Node.js per i dettagli.</span>
-            </div>` 
+            success: true, 
+            verdetto: `
+            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <div style="font-size: 2.5em; text-shadow: 0 0 10px #ffaa00;">⚠️</div>
+                    <div>
+                        <span style="font-size: 0.7em; color: #ffaa00; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">AI Network Interference</span>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
+                            The quantitative compute provider (OpenRouter) is temporarily unreachable due to network congestion. <br><strong style="color:#ffaa00;">No credits deducted. Please try again in 5 seconds.</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>`,
+            plan: authStatus ? authStatus.plan : "premium",
+            scansLeft: authStatus ? authStatus.scansLeft : "∞"
         });
     }
 });
