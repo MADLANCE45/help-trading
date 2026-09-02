@@ -8,14 +8,18 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const rateLimit = require('express-rate-limit'); // 🛡️
-//const Groq = require('groq-sdk');
-//const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-// 🚀 CREAZIONE DELL'APP: Questa riga DEVE stare prima di ogni app.use!
+
+// 🚀 CREAZIONE DELL'APP E SCUDI BASE
 const app = express(); 
+
 // 🛡️ SCUDO ANTI-GARBAGE (Validazione Base58 Solana)
 const isValidSolanaAddress = (address) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-// Ora che app esiste, possiamo usarla:
+
+// 🛡️ SCUDO CORS: Aperto per permettere all'estensione di funzionare su Pump.fun, Bullx, DexScreener ecc.
+// (I dati sensibili restano protetti dalla Sync Key e dal Rate Limiter)
 app.use(cors({ origin: "*" }));
+
+// Parsing del body in JSON e impostazione proxy per Railway/Vercel
 app.use(express.json()); 
 app.set('trust proxy', 1);
 
@@ -318,7 +322,7 @@ const io = new Server(server, {
 
 
 app.use(express.json({ limit: '50mb' }));
-app.use(cors());
+//app.use(cors());
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius e Gemini
 const scanCache = new Map();
@@ -699,7 +703,15 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
     try {
+        const tokenMint = req.params.tokenMint; // <-- Spostalo qui su
+        
+        // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
+        if (!isValidSolanaAddress(tokenMint)) {
+            return res.status(400).json({ success: false, tattica: "ERRORE", puntoRottura: "Invalid Token Address.", azione: "STOP" });
+        }
+
         let rawToken = req.headers['x-auth-token'];
+        // ... il resto del codice continua uguale (deviceId, checkAuthAndLimits, ecc.)
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
@@ -718,7 +730,7 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
         }
 // ... il resto continua uguale ...
 
-        const tokenMint = req.params.tokenMint;
+       // const tokenMint = req.params.tokenMint;
         const datiLive = req.body;
         const lingua = req.query.lang || 'en'; 
 
@@ -2592,55 +2604,68 @@ app.get('/api/leaderboard', async (req, res) => {
     }
 });
 // =====================================================================
-// 🛡️ DIFESA 1: VERIFICA PAGAMENTI ON-CHAIN SICURA
+// 🛡️ GESTIONE PAGAMENTI ON-CHAIN (ANTI-HACKER)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
-  const { walletAddress, signature, planType } = req.body;
+    const { walletAddress, signature, planType } = req.body;
+    try {
+        console.log(`💳 Verificando transazione on-chain: ${signature}...`);
+        
+        // 1. Controlliamo la transazione sulla blockchain
+        const tx = await solanaConnection.getTransaction(signature, { maxSupportedTransactionVersion: 0 });
+        if (!tx) return res.status(400).json({ error: 'Transazione non trovata.' });
 
-  try {
-    console.log(`💳 Verificando pagamento on-chain per ${walletAddress}...`);
-    
-    // 1. Chiede alla blockchain se la transazione esiste davvero
-    const tx = await solanaConnection.getTransaction(signature, { maxSupportedTransactionVersion: 0 });
-    
-    if (!tx) {
-      return res.status(400).json({ error: 'Transaction not found on the blockchain.' });
+        // 2. Controllo Errori Nativi (Se la transazione è fallita su Solana ma l'hacker ci prova lo stesso)
+        if (tx.meta && tx.meta.err !== null) {
+            return res.status(403).json({ error: 'La transazione è fallita sulla blockchain.' });
+        }
+
+        // 3. REPLAY ATTACK PREVENTION: Controlla che la transazione sia recente (max 30 minuti fa)
+        const txTime = tx.blockTime; // in secondi
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (currentTime - txTime > 1800) {
+            console.error(`🚨 REPLAY ATTACK: Tentativo di usare una transazione vecchia di ore/giorni.`);
+            return res.status(403).json({ error: 'Transazione scaduta o già utilizzata.' });
+        }
+
+        // 4. VERIFICA MATEMATICA DEI FONDI (La Prova del Nove)
+        const targetWalletIndex = tx.transaction.message.accountKeys.findIndex(key => key.toString() === TARGET_FOUNDER_WALLET);
+        if (targetWalletIndex === -1) {
+            return res.status(403).json({ error: 'Transazione fraudolenta. Il destinatario non coincide.' });
+        }
+
+        const preBalance = tx.meta.preBalances[targetWalletIndex];
+        const postBalance = tx.meta.postBalances[targetWalletIndex];
+        const lamportsRicevuti = postBalance - preBalance;
+        const solRicevuti = lamportsRicevuti / 1e9;
+
+        // Se l'hacker ha inviato meno di 0.05 SOL (circa 7$), blocchiamo tutto.
+        // Puoi alzare questa soglia in futuro quando vai live.
+        if (solRicevuti < 0.05) {
+            console.error(`🚨 ZERO-VALUE ATTACK: L'utente ha inviato solo ${solRicevuti} SOL per avere il Premium!`);
+            return res.status(403).json({ error: 'Importo ricevuto troppo basso. Pagamento respinto.' });
+        }
+
+        console.log(`✅ Incassati con successo ${solRicevuti} SOL da ${walletAddress}`);
+
+        // 5. Creazione Account e Sync Key
+        const daysToAdd = planType === 'premium' ? 365 : 30;
+        const newSyncKey = `ms-${planType}-${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+        const expirationDate = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error } = await supabase.from('users').upsert({ 
+            wallet_address: walletAddress, plan_type: planType, pro_expires_at: expirationDate, sync_key: newSyncKey
+        }, { onConflict: 'wallet_address' });
+
+        if (error) throw error;
+        
+        console.log(`✅ Profilo ${planType.toUpperCase()} blindato e attivato.`);
+        res.status(200).json({ success: true, syncKey: newSyncKey, expiresAt: expirationDate });
+        
+    } catch (error) {
+        console.error('Verification Error:', error.message);
+        res.status(500).json({ error: 'Errore interno di sicurezza del server.' });
     }
-
-    // 2. Controlla che i fondi siano arrivati ESATTAMENTE al tuo wallet
-    const isDestinationCorrect = tx.transaction.message.accountKeys.some(
-      (key) => key.toString() === TARGET_FOUNDER_WALLET
-    );
-
-    if (!isDestinationCorrect) {
-      console.error(`🚨 TENTATIVO DI FRODE: I fondi non sono andati a ${TARGET_FOUNDER_WALLET}`);
-      return res.status(403).json({ error: 'Fraudulent transaction detected. Funds bypassed.' });
-    }
-
-    // 3. Calcola la scadenza (365 giorni per Premium, 30 per Pro)
-    const daysToAdd = planType === 'premium' ? 365 : 30;
-    const newSyncKey = `ms-${planType}-${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
-    const expirationDate = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
-
-    // 4. Salva su Supabase
-    const { error } = await supabase
-      .from('users')
-      .upsert({ 
-        wallet_address: walletAddress, 
-        plan_type: planType, 
-        pro_expires_at: expirationDate,
-        sync_key: newSyncKey
-      }, { onConflict: 'wallet_address' });
-
-    if (error) throw error;
-
-    console.log(`✅ Pagamento confermato! Profilo ${planType.toUpperCase()} attivato per ${walletAddress}`);
-    res.status(200).json({ success: true, syncKey: newSyncKey, expiresAt: expirationDate });
-
-  } catch (error) {
-    console.error('Verification Error:', error);
-    res.status(500).json({ error: 'Server verification failed.' });
-  }
 });
 // =====================================================================
 // 🌐 DASHBOARD WEB & NETWORK HEALTH (Recuperati dal vecchio server)
