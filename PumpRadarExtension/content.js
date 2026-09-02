@@ -179,8 +179,8 @@ const TRANSLATIONS = {
         loading_base: "✅ Dati Base", loading_complete: "✅ Report Completo", tracker_title: "💼 SMART MONEY",
         tracker_placeholder: "Address...", tracker_name: "Nome (opz)", tracker_btn: "Traccia", spy_title: "🚨 LIVE SPY FEED",
         spy_waiting: "In attesa di movimenti...", judge_title: "Verdetto Giudice", done_in: "Fatto in",
-        dev_history: "Storico Sviluppatore", supply_analysis: "Analisi Supply", high_risk_rug: "⚠️ ALTO RISCHIO RUG.",
-        risk_bundle: "⚠️ Rischio BUNDLE: il dev potrebbe aver cecchinato!", bought: "HA COMPRATO", sold: "HA VENDUTO", investment: "Investimento", normal_trade: "NORMALE",
+        dev_history: "Developer History", supply_analysis: "Analisi Supply", high_risk_rug: "⚠️ ALTO RISCHIO RUG.",
+        risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped the supply!", bought: "HA COMPRATO", sold: "HA VENDUTO", investment: "Investimento", normal_trade: "NORMALE",
         human_trader: "Trader Umano", algo_trader: "Algo Trader", exit_pos: "📉 Uscita dalla posizione",
         dead_token: "💀 TOKEN MORTO 💀", dead_desc: "Zero volumi da 25s. Cambia moneta!", algo_judgment: "Giudizio Algoritmico",
         tactics: "1. Tattica:", prediction: "2. Previsione:", action: "Azione:",
@@ -270,10 +270,11 @@ const TRANSLATIONS = {
 function t(key) { return TRANSLATIONS[currentLang][key] || TRANSLATIONS['en'][key] || key; }
 
 // 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano Globale)
+// 🧠 TRADUTTORE UNIVERSALE (Filtro Anti-Italiano Globale)
 function traduciDalBackend(testo) {
     if (!testo) return "";
     return testo
-        // --- Trading ---
+        // --- 1. Trading & Spy Feed ---
         .replace(/HA COMPRATO:/gi, "BOUGHT:")
         .replace(/HA VENDUTO:/gi, "SOLD:")
         .replace(/HA COMPRATO/gi, "BOUGHT")
@@ -285,16 +286,20 @@ function traduciDalBackend(testo) {
         .replace(/Trader Umano/gi, "Human Trader")
         .replace(/Algo Trader/gi, "Algo Trader")
         .replace(/Uscita dalla posizione/gi, "Exiting position")
-        // --- Avvisi ---
+        
+        // --- 2. Avvisi, Radar & Sybil ---
         .replace(/TOKEN MORTO/gi, "DEAD TOKEN")
         .replace(/Zero volumi da 25s.*/gi, "Zero volume. Change coin!")
         .replace(/Giudizio Algoritmico/gi, "Algorithmic Judgment")
         .replace(/RAFFICA SYBIL:/gi, "SYBIL BURST:")
+        .replace(/wallet stanno scaricando un totale di/gi, "wallets dumping a total of")
         .replace(/wallet scaricano/gi, "wallets dumping")
-        .replace(/wallet stanno scaricando un totale di/gi, "wallets dumping")
         .replace(/SOL in 2s!/gi, "SOL in 2s!")
-        // --- Dati Sviluppatore ---
+        
+        // --- 3. Dati Sviluppatore (Dev History) ---
         .replace(/DEV: SCONOSCIUTO/gi, "DEV: UNKNOWN")
+        .replace(/Sconosciuto/gi, "Unknown")
+        .replace(/Ignota/gi, "Unknown")
         .replace(/Sospetto - /gi, "Suspicious - ")
         .replace(/Dev molto giovane/gi, "Very young dev")
         .replace(/DEV: Giovane/gi, "DEV: Young")
@@ -305,7 +310,12 @@ function traduciDalBackend(testo) {
         .replace(/rischio alto/gi, "high risk")
         .replace(/alto rischio/gi, "high risk")
         .replace(/token lanciati/gi, "tokens launched")
-        // --- Dati Supply ---
+        .replace(/PULITO \(Wallet Nuovo\)/gi, "CLEAN (Fresh Wallet)")
+        .replace(/PULITO \(Primo Progetto\)/gi, "CLEAN (First Project)")
+        .replace(/DEV RICORRENTE/gi, "RETURNING DEV")
+        .replace(/FAKE DEV: Wallet creato da meno di 24 ore!/gi, "FAKE DEV: Wallet created less than 24h ago!")
+        
+        // --- 4. Dati Supply, Bundle & Micro-Dump ---
         .replace(/POSITIVO:/gi, "CLEAN:")
         .replace(/Top holders non controllano supply/gi, "Top holders do not control supply")
         .replace(/Top holders controllano/gi, "Top holders control")
@@ -314,9 +324,13 @@ function traduciDalBackend(testo) {
         .replace(/della bundle/gi, "of the bundle")
         .replace(/nessun potere centrale/gi, "no central power")
         .replace(/nessun controllo/gi, "no central power")
+        .replace(/Nessun bundle rilevato/gi, "No bundle detected")
+        .replace(/Nessun dato Sybil/gi, "No Sybil data")
+        .replace(/Nessun dato Micro-Dump/gi, "No Micro-Dump data")
+        .replace(/Dati di mercato assenti/gi, "Market data unavailable")
         .replace(/- Sicuro/gi, "- Safe")
         .replace(/Sicuro/gi, "Safe")
-        .replace(/Ignota/gi, "Unknown");
+        .replace(/Rischio BUNDLE: il dev potrebbe aver cecchinato!/gi, "BUNDLE Risk: Dev might have sniped the supply!");
 }
 // 🎨 GENERATORE UNIVERSALE CARD SPY (Usato sia per la Diretta che per lo Storico)
 function generaHTMLCardSpy(data) {
@@ -343,6 +357,9 @@ function generaHTMLCardSpy(data) {
     `;
 }
 // Funzione helper per ottenere il testo tradotto con fallback su Inglese
+    // =========================================================
+    // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
+    // =========================================================
     // =========================================================
     // ⏱️ TIMER DI NOIA (AUTO-SCARTO TOKEN MORTI)
     // =========================================================
@@ -387,7 +404,7 @@ function generaHTMLCardSpy(data) {
                 if (matchToken) tokenMint = matchToken[0];
 
                 if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                    contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Naviga su un token per attivare il Radar.</div>';
+                    contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Navigate to a token to activate the Radar.</div>';
                     return;
                 }
 
@@ -577,7 +594,7 @@ function generaHTMLCardSpy(data) {
                                 <!-- 🔥 NUOVO: Bottone Log Out (Visibile se connesso) -->
                                 <button id="btn-logout-sync" style="display: none; flex: 1; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Log Out</button>
                                 
-                                <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
+                                <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
                             </div>
                         </div>
 
@@ -714,7 +731,60 @@ function generaHTMLCardSpy(data) {
         loadSavedWallets();
         caricaStoricoSpyNelDOM();
     }
+    // 🌟 FUNZIONE MODAL PREMIUM (Sostituisce alert e confirm)
+// =========================================================
+// 🌟 FUNZIONE MODAL PREMIUM (Sostituisce alert e confirm)
+// =========================================================
+function showPremiumModal(title, message, isConfirm, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:999999; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;";
+    
+    const modal = document.createElement('div');
+    const borderColor = isConfirm ? "#ffaa00" : "#ff4d4d"; 
+    const icon = isConfirm ? "⚠️" : "❌";
 
+    modal.style.cssText = `background:linear-gradient(145deg, #161821, #0a0c10); border:1px solid #2d3142; border-top:3px solid ${borderColor}; border-radius:12px; padding:25px; width:340px; text-align:center; box-shadow:0 15px 40px rgba(0,0,0,0.7); transform:scale(0.8); transition:transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-family: 'Segoe UI', sans-serif;`;
+    
+    modal.innerHTML = `
+        <div style="font-size:3.5em; margin-bottom:10px; line-height:1;">${icon}</div>
+        <h3 style="color:#fff; font-size:1.2em; font-weight:800; text-transform:uppercase; margin:0 0 12px 0;">${title}</h3>
+        <p style="color:#aaa; font-size:0.9em; margin-bottom:25px; line-height:1.5;">${message}</p>
+        <div style="display:flex; gap:12px; justify-content:center;" id="modal-buttons-container"></div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    const btnContainer = modal.querySelector('#modal-buttons-container');
+
+    const closeModal = () => {
+        overlay.style.opacity = "0";
+        modal.style.transform = "scale(0.8)";
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    if (isConfirm) {
+        btnContainer.innerHTML = `
+            <button id="modal-cancel" style="background:#222; border:1px solid #444; color:#fff; padding:10px 15px; border-radius:6px; cursor:pointer; flex:1; font-weight:bold; transition:0.2s;">Cancel</button>
+            <button id="modal-confirm" style="background:linear-gradient(90deg, #ff4d4d, #cc0000); border:none; color:#fff; padding:10px 15px; border-radius:6px; cursor:pointer; flex:1; font-weight:bold; box-shadow:0 0 15px rgba(255,77,77,0.4); transition:0.2s;">Disconnect</button>
+        `;
+        modal.querySelector('#modal-cancel').onclick = closeModal;
+        modal.querySelector('#modal-confirm').onclick = () => {
+            onConfirm();
+            closeModal();
+        };
+    } else {
+        btnContainer.innerHTML = `
+            <button id="modal-ok" style="background:linear-gradient(90deg, #4da6ff, #0073e6); border:none; color:#fff; padding:10px 25px; border-radius:6px; cursor:pointer; font-weight:bold; box-shadow:0 0 15px rgba(77,166,255,0.4); transition:0.2s;">Understood</button>
+        `;
+        modal.querySelector('#modal-ok').onclick = closeModal;
+    }
+
+    requestAnimationFrame(() => {
+        overlay.style.opacity = "1";
+        modal.style.transform = "scale(1)";
+    });
+}
     // =========================================================
     // 🎛️ EVENTI BASE E TABS
     // =========================================================
@@ -885,12 +955,22 @@ function generaHTMLCardSpy(data) {
                 });
             });
         }
+
         // =========================================================
-        // 💎 LOGICA SALVATAGGIO E LOGOUT SYNC KEY
+        // 💎 LOGICA SALVATAGGIO, LOGOUT SYNC KEY E UPGRADE
         // =========================================================
+        
+        // 🚀 Tasto UPGRADE che porta al tuo sito
+        const btnUpgrade = document.getElementById('btn-upgrade'); 
+        if (btnUpgrade) {
+            btnUpgrade.addEventListener('click', () => {
+                window.open('https://www.memesaver.lol/dashboard/wallet', '_blank'); 
+            });
+        }
+
         const btnSaveSync = document.getElementById('btn-save-sync');
         const btnLogoutSync = document.getElementById('btn-logout-sync');
-
+        
         if (btnSaveSync) {
             chrome.storage.local.get(['userAuthToken'], (res) => {
                 const badge = document.getElementById('account-status-badge');
@@ -914,19 +994,19 @@ function generaHTMLCardSpy(data) {
                 }
             });
 
-            // LOGICA DI SALVATAGGIO CHIAVE
+            // LOGICA DI SALVATAGGIO CHIAVE (Usa il Modal Premium)
             btnSaveSync.addEventListener('click', () => {
                 const keyInput = document.getElementById('user-sync-key');
                 const key = keyInput ? keyInput.value.trim() : "";
                 
                 if (!key) {
-                    alert("⚠️ Paste a Sync Key before syncing!");
+                    showPremiumModal("Input Required", "Please paste a Sync Key before syncing!", false);
                     return;
                 }
 
                 // VALIDAZIONE DELLA CHIAVE
                 if (!key.startsWith("ms-pro-") && !key.startsWith("ms-premium-") && key !== "ms-admin-GODMODE-777") {
-                    alert("❌ Chiave non valida! Copiala dalla tua Dashboard Web.");
+                    showPremiumModal("Invalid Sync Key", "The key you entered is incorrect. Please copy the valid key from your Web Dashboard.", false);
                     return;
                 }
 
@@ -946,7 +1026,27 @@ function generaHTMLCardSpy(data) {
                     });
                 });
             });
-            const toggleVisibilityBtn = document.getElementById('toggle-key-visibility');
+
+            // LOGICA LOGOUT (Usa il Modal Premium Interattivo)
+            if (btnLogoutSync) {
+                btnLogoutSync.addEventListener('click', () => {
+                    showPremiumModal(
+                        "Disconnect Account?", 
+                        "Are you sure you want to remove your Sync Key? You will be reverted to the FREE plan and daily limits.", 
+                        true, 
+                        () => {
+                            chrome.storage.local.remove('userAuthToken', () => {
+                                console.log("Account scollegato!");
+                                location.reload(); // Ricarica e torna free
+                            });
+                        }
+                    );
+                });
+            }
+        }
+        
+        // GESTIONE OCCHIOLINO PASSWORD
+        const toggleVisibilityBtn = document.getElementById('toggle-key-visibility');
         const keyInput = document.getElementById('user-sync-key');
         
         if (toggleVisibilityBtn && keyInput) {
@@ -957,21 +1057,6 @@ function generaHTMLCardSpy(data) {
                 } else {
                     keyInput.type = 'password'; // Nasconde il testo
                     toggleVisibilityBtn.style.color = '#666'; // L'occhio si spegne
-                }
-            });
-        }
-
-
-        }
-
-        // 🔥 LOGICA DI DISCONNESSIONE (LOGOUT)
-        if (btnLogoutSync) {
-            btnLogoutSync.addEventListener('click', () => {
-                if (confirm("Vuoi scollegare l'account e tornare al piano FREE?")) {
-                    chrome.storage.local.remove('userAuthToken', () => {
-                        document.getElementById('user-sync-key').value = "";
-                        location.reload(); 
-                    });
                 }
             });
         }
@@ -1480,14 +1565,17 @@ function generaHTMLCardSpy(data) {
             let wallets = res.trackedWallets || [];
             
             // Aggiorna la memoria live per le notifiche
-            window.activeTrackedWallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Sconosciuto" } : w);
+            window.activeTrackedWallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Unknown" } : w); // Fix: Da Sconosciuto a Unknown
             
             list.innerHTML = '';
             
             if (window.activeTrackedWallets.length === 0) {
-                list.innerHTML = '<div style="text-align:center; color:#888; padding: 10px; font-style: italic;">Nessun wallet tracciato.</div>';
+                // 🔥 FIX: Rimuoviamo l'italiano dal Tracker
+                list.innerHTML = `<div style="text-align:center; color:#888; padding: 10px; font-style: italic;">No wallets tracked.</div>`;
                 return;
             }
+
+            // ...il resto del codice continua qui...
 
             window.activeTrackedWallets.forEach((walletData, index) => {
                 const div = document.createElement('div');
@@ -1672,7 +1760,8 @@ function aggiungiSpyCardHTML(data, isNew) {
                 feed.innerHTML = ''; 
                 history.forEach(item => aggiungiSpyCardHTML(item, false));
             } else {
-                feed.innerHTML = `<div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">In attesa di movimenti dai tuoi wallet con l'allarme attivo (🔔)...</div>`;
+                // 🔥 FIX: Testo tradotto dinamicamente tramite il motore i18n
+                feed.innerHTML = `<div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em;">${t('spy_waiting')}</div>`;
             }
         });
     }

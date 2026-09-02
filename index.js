@@ -12,7 +12,8 @@ const rateLimit = require('express-rate-limit'); // 🛡️
 //const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 // 🚀 CREAZIONE DELL'APP: Questa riga DEVE stare prima di ogni app.use!
 const app = express(); 
-
+// 🛡️ SCUDO ANTI-GARBAGE (Validazione Base58 Solana)
+const isValidSolanaAddress = (address) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
 // Ora che app esiste, possiamo usarla:
 app.use(cors({ origin: "*" }));
 app.use(express.json()); 
@@ -379,20 +380,21 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
         if (masterWallet) punteggioBot += 35;          
         if (supplyBundledPct >= 15) punteggioBot += 25; 
 
-        let livelloVolume = "BASSO";
-        let indicatore = "🔴 Nessun pattern bot rilevato a 2k MC.";
+        // Cerca la parte dove si assegna il livello Volume e l'indicatore:
+            let livelloVolume = "LOW";
+            let indicatore = "🔴 No bot pattern detected at early MC.";
 
-        if (punteggioBot >= 70) {
-            livelloVolume = "MOLTO ALTO (SNIPE READY)";
-            indicatore = `🚀 BOT PUMP PRONTO: ${sameBlockTxCount} buy nello stesso blocco.`;
-        } else if (punteggioBot >= 40) {
-            livelloVolume = "MODERATO";
-            indicatore = `🟡 BOT MODERATI: Rilevati acquisti raggruppati.`;
-        }
+            if (punteggioBot >= 70) {
+                livelloVolume = "VERY HIGH (SNIPE READY)";
+                indicatore = `🚀 BOT PUMP READY: ${sameBlockTxCount} buys in the same block.`;
+                    } else if (punteggioBot >= 40) {
+                livelloVolume = "MODERATE";
+                indicatore = `🟡 MODERATE BOTS: Grouped purchases detected.`;
+            }
 
         return { potenzialeVolumeBot: livelloVolume, bundleSlot0: sameBlockTxCount >= 3, supplyBundledPct: supplyBundledPct, funderComune: masterWallet, indicatoreTesto: indicatore };
     } catch (error) {
-        console.log("⚠️ Errore RPC durante l'analisi Bot Early Launch (Rate Limit Helius). Uso dati neutri.");
+        console.log("⚠️ RPC error during Bot Early Launch analysis (Rate Limit Helius). I use neutral data.");
         
         // Restituiamo un oggetto valido invece di usare "res.json" che fa crashare il server
         return {
@@ -400,7 +402,7 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
             supplyBundledPct: 0,
             funderComune: null,
             potenzialeVolumeBot: "⚠️ SCONOSCIUTO",
-            indicatoreTesto: "⚠️ Analisi Bot bloccata dal limite richieste del nodo RPC."
+            indicatoreTesto: "⚠️ Bot analysis blocked by RPC node request limit."
         };
     }
 
@@ -583,47 +585,52 @@ async function interrogaAgente(nomeAgente, prompt) {
     };
 }
 // 🔥 2.2 L'AGENTE MASTER (Modalità Spietata)
-async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData) {
+// 🔥 2.2 L'AGENTE MASTER (Modalità Spietata Multilingua)
+async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, lingua = 'en') {
     
     const ubiPct = (ubiData && ubiData.totalTx > 0) ? ((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1) : 0;
     
-    // 🛡️ FIX SYBIL: Traduciamo il JSON in un verdetto testuale brutale prima di passarlo all'IA
-    let sybilStr = "⚠️ Troppo presto per mappare la rete";
+    let sybilStr = "Too early to map network";
     if (sybilData) {
         sybilStr = sybilData.rilevato 
-            ? `🚨 PERICOLO: ${sybilData.numeroWallet} wallet controllano ${sybilData.supplyControllata}% (Funder Madre: ${sybilData.funderMadre}). In vendita: ${sybilData.inVendita}`
-            : "🟢 PULITO: Top Holders indipendenti. Nessun Mixer rilevato.";
+            ? `🚨 DANGER: ${sybilData.numeroWallet} wallets control ${sybilData.supplyControllata}% (Main Funder: ${sybilData.funderMadre}). Selling: ${sybilData.inVendita}`
+            : "🟢 CLEAN: Independent Top Holders. No Mixer detected.";
     }
 
-    const fedinaStr = fedinaDev ? JSON.stringify(fedinaDev) : "Nessun dato";
-    const flowStr = orderFlowData ? JSON.stringify(orderFlowData) : "Nessun dato Order Flow";
+    const fedinaStr = fedinaDev ? JSON.stringify(fedinaDev) : "No data";
+    const flowStr = orderFlowData ? JSON.stringify(orderFlowData) : "No Order Flow data";
 
     console.log("🧠 Risveglio dell'Agente Master (Modalità Spietata)...");
 
     const promptMaster = `
-    Sei l'Agente MASTER ISTITUZIONALE, un Risk Manager cinico, spietato e paranoico. Il tuo unico obiettivo è proteggere il capitale dai truffatori. Consideri ogni token uno SCAM fino a prova contraria e non ti fai ingannare da finte metriche di volume.
+    You are the INSTITUTIONAL MASTER AGENT, a cynical, ruthless, and paranoid Risk Manager. Your only goal is to protect capital from scammers. You consider every token a SCAM until proven otherwise.
     
-    DATI ON-CHAIN IN INGRESSO:
-    - Età Dev: ${devWalletAgeHours}h (Fake Dev: ${isFakeDev})
-    - Volume UBI: ${ubiPct}% wallet unici su ${ubiData ? ubiData.totalTx : 0} transazioni
-    - Bundle Supply: ${bundledSupply}% controllata dai Top Holders
-    - Rete Sybil (Cabala): ${sybilStr}
-    - Storico Dev: ${fedinaStr}
-    - Order Flow e Volatilità: ${flowStr}
+    INPUT ON-CHAIN DATA:
+    - Dev Age: ${devWalletAgeHours}h (Fake Dev: ${isFakeDev})
+    - UBI Volume: ${ubiPct}% unique wallets out of ${ubiData ? ubiData.totalTx : 0} txs
+    - Bundle Supply: ${bundledSupply}% controlled by Top Holders
+    - Sybil Network: ${sybilStr}
+    - Dev History: ${fedinaStr}
+    - Order Flow: ${flowStr}
 
-    REGOLE RIGIDE DI COMPORTAMENTO:
-    1. Se la "Rete Sybil" indica PULITO, il tuo "sybilStatus" deve essere "🟢 PULITO - Nessun legame". Se indica PERICOLO, deve essere "🚨 CABALA RILEVATA - Dump Programmato".
-    2. Sii brutale nella "strategy". Usa un tono freddo e militare. Se i dati fanno schifo, ordina di stare alla larga. Se i dati sono buoni, suggerisci un'entrata rapida (Mordi e fuggi).
-    3. Se manca un dato, scrivi "⏳ ANALISI IN CORSO", non scrivere "DATI MANCANTI".
+    🔥 LINGUISTIC RULE (CRITICAL):
+    You MUST write all your analysis, warnings, and sentences inside the JSON strictly in this language: ${lingua.toUpperCase()} (EN=English, IT=Italian, ZH=Chinese, FR=French). 
+    NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
+
+    BEHAVIOR:
+    1. Be brutal in your analysis. Use a cold, military tone. 
+    2. If data is missing, write "Analysis in progress", do not complain about missing data.
     
-    Restituisci ESCLUSIVAMENTE un JSON valido con queste 7 chiavi esatte:
-    1. "devStatus": (Valuta la fedina penale e l'età del wallet)
-    2. "volumeStatus": (Valuta l'UBI e l'Order Flow)
-    3. "topHoldersStatus": (Valuta la Bundle Supply)
-    4. "sybilStatus": (Valuta ESATTAMENTE la Rete Sybil fornita)
-    5. "estimatedRugTime": (Stima cinica del tempo prima del dump)
-    6. "strategy": (Il tuo verdetto brutale e spietato)
-    7. "tradeSetup": (Azione finale: FUGA, WAIT, o SCALP con size)
+    Return EXCLUSIVELY a valid JSON with these 7 exact keys:
+    {
+        "devStatus": "Evaluate dev history and wallet age",
+        "volumeStatus": "Evaluate UBI and Order Flow",
+        "topHoldersStatus": "Evaluate Bundle Supply",
+        "sybilStatus": "Evaluate Sybil Network",
+        "estimatedRugTime": "Cynical estimation of time before dump",
+        "strategy": "Your brutal verdict",
+        "tradeSetup": "Final action: AVOID, WAIT, or SCALP"
+    }
     `;
 
     try {
@@ -632,14 +639,14 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
     } catch (error) {
         console.log("⚠️ Agente Master in Rate Limit o errore. Applico paracadute di sicurezza.");
         return {
-            devStatus: "⚠️ SCONOSCIUTO - Rate Limit",
-            volumeStatus: "⚠️ SCONOSCIUTO - Rate Limit",
-            topHoldersStatus: "⚠️ SCONOSCIUTO - Rate Limit",
-            sybilStatus: "⚠️ SCONOSCIUTO - Rate Limit",
+            devStatus: "⚠️ UNKNOWN - Rate Limit",
+            volumeStatus: "⚠️ UNKNOWN - Rate Limit",
+            topHoldersStatus: "⚠️ UNKNOWN - Rate Limit",
+            sybilStatus: "⚠️ UNKNOWN - Rate Limit",
             estimatedRugTime: "N/A - Standby",
-            strategy: "⚠️ Rate Limit IA superato. Attendi il cooldown di Groq per l'analisi avanzata.",
+            strategy: "⚠️ Rate Limit exceeded. Waiting for cooldown.",
             tradeSetup: "WAIT",
-            errore: true // Segnala al sistema che stiamo usando i dati di emergenza
+            errore: true
         };
     }
 }
@@ -689,27 +696,27 @@ async function analizzaBattitoCardiaco(mintPubKey) {
 // 🧠 MOTORE 1: IL COPILOTA TATTICO LIVE (Anti-Crash per GPT-OSS)
 
 app.post('/api/copilot/:tokenMint', async (req, res) => {
-    // 🔥 FIX: Dichiariamo authStatus FUORI dal try, così il catch può leggerlo sempre senza crashare!
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
     try {
-        // 1. IL GATEKEEPER DEL COPILOT
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        authStatus = await checkAuthAndLimits(authToken, deviceId);
+        // 🔥 PASSAGGIO IP AL GATEKEEPER
+        authStatus = await checkAuthAndLimits(authToken, deviceId, req.ip);
         
         if (!authStatus.authorized) {
             return res.json({ 
                 success: false, 
                 tattica: "🔒 **Daily AI Limit Reached (0/5)**.",
-                puntoRottura: "Please insert a PRO or PREMIUM Sync Key to continue chatting.",
+                puntoRottura: "Please insert a PRO or PREMIUM Sync Key to continue analyzing tokens.",
                 azione: "UPGRADE",
                 plan: authStatus.plan,
                 scansLeft: authStatus.scansLeft
             });
         }
+// ... il resto continua uguale ...
 
         const tokenMint = req.params.tokenMint;
         const datiLive = req.body;
@@ -1062,7 +1069,7 @@ async function analizzaReteSybil(arrayDiWallet) {
 async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
     try {
         const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(devWalletAddress), { limit: 60 });
-        if (sigs.length < 5) return { tokensLanciati: 0, status: "PULITO (Wallet Nuovo)", punteggioRischio: 0 };
+        if (sigs.length < 5) return { tokensLanciati: 0, status: "CLEAN (Fresh Wallet)", punteggioRischio: 0 };
 
         let pumpFunInteractions = 0; let altriTokenTrovati = new Set();
         const recentSigs = sigs.slice(0, 15).map(s => s.signature);
@@ -1083,9 +1090,10 @@ async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
         });
 
         const numTokenPassati = altriTokenTrovati.size;
-        if (numTokenPassati === 0) return { tokensLanciati: 0, status: "PULITO (Primo Progetto)", punteggioRischio: 0 };
-        else if (numTokenPassati >= 3) return { tokensLanciati: numTokenPassati, status: "🚨 SERIAL RUGGER", punteggioRischio: 60 };
-        else return { tokensLanciati: numTokenPassati, status: "🔄 DEV RICORRENTE", punteggioRischio: 20 };
+        // Cerca queste righe ed elimina l'italiano:
+            if (numTokenPassati === 0) return { tokensLanciati: 0, status: "CLEAN (First Project)", punteggioRischio: 0 };
+                else if (numTokenPassati >= 3) return { tokensLanciati: numTokenPassati, status: "🚨 SERIAL RUGGER", punteggioRischio: 60 };
+                else return { tokensLanciati: numTokenPassati, status: "🔄 RETURNING DEV", punteggioRischio: 20 };
     } catch (error) { return { tokensLanciati: 0, status: "SCONOSCIUTO", punteggioRischio: 0 }; }
 }
 
@@ -1179,103 +1187,109 @@ function analizzaOrderFlow_Locale(txs) {
 }
 
 // 🛡️ THE GATEKEEPER: Paywall, Free Tier, Device Lock & Reset
-async function checkAuthAndLimits(authToken, deviceId) {
+// 🛡️ SISTEMA ANTI-ABUSO IP (In memoria RAM - Si resetta da solo, 0 peso sul DB)
+const ipUsageCache = new Map();
+
+// 🛡️ THE GATEKEEPER: Paywall, Free Tier, Device Lock & IP Block
+async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     const cleanToken = (authToken && authToken !== 'null' && authToken !== 'undefined') ? authToken.trim() : null;
     const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
+    const ip = clientIp || "unknown";
 
     if (!cleanDevice) {
-        return { authorized: false, message: "⚠️ Errore Estensione: ID Dispositivo mancante. Ricarica la pagina." };
+        return { authorized: false, message: "⚠️ Extension Error: Missing Device ID. Please refresh." };
     }
 
     try {
         let user = null;
 
-        // 🟢 CASO 1: L'UTENTE HA INSERITO UNA CHIAVE PRO/PREMIUM
+        // 🟢 CASO 1: L'UTENTE HA UNA CHIAVE PRO/PREMIUM
         if (cleanToken) {
             const { data, error } = await supabase.from('users').select('*').eq('sync_key', cleanToken).maybeSingle();
             if (error) throw error;
             user = data;
 
-            if (!user) return { authorized: false, message: "❌ Sync Key non trovata o scaduta." };
+            if (!user) return { authorized: false, message: "❌ Sync Key not found or expired." };
 
-            // DEVICE LOCK (Anti-Scrocco)
+            // DEVICE LOCK (Anti-Condivisione)
             if (user.plan_type === 'pro' || user.plan_type === 'premium') {
                 if (!user.device_id) {
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
                 } else if (user.device_id !== cleanDevice) {
-                    return { authorized: false, message: "❌ Questa chiave è già in uso su un altro dispositivo." };
+                    return { authorized: false, message: "❌ This Sync Key is already locked to another device." };
                 }
+                
+                // Se è PRO, salta il blocco IP e passa!
+                return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             }
         } 
-        // ⚪ CASO 2: L'UTENTE È FREE (Nessuna chiave inserita)
-        // ⚪ CASO 2: L'UTENTE È FREE (Nessuna chiave inserita)
-        else {
-            const { data, error } = await supabase.from('users').select('*').eq('device_id', cleanDevice).eq('plan_type', 'free').maybeSingle();
-            if (error) throw error;
-            user = data;
 
-            // Se è la primissima volta che apre l'app, gli creiamo un profilo Free invisibile
-            if (!user) {
-                const now = new Date();
-                now.setHours(now.getHours() + 2); // Fuso orario Italia
-                
-                const { data: newUser, error: insertError } = await supabase.from('users').insert({
-                    wallet_address: "anon_" + cleanDevice, // 🔥 FIX CRITICO: Diamo a Supabase un finto wallet per non farlo arrabbiare!
-                    device_id: cleanDevice,
-                    plan_type: 'free',
-                    scans_remaining: 5,
-                    last_scan_date: now.toISOString().split('T')[0] // Registriamo la data di oggi
-                }).select().single();
+        // ⚪ CASO 2: L'UTENTE È FREE (Controllo IP e Device)
+        
+        // 1. CONTROLLO ANTI-FURBO SULL'IP
+        const currentData = new Date();
+        currentData.setHours(currentData.getHours() + 2); // Fuso Orario Europa
+        const today = currentData.toISOString().split('T')[0];
 
-                if (insertError) throw insertError;
-                user = newUser;
-            }
+        let ipRecord = ipUsageCache.get(ip) || { date: today, count: 0 };
+        if (ipRecord.date !== today) ipRecord = { date: today, count: 0 }; // Nuovo giorno, reset!
+
+        if (ipRecord.count >= 5) {
+            return { 
+                authorized: false, limitReached: true, 
+                message: "🔒 Daily IP Limit Reached (0/5). Please insert a PRO or PREMIUM Sync Key to bypass network limits." 
+            };
         }
 
-        // --- DA QUI IN POI, ABBIAMO L'UTENTE. CONTROLLIAMO I LIMITI E LE DATE ---
-        
-        // 🔥 FIX FUSO ORARIO: Calcoliamo "oggi" basandoci sull'orario Europeo, non quello base di Londra
-        const currentData = new Date();
-        currentData.setHours(currentData.getHours() + 2); 
-        const today = currentData.toISOString().split('T')[0];
-        
+        // 2. CONTROLLO NEL DATABASE (Device ID)
+        const { data: dbUser, error } = await supabase.from('users').select('*').eq('device_id', cleanDevice).eq('plan_type', 'free').maybeSingle();
+        if (error) throw error;
+        user = dbUser;
+
+        // Se è nuovo, creiamo il profilo con 5 scan
+        if (!user) {
+            const { data: newUser, error: insertError } = await supabase.from('users').insert({
+                wallet_address: "anon_" + cleanDevice.substring(0,10), 
+                device_id: cleanDevice,
+                plan_type: 'free',
+                scans_remaining: 5,
+                last_scan_date: today
+            }).select().single();
+
+            if (insertError) throw insertError;
+            user = newUser;
+        }
+
+        // 3. CALCOLO LIMITI
         const lastScanStr = user.last_scan_date ? user.last_scan_date.split('T')[0] : null;
 
-        // 👑 ADMIN
-        if (user.plan_type === 'admin') return { authorized: true, plan: "admin", scansLeft: "∞" };
+        if (lastScanStr !== today) {
+            // Nuovo giorno: Ricarica 5 crediti e ne scala subito 1
+            await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('device_id', cleanDevice);
+            
+            ipRecord.count += 1; // Aggiorna tracker IP
+            ipUsageCache.set(ip, ipRecord);
 
-        // 💎 PREMIUM & PRO
-        if (user.plan_type === 'pro' || user.plan_type === 'premium') {
-            if (user.pro_expires_at && user.pro_expires_at > new Date().toISOString()) {
-                return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
+            return { authorized: true, plan: "free", scansLeft: 4 };
+        } else {
+            if (user.scans_remaining <= 0) {
+                return { 
+                    authorized: false, limitReached: true, 
+                    message: "🔒 You have exhausted your 5 daily AI scans. Insert a PRO or PREMIUM Sync Key to avoid flying blind in the market." 
+                };
             } else {
-                // Abbonamento scaduto, lo declassiamo a Free
-                await supabase.from('users').update({ plan_type: 'free', device_id: null }).eq('id', user.id);
-                user.plan_type = 'free'; 
-            }
-        }
+                const creditiRimasti = user.scans_remaining - 1;
+                await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('device_id', cleanDevice);
+                
+                ipRecord.count += 1; // Aggiorna tracker IP
+                ipUsageCache.set(ip, ipRecord);
 
-        // 🆓 FREE TIER (Gestione 5 Crediti e Reset Giornaliero Infallibile)
-        // 🆓 FREE TIER (Gestione 5 Crediti e Reset Giornaliero Infallibile)
-        if (user.plan_type === 'free' || !user.plan_type) {
-            if (lastScanStr !== today) {
-                // RESET: Nuovo giorno! Diamo 5 crediti e ne togliamo 1 per questa scansione.
-                await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('device_id', cleanDevice);
-                return { authorized: true, plan: "free", scansLeft: 4 };
-            } else {
-                if (user.scans_remaining <= 0) {
-                    return { authorized: false, limitReached: true, message: "🔒 Hai esaurito i 5 utilizzi IA di oggi. Incolla una Sync Key PRO o PREMIUM per non rimanere cieco sul mercato." };
-                } else {
-                    const creditiRimasti = user.scans_remaining - 1;
-                    // 🔥 FIX: Aggiorniamo tramite device_id per essere infallibili
-                    await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('device_id', cleanDevice);
-                    return { authorized: true, plan: "free", scansLeft: creditiRimasti };
-                }
+                return { authorized: true, plan: "free", scansLeft: creditiRimasti };
             }
         }
     } catch (err) {
         console.error("Auth Error (Safe Mode):", err.message);
-        return { authorized: false, message: "⚠️ Errore di rete con il database. Riprova tra poco." }; 
+        return { authorized: false, message: "⚠️ Database Network Error. Please try again." }; 
     }
 }
 // =====================================================================
@@ -1283,6 +1297,11 @@ async function checkAuthAndLimits(authToken, deviceId) {
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
+    // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
+    if (!isValidSolanaAddress(tokenMint)) {
+        return res.status(400).json({ error: "Invalid Solana token address format." });
+    }
+    const lingua = req.query.lang || 'en';
     avviaAscoltoLive(tokenMint);
 
 // Apertura / Chiusura Posizione
@@ -1441,7 +1460,8 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
                     walletAgeHours = walletAgeDays * 24;
                     if (walletAgeDays < 1) {
                         isFakeDev = true;
-                        logAnalisi.push("🛑 FAKE DEV: Wallet creato da meno di 24 ore!");
+                        // PRIMA: logAnalisi.push("🛑 FAKE DEV: Wallet creato da meno di 24 ore!");
+                        logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
                     }
                 }
             }
@@ -1483,7 +1503,8 @@ try {
             isFakeDev, 
             sybilData, 
             fedinaDev,
-            orderFlowData
+            orderFlowData,
+            lingua
         );
         logAnalisi.push(earlyBotData.indicatoreTesto);
         logAnalisi.push(`✅ Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
@@ -1616,20 +1637,22 @@ try {
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
-    // 🔥 FIX 1: Dichiariamo authStatus FUORI dal try per non far MAI crashare il catch
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
     try {
         const tokenMint = req.params.tokenMint;
+        // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
+        if (!isValidSolanaAddress(tokenMint)) {
+            return res.status(400).json({ success: false, verdetto: "Invalid Solana Token Address." });
+        }
         const lingua = req.query.lang || 'en'; 
 
-        // 🛡️ 1. IL GATEKEEPER (Legge Chiave e Targa Dispositivo)
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        // Assegniamo il valore alla variabile globale della rotta
-        authStatus = await checkAuthAndLimits(authToken, deviceId);
+        // 🔥 PASSAGGIO IP AL GATEKEEPER
+        authStatus = await checkAuthAndLimits(authToken, deviceId, req.ip);
         
         if (!authStatus.authorized) {
             return res.json({ 
@@ -1638,43 +1661,45 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
                 verdetto: `
                     <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
                         <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
-                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESSO NEGATO</strong>
-                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message || "Limite raggiunto."}</p>
-                        <a href="http://localhost:5173/dashboard/wallet" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Gestisci Abbonamento</a>
+                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESS DENIED</strong>
+                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message}</p>
+                        <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Manage Subscription</a>
                     </div>
                 `
             });
         }
+// ... il resto continua uguale ...
 
         const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
         
         if (!datiIniziali) {
-            return res.json({ success: false, verdetto: "Dati insufficienti. Eseguire prima la scansione base." });
+            return res.json({ success: false, verdetto: "Insufficient data. Please run a base scan first." });
         }
 
         // 🧹 FILTRO DI SANIFICAZIONE E PREPARAZIONE DATI
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
 
-        let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Nessun dato Sybil");
-        let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Nessun dato Micro-Dump");
-        let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Ignota");
-        let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "Nessun bundle rilevato");
-        let liquidita = pulisciTesto(datiIniziali?.hud ? `Variazione: ${datiIniziali.hud.change}% | Volume Stimato: $${datiIniziali.hud.volume}M` : "Dati di mercato assenti");
+        let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "No Sybil data");
+        let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "No Micro-Dump data");
+        let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
+        let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "No bundle detected");
+        let liquidita = pulisciTesto(datiIniziali?.hud ? `Change: ${datiIniziali.hud.change}% | Volume: $${datiIniziali.hud.volume}M` : "Market data unavailable");
 
-        let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap in fase di caricamento");
+        let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap loading");
 
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
-        let aiMandate = "Analizza i dati in modo cinico, ma sii oggettivo se i dati sono buoni.";
+        // 🔥 TRADUZIONE DEI MANDATI SEGRETI IN INGLESE
+        let aiMandate = "Analyze the data cynically, but be objective if the metrics are solid.";
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN/)) {
-            aiMandate = "🔴 MANDATO: DEV SCAMMER. GLOBAL SCORE DEVE ESSERE MASSIMO 35. DEV SCORE MASSIMO 15. INIZIA VERDETTO CON [AVOID].";
-        } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%/)) {
-            aiMandate = "🟠 MANDATO: BUNDLE PERICOLOSO. SUPPLY SCORE SOTTO IL 30. GLOBAL SCORE SOTTO 50. USA IL TAG [AVOID] O [SCALP].";
+            aiMandate = "🔴 MANDATE: SCAMMER DEV. GLOBAL SCORE MUST BE MAX 35. DEV SCORE MAX 15. START VERDICT WITH [AVOID].";
+        } else if (bundleTxtStr.match(/ATTENZIONE|RISCHIO|0%|RISK/)) {
+            aiMandate = "🟠 MANDATE: DANGEROUS BUNDLE. SUPPLY SCORE UNDER 30. GLOBAL SCORE UNDER 50. USE [AVOID] OR [SCALP] TAG.";
         }
 
-        // 🧠 PROMPT
+        // 🧠 PROMPT BLINDATO
         const promptLaboratorio = `
 You are the "Supreme Judge", a ruthless on-chain quantitative analyst for Solana memecoins.
 Evaluate the provided data with strict mathematical rigor.
@@ -1689,25 +1714,26 @@ VERIFIED ON-CHAIN DATA:
 - Developer Info: ${devStatusStr}
 - Supply/Bundle: ${bundleInfo}
 
-🎯 BUNDLE PREDICTION & LOGIC RULES (CRITICAL):
+🎯 BUNDLE PREDICTION & LOGIC RULES:
 1. READ the "Current MC Context".
 2. TRENCHES PHASE (Under $100k MC): If the token is new and you detect a bundle, warn about a potential dump between $60k and $90k (pre-Raydium graduation).
 3. GRADUATED PHASE (Over $100k MC): DO NOT mention the $60k-$90k dump. Analyze if the original bundle is now Micro-Dumping (distributing to retail) or holding for higher millions.
-4. Scale your verdict: A 3M MC coin moves very differently than a 10k MC coin. Adjust your tone accordingly.
 
 🎯 CORE TAGGING RULE:
 - If global_score >= 75: MUST use the [RIDE] tag.
 - If global_score between 45 and 74: MUST use the [SCALP] tag.
 - If global_score < 45: MUST use the [AVOID] tag.
 
-🔥 LINGUISTIC RULE:
-You MUST translate ALL output texts into this language: ${lingua.toUpperCase()}.
+🔥 STRICT LINGUISTIC RULE (CRITICAL):
+Your output MUST be entirely translated into the language corresponding to this code: [ ${lingua.toUpperCase()} ].
+If the code is 'EN', you MUST write in English.
+Even if the input data contains Italian words, your JSON output (verdicts, tooltips, analysis) MUST be exclusively in ${lingua.toUpperCase()}.
 NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": 85,
-  "verdetto_finale": "[RIDE] Write the translated verdict here. Include bundle behavior based on current MC phase...",
+  "verdetto_finale": "[RIDE] Write the translated verdict here...",
   "metrics": [
     { "name": "Supply Integrity", "score": 90, "tooltip": "Translated supply analysis..." },
     { "name": "Developer Trust", "score": 95, "tooltip": "Translated dev analysis..." },
