@@ -46,5 +46,13 @@
       "resources": ["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"],
       "matches": ["<all_urls>"]
     }
-  ]
+    
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "memesaver@proton.me",
+      "strict_min_version": "109.0"
+    }
+  }
+  
 }

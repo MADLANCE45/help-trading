@@ -9,9 +9,14 @@
         html, body {
             margin: 0 !important;
             padding: 0 !important;
-            background-color: #050608;
-            /* Il gradiente ora è globale, coprirà sempre il 100% dello spazio! */
-            background-image: radial-gradient(circle at top right, #12151f 0%, transparent 60%);
+            background-color: #07090e; /* Un blu notte scurissimo e profondo, non nero puro */
+            
+            /* 🔥 LA MAGIA: Doppia luce radiale per un effetto 3D morbido */
+            background-image: 
+                radial-gradient(circle at 100% 0%, rgba(0, 255, 204, 0.12) 0%, transparent 55%), /* Luce Smeraldo in alto a dx */
+                radial-gradient(circle at 0% 100%, rgba(179, 102, 255, 0.08) 0%, transparent 50%); /* Luce Viola in basso a sx */
+            
+            background-attachment: fixed; /* Tiene ferme le luci anche se scorri giù */
             width: 100%;
             min-height: 540px;
             font-family: 'Segoe UI', Tahoma, sans-serif;
