@@ -10,9 +10,7 @@
   },
   "permissions": [
     "activeTab",
-    "storage",
-    "scripting",
-    "notifications"
+    "storage"
   ],
   "host_permissions": [
     "https://help-trading-production.up.railway.app/*",
