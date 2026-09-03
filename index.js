@@ -784,7 +784,7 @@ FORMAT:
             method: "POST",
             headers: { 
                 "Authorization": `Bearer ${apiKey}`, 
-                "HTTP-Referer": "http://localhost:3000",
+                "HTTP-Referer": "https://www.memesaver.lol",
                 "X-Title": "Solana Radar Bot",
                 "Content-Type": "application/json" 
             },
@@ -1788,7 +1788,7 @@ JSON FORMAT:
             method: "POST",
             headers: { 
                 "Authorization": `Bearer ${apiKey}`, 
-                "HTTP-Referer": "http://localhost:3000",
+                "HTTP-Referer": "https://www.memesaver.lol",
                 "X-Title": "Solana Radar Bot",
                 "Content-Type": "application/json" 
             },
@@ -1810,7 +1810,7 @@ JSON FORMAT:
                 method: "POST",
                 headers: { 
                     "Authorization": `Bearer ${apiKey}`, 
-                    "HTTP-Referer": "http://localhost:3000",
+                    "HTTP-Referer": "https://www.memesaver.lol",
                     "X-Title": "Solana Radar Bot",
                     "Content-Type": "application/json" 
                 },

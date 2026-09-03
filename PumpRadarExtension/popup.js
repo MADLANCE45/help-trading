@@ -1,6 +1,32 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
+    // ==========================================
+    // 🔍 CONTROLLO ZOOM LENTE DI INGRANDIMENTO
+    // ==========================================
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    
+    // Recupera lo zoom salvato (di default 1)
+    let currentZoom = parseFloat(localStorage.getItem('userZoom')) || 1;
+    document.body.style.zoom = currentZoom;
 
+    if (btnZoomIn && btnZoomOut) {
+        btnZoomIn.addEventListener('click', () => {
+            if (currentZoom < 1.5) { // Limite massimo di zoom (150%)
+                currentZoom += 0.1;
+                document.body.style.zoom = currentZoom;
+                localStorage.setItem('userZoom', currentZoom); // Salva la preferenza
+            }
+        });
+
+        btnZoomOut.addEventListener('click', () => {
+            if (currentZoom > 0.7) { // Limite minimo di zoom (70%)
+                currentZoom -= 0.1;
+                document.body.style.zoom = currentZoom;
+                localStorage.setItem('userZoom', currentZoom); // Salva la preferenza
+            }
+        });
+    }
     // ==========================================
     // 🛠️ FUNZIONE DI DISEGNO (Riutilizzabile)
     // ==========================================
@@ -46,10 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 disegnaInterfacciaRadar(memoria.ultimoTokenScansionato, memoria.ultimoRisultatoScan);
             }
             
-            // 2. Riavvia la chiamata al server in background per RICONNETTERE IL WEBSOCKET e far ripartire le transazioni
-            fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${memoria.ultimoTokenScansionato}`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            }).then(res => res.json()).then(data => {
+            // 2. Riavvia la chiamata al server in background per RICONNETTERE IL WEBSOCKET
+            fetch(`https://help-trading-production.up.railway.app/api/scan/${memoria.ultimoTokenScansionato}`)
+            .then(res => res.json()).then(data => {
                 if (!data.error) {
                     // Aggiorna la memoria con i dati freschi
                     chrome.storage.local.set({ ultimoRisultatoScan: data });
@@ -63,17 +88,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 📡 2. PUMP RADAR (Analisi Moneta Live)
     // ==========================================
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-        if (!tabs || tabs.length === 0) {
-            if (!contentDiv.innerHTML.includes("Target:")) contentDiv.innerHTML = '<p>❌ Errore: Impossibile leggere la scheda attiva.</p>';
-            return;
-        }
+        if (!tabs || tabs.length === 0) return;
         
         const url = tabs[0].url;
-        if (!url || !url.includes('pump.fun')) {
-            if (!contentDiv.innerHTML.includes("Target:")) contentDiv.innerHTML = '<p>Apri la pagina di un token su Pump.fun per usare il radar.</p>';
+        
+        // 🔥 FIX SCHERMO INTERO: Se non siamo su pump.fun, carichiamo i dati dalla memoria
+        if (!url || (!url.includes('pump.fun') && !url.includes('dexscreener'))) {
+            chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan'], (memoria) => {
+                if (memoria.ultimoTokenScansionato && memoria.ultimoRisultatoScan) {
+                    disegnaInterfacciaRadar(memoria.ultimoTokenScansionato, memoria.ultimoRisultatoScan);
+                } else {
+                    contentDiv.innerHTML = '<p style="color:#aaa; text-align:center;">Apri un token su Pump.fun per iniziare.</p>';
+                }
+            });
             return;
         }
 
+        // Se siamo su Pump.fun, estraiamo il token dall'URL
         try {
             const urlObj = new URL(url);
             const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
@@ -81,17 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
 
-            // Se stiamo già guardando questo token dalla cache, mostriamo solo un piccolo loader invece di sbiancare tutto
-            if (contentDiv.innerHTML.includes(tokenMint)) {
-                contentDiv.innerHTML += `<p style="font-size: 0.8em; color: #aaa;">🔄 Aggiornamento in background...</p>`;
-            } else {
-                contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p>⏳ Scansione in corso...</p>`;
-            }
+            contentDiv.innerHTML = `<div class="token-mint">Target: ${tokenMint}</div><p style="color:#00ffcc;">⏳ Scansione in corso...</p>`;
 
-            // Chiamata al server Node.js
-            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
-            });
+            // Chiamata al server Cloud
+            const response = await fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}`);
             const data = await response.json();
             
             if (data.error) {
@@ -99,17 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 🔥 SALVATAGGIO IN MEMORIA AGGIUNTO! 
-            chrome.storage.local.set({
-                ultimoTokenScansionato: tokenMint,
-                ultimoRisultatoScan: data
-            });
+            // Salvataggio in memoria
+            chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
 
-            // Disegna i nuovi dati a schermo
+            // Disegna a schermo
             disegnaInterfacciaRadar(tokenMint, data);
 
         } catch (error) {
-            contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione a Ngrok: ${error.message}</p>`;
+            contentDiv.innerHTML = `<p style="color: #ffaa00;">⚠️ Errore di connessione al Cloud: ${error.message}</p>`;
         }
     });
 
@@ -151,11 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 listContainer.appendChild(walletItem);
 
                 try {
-                    const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/tracker/${wallet}`, {
-                        headers: {
-                            "ngrok-skip-browser-warning": "true"
-                        }
-                    });
+                    const response = await fetch(`https://help-trading-production.up.railway.app/api/tracker/${wallet}`);
                     const data = await response.json();
                     
                     const pnlValue = parseFloat(data.pnlOggi);

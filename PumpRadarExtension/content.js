@@ -1,9 +1,45 @@
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
+    const masterApp = document.getElementById('master-app'); // Recuperiamo il nuovo contenitore
+
+    // ==========================================
+    // 🔍 CONTROLLO ZOOM ANTI-BUCO NERO
+    // ==========================================
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+
+    let currentZoom = parseFloat(localStorage.getItem('userZoom')) || 1;
+
+    function applicaZoom() {
+        if (!masterApp) return;
+        document.body.style.zoom = currentZoom; // Zoomiamo tutto il pavimento
+    }
+    
+    applicaZoom(); // Applica subito all'avvio
+
+    if (btnZoomIn && btnZoomOut) {
+        btnZoomIn.addEventListener('click', () => {
+            if (currentZoom < 1.4) {
+                currentZoom += 0.1;
+                localStorage.setItem('userZoom', currentZoom);
+                applicaZoom();
+            }
+        });
+        btnZoomOut.addEventListener('click', () => {
+            if (currentZoom > 0.8) {
+                currentZoom -= 0.1;
+                localStorage.setItem('userZoom', currentZoom);
+                applicaZoom();
+            }
+        });
+    }
+
+    // ... [Il resto del tuo codice WebSocket continua qui] ...
 
     // 🔥 1. CONNESSIONE WEBSOCKET
-    const socket = io("https://tricking-judiciary-footwear.ngrok-free.dev", {
-        extraHeaders: { "ngrok-skip-browser-warning": "true" }
+    // 🔥 1. CONNESSIONE WEBSOCKET
+    const socket = io("https://help-trading-production.up.railway.app", {
+    
     });
     socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
     
@@ -421,18 +457,18 @@ function generaHTMLCardSpy(data) {
                         avviaLaboratorioGemini(tokenMint); 
                         
                         // 👉 FETCH IN BACKGROUND CON HEADER WALLET
-                        fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
+                        fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
                             headers: { 
-                                "ngrok-skip-browser-warning": "true",
+                                
                                 "x-wallet-address": userWallet 
                             }
                         }).catch(() => {});
                     } else {
                         
                         // 👉 FETCH PRINCIPALE CON HEADER WALLET
-                        fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/scan/${tokenMint}?lang=${currentLang}`, {
+                        fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
                             headers: { 
-                                "ngrok-skip-browser-warning": "true",
+                                
                                 "x-wallet-address": userWallet 
                             }
                         })
@@ -509,8 +545,8 @@ function generaHTMLCardSpy(data) {
                 @keyframes slideInLeft { 0% { transform: translateX(-100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
                 @keyframes pulseGlow { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
                 @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
-                ::-webkit-scrollbar { width: 6px; }
-                ::-webkit-scrollbar-track { background: #0a0c10; }
+                ::-webkit-scrollbar { width: 5px; }
+                ::-webkit-scrollbar-track { background: transparent; } /* Sfondo trasparente: elimina la riga nera! */
                 ::-webkit-scrollbar-thumb { background: #2d3142; border-radius: 3px; }
                 .avatar-option { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; opacity: 0.5; transition: 0.2s; object-fit: cover; }
                 .avatar-option.active { border: 2px solid #00ffcc; opacity: 1; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,255,204,0.4); }
@@ -521,9 +557,7 @@ function generaHTMLCardSpy(data) {
                 .select-modern option { background: #050608; color: #ffffff; font-family: Tahoma, sans-serif; font-weight: bold; }
             </style>
             
-            <div style="width: 320px; height: 540px; display: flex; flex-direction: column; background: #050608; background-image: radial-gradient(circle at top right, #12151f 0%, transparent 50%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; margin: -8px;">
-                
-                <!-- HEADER -->
+            <div style="width: 100%; display: flex; flex-direction: column; box-sizing: border-box;">
                 <div id="hud-header" style="background: rgba(18, 21, 31, 0.95); backdrop-filter: blur(5px); border-bottom: 2px solid #444; padding: 12px; display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div>
@@ -556,11 +590,19 @@ function generaHTMLCardSpy(data) {
                         <div style="background: #161821; border: 1px solid #2d3142; border-radius: 8px; padding: 8px 12px; margin-bottom: 15px;">
                             <div style="font-size: 0.65em; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; text-align: center;">Interface Language</div>
                             <div style="display: flex; justify-content: space-between; gap: 6px;">
-                                <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'};">🇬🇧 EN</button>
-                                <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'};">🇮🇹 IT</button>
-                                <button class="lang-btn" data-lang="zh" style="background: ${currentLang === 'zh' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'zh' ? '#000' : '#fff'};">🇨🇳 中文</button>
-                                <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">🇫🇷 FR</button>
-                            </div>
+    <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; gap: 4px;">
+        <img src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f1ec-1f1e7.svg" style="width: 14px; height: 14px; vertical-align: middle;"> EN
+    </button>
+    <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; gap: 4px;">
+        <img src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f1ee-1f1f9.svg" style="width: 14px; height: 14px; vertical-align: middle;"> IT
+    </button>
+    <button class="lang-btn" data-lang="zh" style="background: ${currentLang === 'zh' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'zh' ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; gap: 4px;">
+        <img src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f1e8-1f1f3.svg" style="width: 14px; height: 14px; vertical-align: middle;"> 中文
+    </button>
+    <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: center; gap: 4px;">
+        <img src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f1eb-1f1f7.svg" style="width: 14px; height: 14px; vertical-align: middle;"> FR
+    </button>
+</div>
                         </div>
 
                         <!-- PRO PORTAL -->
@@ -667,10 +709,10 @@ function generaHTMLCardSpy(data) {
                             Save Settings
                         </button>
 
-                        <!-- DISCORD UNDERGROUND -->
-                        <a href="https://discord.gg/tuolinkanonimo" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.75em; cursor: pointer; transition: 0.2s;">
+                        <!-- DISCORD UNDERGROUND (PRO ONLY) -->
+                        <a id="btn-discord" href="#" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: 0.2s;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                            Join the Resistance (Discord)
+                            <span id="discord-text">Join the Resistance</span>
                         </a>
                     </div>
 
@@ -1104,11 +1146,11 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
                     
                     // 🔥 2. FETCH AL SERVER CON HEADER DI SICUREZZA
-                    const resp = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/copilot/${tokenMint}?lang=${langParam}`, {
+                    const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=${langParam}`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json', 
-                            "ngrok-skip-browser-warning": "true",
+                            
                             "x-auth-token": authToken,  // Manda la chiave al server!
                             "x-device-id": deviceId     // Manda la targa al server!
                         },
@@ -1453,9 +1495,9 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat"; 
 
             // 🔥 CHIAMATA AL SERVER PER IL GIUDICE
-            const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
+            const response = await fetch(`https://help-trading-production.up.railway.app/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
                 headers: { 
-                    "ngrok-skip-browser-warning": "true",
+                    
                     "x-auth-token": authToken, 
                     "x-device-id": deviceId,
                     "x-ai-model": requestedAi 
@@ -1735,8 +1777,8 @@ function aggiungiSpyCardHTML(data, isNew) {
 
             for (const wallet of spied) {
                 try {
-                    const response = await fetch(`https://tricking-judiciary-footwear.ngrok-free.dev/api/spy-wallet/${wallet}`, {
-                        headers: { "ngrok-skip-browser-warning": "true" }
+                    const response = await fetch(`https://help-trading-production.up.railway.app/api/spy-wallet/${wallet}`, {
+                     
                     });
                     if (!response.ok) continue;
                     const data = await response.json();

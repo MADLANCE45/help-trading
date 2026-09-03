@@ -2,7 +2,12 @@
   "manifest_version": 3,
   "name": "Solana Pump Radar",
   "version": "1.0",
-  "description": "Rileva rug pulls e sniper bot su Pump.fun e Axiom",
+  "description": "Detect rug pulls and sniper bots on Pump.fun and Axiom",
+"icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "permissions": [
     "activeTab",
     "storage",
@@ -10,10 +15,10 @@
     "notifications"
   ],
   "host_permissions": [
-    "http://localhost:3000/*",
-    "https://*.ngrok-free.dev/*",
+    "https://help-trading-production.up.railway.app/*",
     "https://*.pump.fun/*",
-    "https://*.axiom.trade/*"
+    "https://*.axiom.trade/*",
+    "https://*.dexscreener.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -25,7 +30,9 @@
         "*://*.pump.fun/*", 
         "*://pump.fun/*",
         "*://*.axiom.trade/*",
-        "*://axiom.trade/*"
+        "*://axiom.trade/*",
+        "*://*.dexscreener.com/*",
+        "*://dexscreener.com/*"
       ],
       "js": ["content.js"]
     }
