@@ -1228,8 +1228,11 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
                 if (!user.device_id) {
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
                 } else if (user.device_id !== cleanDevice) {
-                    return { authorized: false, message: "❌ This Sync Key is already locked to another device." };
-                }
+                    return { 
+                        authorized: false, 
+                         message: "❌ This Sync Key is already locked to another device. Contact Support at HelpTrading@proton.me to request a device reset." 
+                        };
+                    }
                 
                 // Se è PRO, salta il blocco IP e passa!
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };

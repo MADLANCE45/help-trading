@@ -3,10 +3,10 @@
   "name": "Solana Pump Radar",
   "version": "1.0",
   "description": "Detect rug pulls and sniper bots on Pump.fun and Axiom",
-"icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+  "icons": {
+    "16": "icon128.png",
+    "48": "icon128.png",
+    "128": "icon128.png"
   },
   "permissions": [
     "activeTab",
@@ -35,24 +35,19 @@
       "js": ["content.js"]
     }
   ],
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "pumpradar@solana.com",
-      "strict_min_version": "109.0"
-    }
-  },
   "web_accessible_resources": [
     {
       "resources": ["avatar1.png", "avatar2.png", "avatar3.png", "avatar4.png"],
       "matches": ["<all_urls>"]
     }
-    
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "memesaver@proton.me",
-      "strict_min_version": "109.0"
+      "id": "{5c8a3c22-7945-48b5-901d-8b01239c0f99}",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
-  
 }
