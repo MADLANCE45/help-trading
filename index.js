@@ -1667,20 +1667,30 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
         // 🔥 PASSAGGIO IP AL GATEKEEPER
+        // 🔥 PASSAGGIO IP AL GATEKEEPER
         authStatus = await checkAuthAndLimits(authToken, deviceId, req.ip);
         
         if (!authStatus.authorized) {
+            // Se la funzione checkAuthAndLimits ha restituito un messaggio specifico (es. Device Lock o Chiave errata)
+            if (authStatus.message) {
+                return res.json({ 
+                    success: false, 
+                    tattica: "❌ **Access Denied**",
+                    puntoRottura: authStatus.message, // 👈 Qui passerà il testo con l'email "HelpTrading@proton.me"
+                    azione: "CONTACT_SUPPORT",        // 👈 Azione diversa! Così il frontend non mostra il tasto Upgrade
+                    plan: authStatus.plan || "unknown",
+                    scansLeft: authStatus.scansLeft || 0
+                });
+            } 
+            
+            // Se NON c'è un messaggio specifico, significa che è il classico utente FREE che ha finito le 5 scansioni
             return res.json({ 
                 success: false, 
-                limitReached: authStatus.limitReached || false,
-                verdetto: `
-                    <div style="background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; padding: 15px; border-radius: 8px; text-align: center;">
-                        <span style="font-size: 2em; display: block; margin-bottom: 10px;">👑</span>
-                        <strong style="color: #ffaa00; font-size: 1.1em; display: block; margin-bottom: 5px;">ACCESS DENIED</strong>
-                        <p style="color: #e0e0e0; font-size: 0.9em; margin-bottom: 12px;">${authStatus.message}</p>
-                        <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 8px 16px; border-radius: 6px; font-weight: 900; text-decoration: none; text-transform: uppercase; font-size: 0.8em; display: inline-block;">Manage Subscription</a>
-                    </div>
-                `
+                tattica: "🔒 **Daily AI Limit Reached (0/5)**.",
+                puntoRottura: "Please insert a PRO or PREMIUM Sync Key to continue analyzing tokens.",
+                azione: "UPGRADE",
+                plan: authStatus.plan || "free",
+                scansLeft: authStatus.scansLeft || 0
             });
         }
 // ... il resto continua uguale ...

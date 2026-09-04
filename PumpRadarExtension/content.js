@@ -1161,16 +1161,28 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     
                     // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti?
                     // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti?
+                    // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti o bloccato il device?
                     if (dataResp.success === false) {
-                        // Stampiamo il blocco paywall nella UI del Copilot CON LINK CLICCABILE
+                        
+                        // 1. Creiamo il bottone UPGRADE *SOLO* se il server ce lo chiede
+                        let actionButtonHtml = "";
+                        if (dataResp.azione === "UPGRADE") {
+                            actionButtonHtml = `
+                                <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: block; text-align: center; padding: 8px; border: 1px solid #ffaa00; color: #000; background: linear-gradient(90deg, #ffaa00, #ff8800); font-weight: 900; border-radius: 6px; text-decoration: none; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);">
+                                    💎 UPGRADE NOW
+                                </a>
+                            `;
+                        }
+
+                        // 2. Stampiamo il messaggio (con o senza bottone a seconda del caso)
                         copilotResult.innerHTML = `
                             <div style="margin-bottom: 12px;">
                                 <strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br>
-                                <span style="color:#e0e0e0;">${dataResp.puntoRottura || "Limite raggiunto"}</span>
+                                <span style="color:#e0e0e0; font-size: 13px; display: inline-block; margin-top: 5px;">
+                                    ${dataResp.puntoRottura || "Limite raggiunto"}
+                                </span>
                             </div>
-                            <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: block; text-align: center; padding: 8px; border: 1px solid #ffaa00; color: #000; background: linear-gradient(90deg, #ffaa00, #ff8800); font-weight: 900; border-radius: 6px; text-decoration: none; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);">
-                                💎 ${dataResp.azione || "UPGRADE NOW"}
-                            </a>
+                            ${actionButtonHtml}
                         `;
                         
                         // Aggiorna il numerino in alto a destra a ZERO
