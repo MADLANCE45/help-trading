@@ -2620,9 +2620,12 @@ app.get('/api/leaderboard', async (req, res) => {
 // 🛡️ GESTIONE PAGAMENTI ON-CHAIN (ANTI-HACKER)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
-    const { walletAddress, signature, planType } = req.body;
+    // 1. 👇 AGGIUNTO 'affiliateCode' NELLA RIGA QUI SOTTO
+    const { walletAddress, signature, planType, affiliateCode } = req.body; 
+    
     try {
         console.log(`💳 Verificando transazione on-chain: ${signature}...`);
+        if (affiliateCode) console.log(`🤝 Codice Affiliato rilevato: ${affiliateCode}`);
         
         // 1. Controlliamo la transazione sulla blockchain
         const tx = await solanaConnection.getTransaction(signature, { maxSupportedTransactionVersion: 0 });
@@ -2653,7 +2656,6 @@ app.post('/api/verify-payment', async (req, res) => {
         const solRicevuti = lamportsRicevuti / 1e9;
 
         // Se l'hacker ha inviato meno di 0.05 SOL (circa 7$), blocchiamo tutto.
-        // Puoi alzare questa soglia in futuro quando vai live.
         if (solRicevuti < 0.05) {
             console.error(`🚨 ZERO-VALUE ATTACK: L'utente ha inviato solo ${solRicevuti} SOL per avere il Premium!`);
             return res.status(403).json({ error: 'Importo ricevuto troppo basso. Pagamento respinto.' });
@@ -2666,8 +2668,13 @@ app.post('/api/verify-payment', async (req, res) => {
         const newSyncKey = `ms-${planType}-${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
         const expirationDate = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
 
+        // 2. 👇 AGGIUNTO 'affiliate_code' AL DATABASE
         const { error } = await supabase.from('users').upsert({ 
-            wallet_address: walletAddress, plan_type: planType, pro_expires_at: expirationDate, sync_key: newSyncKey
+            wallet_address: walletAddress, 
+            plan_type: planType, 
+            pro_expires_at: expirationDate, 
+            sync_key: newSyncKey,
+            affiliate_code: affiliateCode || null // Salva il codice se c'è, altrimenti null
         }, { onConflict: 'wallet_address' });
 
         if (error) throw error;

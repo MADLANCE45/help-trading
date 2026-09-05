@@ -641,18 +641,21 @@ function generaHTMLCardSpy(data) {
                         </div>
 
                         <!-- AI SELECTOR -->
-                        <div style="background: #11121a; border: 1px solid #2d3142; border-left: 3px solid #a855f7; border-radius: 8px; padding: 12px; margin-bottom: 15px; position: relative;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900;">🧠 AI Engine</strong>
-                                <span id="ai-lock-badge" style="font-size: 0.65em; background: #222; padding: 3px 6px; border-radius: 4px; color: #888; font-weight: bold; border: 1px solid #333;">🔒 FREE TIER</span>
-                            </div>
-                            <select id="user-ai-model" disabled class="select-modern" style="cursor: not-allowed; transition: all 0.3s;">
-                                <option value="deepseek/deepseek-chat">DeepSeek V3 (Fast - Default)</option>
-                                <option value="openai/gpt-4o">GPT-4o (Institutional)</option>
-                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Analytical)</option>
-                            </select>
-                            <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
-                        </div>
+<div style="background: #11121a; border: 1px solid #2d3142; border-left: 3px solid #a855f7; border-radius: 8px; padding: 12px; margin-bottom: 15px; position: relative;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900;">🧠 AI Engine</strong>
+        
+        <!-- 🔥 ID CAMBIATO E TESTO FISSO -->
+        <span id="ai-premium-badge" style="font-size: 0.65em; background: rgba(168, 85, 247, 0.1); padding: 3px 6px; border-radius: 4px; color: #c084fc; font-weight: bold; border: 1px solid #a855f7;">🔒 PREMIUM ONLY</span>
+        
+    </div>
+    <select id="user-ai-model" disabled class="select-modern" style="cursor: not-allowed; transition: all 0.3s;">
+        <option value="deepseek/deepseek-chat">DeepSeek V3 (Fast - Default)</option>
+        <option value="openai/gpt-4o">GPT-4o (Institutional)</option>
+        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Analytical)</option>
+    </select>
+    <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
+</div>
 
                        <!-- TRADING ROUTE & RISK MANAGEMENT (COMING SOON) -->
                         <div style="margin-bottom: 15px; border: 1px dashed #a855f7; border-radius: 8px; padding: 12px; background: rgba(168, 85, 247, 0.05);">
@@ -1137,9 +1140,11 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
 
             // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE E TARGA PRIMA DELLA FETCH
+            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE E TARGA PRIMA DELLA FETCH
             chrome.storage.local.get(['userAuthToken', 'device_fingerprint'], async (res) => {
-                const authToken = res.userAuthToken || "null";
-                const deviceId = res.device_fingerprint || "null";
+                // FORZA STRINGA E PULISCI GLI SPAZI INVISIBILI DI CHROME
+                const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
+                const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
                 const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
 
                 try {
@@ -1501,10 +1506,13 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
         try {
             // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
+            // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
             const storageRes = await chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'userConfig']);
-            const authToken = storageRes.userAuthToken || "null";
-            const deviceId = storageRes.device_fingerprint || "null";
-            const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat"; 
+            
+            // FORZA STRINGA E PULISCI
+            const authToken = storageRes.userAuthToken ? String(storageRes.userAuthToken).trim() : "null";
+            const deviceId = storageRes.device_fingerprint ? String(storageRes.device_fingerprint).trim() : "null";
+            const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat";
 
             // 🔥 CHIAMATA AL SERVER PER IL GIUDICE
             const response = await fetch(`https://help-trading-production.up.railway.app/api/laboratorio/${tokenMint}?lang=${currentLang}`, {

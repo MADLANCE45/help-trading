@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Solana Pump Radar",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Detect rug pulls and sniper bots on Pump.fun and Axiom",
   "icons": {
     "16": "icon128.png",
