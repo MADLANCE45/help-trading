@@ -1316,11 +1316,19 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
 async function analizzaTokenEVM(tokenAddress) {
     try {
         console.log(`\n🦊 Scansione EVM via DexScreener per: ${tokenAddress}`);
-        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+        
+        // 🔥 FIX 1: Usiamo /search?q= invece di /tokens/ per supportare sia Pair che Token address!
+        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`);
+        
+        if (!dexResp.ok) {
+            throw new Error("DexScreener API offline or rate limited.");
+        }
+
         const dexData = await dexResp.json();
 
+        // 🔥 FIX 2: Tradotto in inglese e gestito il fallback in modo sicuro
         if (!dexData.pairs || dexData.pairs.length === 0) {
-            throw new Error("Token non trovato su DexScreener (Rete non supportata o zero liquidità).");
+            throw new Error("Token not found on DexScreener (Unsupported network or zero liquidity).");
         }
 
         // Estrae la pool con più liquidità
@@ -1332,37 +1340,37 @@ async function analizzaTokenEVM(tokenAddress) {
         const volume24h = mainPair.volume?.h24 || 0;
         const ageMinutes = mainPair.pairCreatedAt ? (Date.now() - mainPair.pairCreatedAt) / 60000 : 0;
 
-        // Logica euristica per reti EVM (Senza toccare RPC a pagamento)
-        let score = 50; let rischio = "MODERATO"; let azione = "ATTESA"; let coloreAzione = "#ffaa00";
+        // Logica euristica per reti EVM
+        let score = 50; let rischio = "MODERATE"; let azione = "WAIT"; let coloreAzione = "#ffaa00";
         let logAnalisi = [
-            `🦊 Rete Rilevata: ${chain}`,
-            `💧 Liquidità Bloccata: $${liqUsd.toLocaleString()}`,
+            `🦊 Detected Network: ${chain}`,
+            `💧 Locked Liquidity: $${liqUsd.toLocaleString()}`,
             `📊 Market Cap / FDV: $${fdvUsd.toLocaleString()}`
         ];
 
         if (liqUsd < 5000) {
-            score = 90; rischio = "ALTISSIMO / TRAPPOLA"; azione = "EVITARE"; coloreAzione = "#ff4d4d";
-            logAnalisi.push("🛑 Rischio Illiquidità: Impossibile vendere senza far crollare il prezzo.");
+            score = 90; rischio = "EXTREME / TRAP"; azione = "AVOID"; coloreAzione = "#ff4d4d";
+            logAnalisi.push("🛑 Illiquidity Risk: Impossible to sell without crashing the price.");
         } else if (ageMinutes < 60 && liqUsd > 20000) {
-            score = 30; rischio = "TRENDING (Nuovo Lancio)"; azione = "SCALP RAPIDO"; coloreAzione = "#00e676";
-            logAnalisi.push("🚀 Pressione di lancio. Alta volatilità in corso.");
+            score = 30; rischio = "TRENDING (New Launch)"; azione = "QUICK SCALP"; coloreAzione = "#00e676";
+            logAnalisi.push("🚀 Launch pressure. High volatility detected.");
         }
 
         const risultatoEVM = {
             score: score, rischio: rischio, dettagli: logAnalisi,
-            graficoAttivo: false, devWallet: "Smart Contract EVM",
+            graficoAttivo: false, devWallet: "EVM Smart Contract",
             apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
             
             // Falsifichiamo i dati complessi Solana per non far crashare il frontend o l'AI
             devHistory: { status: `EVM (${chain})`, tokensLanciati: 0 },
             bundleShield: { supplyBundledPct: 0, bundleSlot0: false },
-            sybil: { rilevato: false, testo: `Tracciamento Sybil non applicabile su rete ${chain}` },
-            sanguisughe: { pericolo: false, testo: "Dati estratti da Order Book EVM" },
+            sybil: { rilevato: false, testo: `Sybil tracking not applicable on ${chain} network` },
+            sanguisughe: { pericolo: false, testo: "Data extracted from EVM Order Book" },
             
             vitaToken: ageMinutes.toFixed(1), azione: azione, fugaColor: coloreAzione,
             hud: { change: mainPair.priceChange?.h24 || 0, volume: (volume24h/1000000).toFixed(2), trend: chain, color: "#00aaff", icon: "🦊" },
             tradeValido: liqUsd >= 5000,
-            simulatoreTesto: `Simulazione Dati EVM (${chain}). Liquidità attuale: $${(liqUsd/1000).toFixed(1)}k`,
+            simulatoreTesto: `EVM Data Simulation (${chain}). Current Liquidity: $${(liqUsd/1000).toFixed(1)}k`,
             moltiplicatore: 1.5, targetMC: fdvUsd * 1.5, prezzoSol: 0,
             tradingFees: { slippage: "5%", fee: "Network Gas", text: chain }
         };
