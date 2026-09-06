@@ -42,15 +42,35 @@ console.error = (...args) => {
 };
 
 // 1. Configurazione Ibrida: REST per le query storiche, WSS per il live stream
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
-const RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-const WSS_URL = `wss://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+// 1. Configurazione Ibrida: REST per le query storiche, WSS per il live stream
+// =====================================================================
+// ⚡ HELIUS LOAD BALANCER (ROTAZIONE CHIAVI MULTIPLE)
+// =====================================================================
+const rawHeliusKeys = process.env.HELIUS_API_KEY || "";
+const heliusKeys = rawHeliusKeys.replace(/['"\s]/g, '').split(',').filter(k => k.length > 0);
+let currentHeliusIndex = 0;
+
+// Fallback di sicurezza se il .env è vuoto
+if (heliusKeys.length === 0) heliusKeys.push("CHIAVE_DI_BACKUP_EMERGENZA");
+
+const solanaConnections = heliusKeys.map(key => 
+    new Connection(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+        wsEndpoint: `wss://mainnet.helius-rpc.com/?api-key=${key}`,
+        commitment: 'confirmed'
+    })
+);
+
+// 1. WSS (Websocket): Usa sempre la prima chiave per mantenere il flusso audio/dati aperto
+const solanaConnection = solanaConnections[0]; 
+
+// 2. RPC (Dati pesanti): Ruota a ogni chiamata per non saturare la singola chiave
+function getRPC() {
+    currentHeliusIndex = (currentHeliusIndex + 1) % solanaConnections.length;
+    return solanaConnections[currentHeliusIndex];
+}
+
 const blackBoxEventi = new Map();
 const pendingScans = new Map(); // Traccia le scansioni in corso per evitare doppioni
-const solanaConnection = new Connection(RPC_URL, {
-    wsEndpoint: WSS_URL,
-    commitment: 'confirmed'
-});
 
 // 💰 IL TUO WALLET PHANTOM (Sostituisci questo indirizzo con il tuo vero wallet!)
 const TARGET_FOUNDER_WALLET = 'ERRYCEdzkYXcnCycVGYNmoQ2RHhdhi1wDfnFuRKHJ7QA';
@@ -145,6 +165,8 @@ const spyCache = new Map();
 let codaTransazioni = []; // La sala d'attesa per non perdere le balene
 let workerAttivo = false; // Controlla se l'estrattore sta già lavorando
 
+let autoKillTapeTimer = null; // 🔥 AGGIUNGI QUESTA RIGA FUORI DALLA FUNZIONE
+
 function avviaAscoltoLive(tokenMint) {
     const mintPubKey = new PublicKey(tokenMint);
 
@@ -155,6 +177,20 @@ function avviaAscoltoLive(tokenMint) {
     }
 
     console.log(`\n📡 Apertura canale WebSocket per: ${tokenMint}`);
+
+    // ==========================================================
+    // 🛑 IL KILL SWITCH: Spegne Helius se l'utente chiude la pagina
+    // ==========================================================
+    if (autoKillTapeTimer) clearTimeout(autoKillTapeTimer);
+    autoKillTapeTimer = setTimeout(() => {
+        if (activeSubscriptionId !== null) {
+            solanaConnection.removeOnLogsListener(activeSubscriptionId);
+            activeSubscriptionId = null;
+            workerAttivo = false;
+            codaTransazioni = [];
+            console.log(`🛑 KILL SWITCH ATTIVATO: Nessuna interazione per 4 min su ${tokenMint.substring(0,6)}. Radar spento per salvare crediti Helius.`);
+        }
+    }, 4 * 60 * 1000); // 4 Minuti esatti
 
     // 👷 IL WORKER: Analizza la coda senza scartare NULLA e senza far arrabbiare Helius
     async function smaltisciCoda() {
@@ -168,10 +204,11 @@ function avviaAscoltoLive(tokenMint) {
         const { signature, logsInfo } = codaTransazioni.shift(); 
 
         try {
-            // Scarica la transazione (massimo ~3 al secondo per rispetto di Helius RPC)
-            const tx = await solanaConnection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
+            // 🔥 FONDAMENTALE: Qui usiamo getRPC() per ruotare le chiavi!
+            const tx = await getRPC().getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
             
             if (tx && tx.meta && !tx.meta.err) {
+// ... IL RESTO DELLA TUA FUNZIONE CONTINUA QUI SENZA MODIFICHE ...
                 const feePayer = tx.transaction.message.accountKeys[0].pubkey.toString();
                 const preSol = (tx.meta.preBalances[0] || 0) / 1e9;
                 const postSol = (tx.meta.postBalances[0] || 0) / 1e9;
@@ -336,7 +373,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 15
 // =====================================================================
 async function analizzaBotEarlyLaunch(mintPubKey) {
     try {
-        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 20 });
+        const signatures = await getRPC().getSignaturesForAddress(mintPubKey, { limit: 20 });
         if (signatures.length === 0) return { potenzialeVolumeBot: "BASSO", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Nessun dato." };
 
         let blockTimes = [];
@@ -347,7 +384,7 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
             const sigInfo = signatures[i];
             if (sigInfo.blockTime) blockTimes.push(sigInfo.blockTime);
 
-            const tx = await solanaConnection.getParsedTransaction(sigInfo.signature, { maxSupportedTransactionVersion: 0 });
+            const tx = await getRPC().getParsedTransaction(sigInfo.signature, { maxSupportedTransactionVersion: 0 });
             if (tx && tx.transaction && tx.transaction.message.accountKeys.length > 1) {
                 const buyer = tx.transaction.message.accountKeys[0].pubkey.toString();
                 const funder = tx.transaction.message.accountKeys[1].pubkey.toString();
@@ -372,7 +409,7 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
 
         let supplyBundledPct = 0;
         try {
-            const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+            const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
             if (largestAccs.value.length > 1) {
                 let totalTop = 0;
                 for (let k = 1; k < Math.min(6, largestAccs.value.length); k++) {
@@ -662,7 +699,7 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
 
 async function calcolaEtaWallet(walletAddress) {
     try {
-        const signatures = await solanaConnection.getSignaturesForAddress(new PublicKey(walletAddress), { limit: 1000 });
+        const signatures = await getRPC().getSignaturesForAddress(new PublicKey(walletAddress), { limit: 1000 });
         if (signatures.length === 0) return 0; 
         const oldestTx = signatures[signatures.length - 1];
         if (oldestTx.blockTime) return (Date.now() - (oldestTx.blockTime * 1000)) / (1000 * 60 * 60 * 24);
@@ -673,7 +710,7 @@ async function calcolaEtaWallet(walletAddress) {
 
 async function analizzaBattitoCardiaco(mintPubKey) {
     try {
-        const signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 50 });
+        const signatures = await getRPC().getSignaturesForAddress(mintPubKey, { limit: 50 });
         if (signatures.length === 0) return { stato: "MORTO", txMinuto: 0, colore: "#ff4d4d", blocco: true, secondiDaUltimaTx: 999 };
 
         const nowSec = Math.floor(Date.now() / 1000);
@@ -863,7 +900,7 @@ FORMAT:
 });
 async function analizzaCabalaSupply(mintPubKey) {
     try {
-        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
         if (!largestAccs.value || largestAccs.value.length === 0) return null;
 
         const topAccounts = largestAccs.value.slice(0, 10);
@@ -874,18 +911,18 @@ async function analizzaCabalaSupply(mintPubKey) {
             const pct = (acc.uiAmount / 1000000000) * 100;
             try {
               
-                const accountInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
+                const accountInfo = await getRPC().getParsedAccountInfo(new PublicKey(acc.address));
                 if (!accountInfo.value || !accountInfo.value.data.parsed) continue;
                 const ownerWallet = accountInfo.value.data.parsed.info.owner;
                 
                 
-                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 50 });
+                const sigs = await getRPC().getSignaturesForAddress(new PublicKey(ownerWallet), { limit: 30 }); // ✅ CORRETTO
                 if (sigs.length === 0) continue; // 🔥
                 if (sigs.length < 5) sybilCount++;
                 
                 const oldestTx = sigs[sigs.length - 1]; 
                
-                const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
+                const txDetails = await getRPC().getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
                 
                 let funder = "Sconosciuto";
                 if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
@@ -919,7 +956,7 @@ async function analizzaCabalaSupply(mintPubKey) {
 
 async function analizzaMicroDumping(mintPubKey) {
     try {
-        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
         if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
         const topHolders = largestAccs.value.slice(1, 4); 
@@ -929,11 +966,11 @@ async function analizzaMicroDumping(mintPubKey) {
             if (acc.uiAmount < 10000000) continue;
             try {
                 await delay(200);
-                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
+                const sigs = await getRPC().getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
                 if (sigs.length < 3) continue; 
 
           
-                const txs = await solanaConnection.getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
+                const txs = await getRPC().getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
                 let vendite = 0;
                 
                 txs.forEach(tx => {
@@ -962,7 +999,7 @@ async function analizzaMicroDumping(mintPubKey) {
 
 async function analizzaGrafoSybil(mintPubKey) {
     try {
-        const largestAccs = await solanaConnection.getTokenLargestAccounts(mintPubKey);
+        const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
         if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
         const topHolders = largestAccs.value.slice(1, 11); // 📉 Ridotto a 10 per salvare i crediti RPC
@@ -973,17 +1010,17 @@ async function analizzaGrafoSybil(mintPubKey) {
             const pct = (acc.uiAmount / 1000000000) * 100;
             try {
                 await delay(150);
-                const accInfo = await solanaConnection.getParsedAccountInfo(new PublicKey(acc.address));
+                const accInfo = await getRPC().getParsedAccountInfo(new PublicKey(acc.address));
                 if (!accInfo.value) continue;
                 const owner = accInfo.value.data.parsed.info.owner;
 
                 await delay(150);
-                const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(owner), { limit: 15 });
+                const sigs = await getRPC().getSignaturesForAddress(new PublicKey(owner), { limit: 15 });
                 if (sigs.length === 0 || sigs.length >= 15) continue; 
 
                 const oldestTx = sigs[sigs.length - 1];
                 await delay(150);
-                const txDetails = await solanaConnection.getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
+                const txDetails = await getRPC().getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
                 
                 let funder = "Sconosciuto";
                 if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
@@ -1023,12 +1060,12 @@ async function analizzaReteSybil(arrayDiWallet) {
             const pubKey = new PublicKey(wallet);
             
             // 1. Peschiamo le primissime transazioni della vita di questo wallet
-            const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 5 });
+            const sigs = await getRPC().getSignaturesForAddress(pubKey, { limit: 5 });
             
             if (sigs.length > 0) {
                 // Prendiamo la firma più vecchia (probabilmente quella di finanziamento iniziale)
                 const firmaPiuVecchia = sigs[sigs.length - 1].signature;
-                const tx = await solanaConnection.getParsedTransaction(firmaPiuVecchia, { maxSupportedTransactionVersion: 0 });
+                const tx = await getRPC().getParsedTransaction(firmaPiuVecchia, { maxSupportedTransactionVersion: 0 });
                 
                 if (tx && tx.meta) {
                     const preBals = tx.meta.preBalances;
@@ -1083,13 +1120,13 @@ async function analizzaReteSybil(arrayDiWallet) {
 }
 async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
     try {
-        const sigs = await solanaConnection.getSignaturesForAddress(new PublicKey(devWalletAddress), { limit: 60 });
+        const sigs = await getRPC().getSignaturesForAddress(new PublicKey(devWalletAddress), { limit: 60 });
         if (sigs.length < 5) return { tokensLanciati: 0, status: "CLEAN (Fresh Wallet)", punteggioRischio: 0 };
 
         let pumpFunInteractions = 0; let altriTokenTrovati = new Set();
         const recentSigs = sigs.slice(0, 15).map(s => s.signature);
        
-        const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+        const txs = await getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
 
         txs.forEach(tx => {
             if (!tx || !tx.transaction || !tx.transaction.message) return;
@@ -1520,7 +1557,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
         let signatures = [];
         try {
             // Abbassiamo la profondità da 50 a 20 per salvare le API gratuite!
-            signatures = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 20 });
+            signatures = await getRPC().getSignaturesForAddress(mintPubKey, { limit: 20 });
         } catch (e) {
             console.log("⚠️ Helius in Rate Limit (429). Attivo il paracadute per non crashare...");
         }
@@ -1550,7 +1587,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         if (signatures.length > 0) {
             const launchTx = signatures[signatures.length - 1];
-            const txDetails = await solanaConnection.getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
+            const txDetails = await getRPC().getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
             if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
                 devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
                 
@@ -1582,7 +1619,7 @@ let parsedTxs = [];
 
 try {
     // Zero cicli For lenti, spariamo la chiamata in blocco unico!
-    parsedTxs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+    parsedTxs = await getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
 } catch(e) {
     console.log("⚠️ Helius ha skippato le tx parsed, uso i metadati base.");
 }
@@ -2146,7 +2183,7 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
         const walletAddress = req.params.walletAddress;
         const pubKey = new PublicKey(walletAddress);
         
-        const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 15 });
+        const sigs = await getRPC().getSignaturesForAddress(pubKey, { limit: 15 });
         if (sigs.length === 0) return res.json({ actions: [] });
 
         let classificazione = "Trader Umano 🧑‍💻";
@@ -2164,7 +2201,7 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
         }
 
         const sigStrings = sigs.slice(0, 10).map(s => s.signature);
-        const txs = await solanaConnection.getParsedTransactions(sigStrings, { maxSupportedTransactionVersion: 0 });
+        const txs = await getRPC().getParsedTransactions(sigStrings, { maxSupportedTransactionVersion: 0 });
 
         let actions = [];
         let historicalBuysSol = [];
@@ -2296,7 +2333,7 @@ function avviaAscoltoBersaglio(walletAddress) {
 
         setTimeout(async () => {
             try {
-                const tx = await solanaConnection.getParsedTransaction(signature, { 
+                const tx = await getRPC().getParsedTransaction(signature, { 
                     maxSupportedTransactionVersion: 0, commitment: 'confirmed'
                 });
 
@@ -2410,7 +2447,7 @@ async function ottieniPrezzoToken(mint) {
 async function valutaEsplosivitaToken(tokenMint, walletTarget) {
     try {
         const mintPubKey = new PublicKey(tokenMint);
-        const sigs = await solanaConnection.getSignaturesForAddress(mintPubKey, { limit: 30 });
+        const sigs = await getRPC().getSignaturesForAddress(mintPubKey, { limit: 30 });
         
         let esito = "SCARTATO"; let motivo = ""; let colore = "#ff4d4d"; let isGolden = false;
 
@@ -2425,7 +2462,7 @@ async function valutaEsplosivitaToken(tokenMint, walletTarget) {
                 motivo = `Bassa volatilità (${txInLast60s} tx/min). Manca la FOMO.`;
             } else {
                 const recentSigs = sigs.slice(0, 15).map(s => s.signature);
-                const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+                const txs = await getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
 
                 let buyVol = 0; let sellVol = 0;
                 let uniqueWallets = new Set();
@@ -2550,7 +2587,7 @@ app.get('/api/wallet-audit/:walletAddress', async (req, res) => {
         const { walletAddress } = req.params;
         const pubKey = new PublicKey(walletAddress);
 
-        const sigs = await solanaConnection.getSignaturesForAddress(pubKey, { limit: 25 });
+        const sigs = await getRPC().getSignaturesForAddress(pubKey, { limit: 25 });
         if (sigs.length === 0) {
             return res.json({
                 score: 50,
@@ -2565,7 +2602,7 @@ app.get('/api/wallet-audit/:walletAddress', async (req, res) => {
         }
 
         const recentSigs = sigs.slice(0, 15).map(s => s.signature);
-        const txs = await solanaConnection.getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
+        const txs = await getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
 
         let totalBuys = 0;
         let totalSells = 0;
