@@ -435,9 +435,16 @@ function generaHTMLCardSpy(data) {
                 if (!tabs || tabs.length === 0) return;
                 const url = tabs[0].url;
                 
-                const matchToken = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
-                let tokenMint = null;
-                if (matchToken) tokenMint = matchToken[0];
+// 🔥 Cerca PRIMA un indirizzo EVM (0x + 40 caratteri esadecimali), POI cerca un indirizzo Solana (Base58)
+const matchEVM = url.match(/0x[a-fA-F0-9]{40}/);
+const matchSolana = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+
+let tokenMint = null;
+if (matchEVM) {
+    tokenMint = matchEVM[0]; // È un token Robinhood/Base/Ethereum
+} else if (matchSolana) {
+    tokenMint = matchSolana[0]; // È un token Solana
+}
 
                 if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
                     contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Navigate to a token to activate the Radar.</div>';
@@ -927,7 +934,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
             // LOGICA SBLOCCO IA PREMIUM E AUTO-SALVATAGGIO
             const aiSelect = document.getElementById('user-ai-model');
-            const aiBadge = document.getElementById('ai-lock-badge');
+            const aiBadge = document.getElementById('ai-premium-badge');
             const aiText = document.getElementById('ai-upgrade-text');
             const token = res.userAuthToken || "";
 
@@ -952,25 +959,27 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                 aiSelect.value = res.userConfig?.aiModel || "deepseek/deepseek-chat";
 
                 aiSelect.addEventListener('change', () => {
-                    chrome.storage.local.get(['userConfig'], (configRes) => {
-                        const newC = configRes.userConfig || {};
-                        newC.aiModel = aiSelect.value;
-                        
-                        chrome.storage.local.set({ userConfig: newC }, () => {
-                            aiBadge.innerText = "✓ SAVED";
-                            aiBadge.style.background = "rgba(0, 230, 118, 0.2)";
-                            aiBadge.style.color = "#00e676";
-                            aiBadge.style.border = "1px solid #00e676";
-                            
-                            setTimeout(() => { 
-                                aiBadge.innerText = "💎 PREMIUM"; 
-                                aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
-                                aiBadge.style.color = "#a855f7";
-                                aiBadge.style.border = "1px solid #a855f7";
-                            }, 1500);
-                        });
-                    });
-                });
+    chrome.storage.local.get(['userConfig'], (configRes) => {
+        const newC = configRes.userConfig || {};
+        newC.aiModel = aiSelect.value;
+        
+        chrome.storage.local.set({ userConfig: newC }, () => {
+            if (aiBadge) { // 🛡️ Protezione crash
+                aiBadge.innerText = "✓ SAVED";
+                aiBadge.style.background = "rgba(0, 230, 118, 0.2)";
+                aiBadge.style.color = "#00e676";
+                aiBadge.style.border = "1px solid #00e676";
+                
+                setTimeout(() => { 
+                    aiBadge.innerText = "💎 PREMIUM"; 
+                    aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
+                    aiBadge.style.color = "#a855f7";
+                    aiBadge.style.border = "1px solid #a855f7";
+                }, 1500);
+            }
+        });
+    });
+});
             }
         });
 

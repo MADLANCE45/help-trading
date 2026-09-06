@@ -30,7 +30,8 @@
         "*://*.axiom.trade/*",
         "*://axiom.trade/*",
         "*://*.dexscreener.com/*",
-        "*://dexscreener.com/*"
+        "*://dexscreener.com/*",
+        "*://*.dexscreener.com/robinhood/*"
       ],
       "js": ["content.js"]
     }

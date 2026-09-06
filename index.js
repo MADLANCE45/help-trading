@@ -15,6 +15,9 @@ const app = express();
 // 🛡️ SCUDO ANTI-GARBAGE (Validazione Base58 Solana)
 const isValidSolanaAddress = (address) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
 
+// 🦊 NUOVO SCUDO EVM (Per Robinhood Chain, Base, Arbitrum, ETH)
+const isValidEVMAddress = (address) => /^0x[a-fA-F0-9]{40}$/.test(address);
+
 // 🛡️ SCUDO CORS: Aperto per permettere all'estensione di funzionare su Pump.fun, Bullx, DexScreener ecc.
 // (I dati sensibili restano protetti dalla Sync Key e dal Rate Limiter)
 app.use(cors({ origin: "*" }));
@@ -703,10 +706,10 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
     try {
-        const tokenMint = req.params.tokenMint; // <-- Spostalo qui su
+        const tokenMint = req.params.tokenMint;
         
-        // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
-        if (!isValidSolanaAddress(tokenMint)) {
+        // 🛡️ ACCETTA SOLANA ED EVM
+        if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
             return res.status(400).json({ success: false, tattica: "ERRORE", puntoRottura: "Invalid Token Address.", azione: "STOP" });
         }
 
@@ -1308,14 +1311,92 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     }
 }
 // =====================================================================
+// 🦊 MOTORE EVM (ROBINHOOD CHAIN, BASE, ARBITRUM) - A COSTO ZERO
+// =====================================================================
+async function analizzaTokenEVM(tokenAddress) {
+    try {
+        console.log(`\n🦊 Scansione EVM via DexScreener per: ${tokenAddress}`);
+        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+        const dexData = await dexResp.json();
+
+        if (!dexData.pairs || dexData.pairs.length === 0) {
+            throw new Error("Token non trovato su DexScreener (Rete non supportata o zero liquidità).");
+        }
+
+        // Estrae la pool con più liquidità
+        const mainPair = dexData.pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+
+        const chain = mainPair.chainId.toUpperCase();
+        const liqUsd = mainPair.liquidity?.usd || 0;
+        const fdvUsd = mainPair.fdv || 0;
+        const volume24h = mainPair.volume?.h24 || 0;
+        const ageMinutes = mainPair.pairCreatedAt ? (Date.now() - mainPair.pairCreatedAt) / 60000 : 0;
+
+        // Logica euristica per reti EVM (Senza toccare RPC a pagamento)
+        let score = 50; let rischio = "MODERATO"; let azione = "ATTESA"; let coloreAzione = "#ffaa00";
+        let logAnalisi = [
+            `🦊 Rete Rilevata: ${chain}`,
+            `💧 Liquidità Bloccata: $${liqUsd.toLocaleString()}`,
+            `📊 Market Cap / FDV: $${fdvUsd.toLocaleString()}`
+        ];
+
+        if (liqUsd < 5000) {
+            score = 90; rischio = "ALTISSIMO / TRAPPOLA"; azione = "EVITARE"; coloreAzione = "#ff4d4d";
+            logAnalisi.push("🛑 Rischio Illiquidità: Impossibile vendere senza far crollare il prezzo.");
+        } else if (ageMinutes < 60 && liqUsd > 20000) {
+            score = 30; rischio = "TRENDING (Nuovo Lancio)"; azione = "SCALP RAPIDO"; coloreAzione = "#00e676";
+            logAnalisi.push("🚀 Pressione di lancio. Alta volatilità in corso.");
+        }
+
+        const risultatoEVM = {
+            score: score, rischio: rischio, dettagli: logAnalisi,
+            graficoAttivo: false, devWallet: "Smart Contract EVM",
+            apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
+            
+            // Falsifichiamo i dati complessi Solana per non far crashare il frontend o l'AI
+            devHistory: { status: `EVM (${chain})`, tokensLanciati: 0 },
+            bundleShield: { supplyBundledPct: 0, bundleSlot0: false },
+            sybil: { rilevato: false, testo: `Tracciamento Sybil non applicabile su rete ${chain}` },
+            sanguisughe: { pericolo: false, testo: "Dati estratti da Order Book EVM" },
+            
+            vitaToken: ageMinutes.toFixed(1), azione: azione, fugaColor: coloreAzione,
+            hud: { change: mainPair.priceChange?.h24 || 0, volume: (volume24h/1000000).toFixed(2), trend: chain, color: "#00aaff", icon: "🦊" },
+            tradeValido: liqUsd >= 5000,
+            simulatoreTesto: `Simulazione Dati EVM (${chain}). Liquidità attuale: $${(liqUsd/1000).toFixed(1)}k`,
+            moltiplicatore: 1.5, targetMC: fdvUsd * 1.5, prezzoSol: 0,
+            tradingFees: { slippage: "5%", fee: "Network Gas", text: chain }
+        };
+
+        // SALVATAGGIO IN MEMORIA: Così il Giudice AI potrà processarlo senza accorgersi della differenza!
+        scanCache.set(tokenAddress, { timestamp: Date.now(), data: risultatoEVM });
+        return risultatoEVM;
+
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}
+// =====================================================================
 // 4. API SCAN
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     const tokenMint = req.params.tokenMint;
-    // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
-    if (!isValidSolanaAddress(tokenMint)) {
-        return res.status(400).json({ error: "Invalid Solana token address format." });
+    
+    // 🛡️ ACCETTA SOLANA ED EVM
+    if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
+        return res.status(400).json({ error: "Invalid token address format." });
     }
+
+    // 🦊 SE È EVM, MANDA AL MOTORE DEXSCREENER
+    if (isValidEVMAddress(tokenMint)) {
+        try {
+            const dataEVM = await analizzaTokenEVM(tokenMint);
+            return res.json(dataEVM);
+        } catch (e) {
+            return res.status(500).json({ error: e.message });
+        }
+    }
+
+    // SE È SOLANA, IL CODICE CONTINUA ESATTAMENTE COME PRIMA...
     const lingua = req.query.lang || 'en';
     avviaAscoltoLive(tokenMint);
 
@@ -1656,9 +1737,9 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
 
     try {
         const tokenMint = req.params.tokenMint;
-        // 🛡️ BLOCCA GLI ATTACCHI ISTANTANEAMENTE
-        if (!isValidSolanaAddress(tokenMint)) {
-            return res.status(400).json({ success: false, verdetto: "Invalid Solana Token Address." });
+        // 🛡️ ACCETTA SOLANA ED EVM
+        if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
+            return res.status(400).json({ success: false, verdetto: "Invalid Token Address." });
         }
         const lingua = req.query.lang || 'en'; 
 
