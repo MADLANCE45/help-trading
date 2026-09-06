@@ -1412,6 +1412,26 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
     // 📊 DATI STATICI E CARDS 
     // =========================================================
     function popolaInterfacciaStatica(data, tokenMint) {
+        
+        // 🔥 FIX EVM: Se il backend ci dice che è EVM, nascondiamo le parti Live rotte e stoppiamo il timer!
+        if (data.isEVM) {
+            // Stoppa l'allarme "Dead Token"
+            if (typeof timerNoiaExtension !== 'undefined') clearTimeout(timerNoiaExtension);
+            
+            // Nasconde l'Order Flow (cerca l'elemento padre e lo fa sparire)
+            const orderFlowBox = document.getElementById('flow-percentage');
+            if (orderFlowBox && orderFlowBox.closest('div').parentElement) {
+                orderFlowBox.closest('div').parentElement.style.display = 'none';
+            }
+            
+            // Nasconde il Live Tape
+            const liveTapeBox = document.getElementById('live-tape-list');
+            if (liveTapeBox && liveTapeBox.parentElement) {
+                liveTapeBox.parentElement.style.display = 'none';
+            }
+        }
+
+        // ... qui sotto continua il tuo codice normale con: const hudStats = document.getElementById('hud-stats-container');
         const hudStats = document.getElementById('hud-stats-container');
         if (hudStats && data.hud) {
             document.getElementById('hud-header').style.borderBottom = `2px solid ${data.hud.color}`;

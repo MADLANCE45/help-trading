@@ -1357,15 +1357,16 @@ async function analizzaTokenEVM(tokenAddress) {
         }
 
         const risultatoEVM = {
+            isEVM: true, // 🔥 IL SEGNALE SEGRETO PER IL FRONTEND
             score: score, rischio: rischio, dettagli: logAnalisi,
             graficoAttivo: false, devWallet: "EVM Smart Contract",
             apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
             
-            // Falsifichiamo i dati complessi Solana per non far crashare il frontend o l'AI
-            devHistory: { status: `EVM (${chain})`, tokensLanciati: 0 },
-            bundleShield: { supplyBundledPct: 0, bundleSlot0: false },
-            sybil: { rilevato: false, testo: `Sybil tracking not applicable on ${chain} network` },
-            sanguisughe: { pericolo: false, testo: "Data extracted from EVM Order Book" },
+            // 🔥 FIX: Aggiungiamo 'advice' per far apparire i due box statici
+            advice: {
+                devStatus: `EVM Network (${chain}). On-chain Dev tracking disabled.`,
+                topHoldersStatus: `DEX Liquidity: $${(liqUsd/1000).toFixed(1)}k. Sybil scan N/A.`
+            },
             
             vitaToken: ageMinutes.toFixed(1), azione: azione, fugaColor: coloreAzione,
             hud: { change: mainPair.priceChange?.h24 || 0, volume: (volume24h/1000000).toFixed(2), trend: chain, color: "#00aaff", icon: "🦊" },
