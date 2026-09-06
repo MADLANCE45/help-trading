@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Solana Pump Radar",
-  "version": "1.1",
-  "description": "Detect rug pulls and sniper bots on Pump.fun and Axiom",
+  "name": "Meme Saver - Solana & EVM Pump Radar",
+  "version": "1.2",
+  "description": "AI Rug Pull Detector & Smart Money Tracker for Pump.fun and DexScreener",
   "icons": {
     "16": "icon128.png",
     "48": "icon128.png",
