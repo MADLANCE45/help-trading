@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io("https://help-trading-production.up.railway.app", {
     
     });
-    socket.on("connect", () => console.log("🟢 Connesso al Radar Quantitativo WSS"));
+    socket.on("connect", () => console.log(" Connesso al Radar Quantitativo WSS"));
     
     // =========================================================
     // 🚀 GOLDEN ALERT (Popup Intelligente)
@@ -179,11 +179,11 @@ const TRANSLATIONS = {
         jito_title: "🛡️ Jito MEV Shield", jito_tip: "Jito Tip (SOL)", slippage: "Max Slippage (%)",
         risk_title: "⚖️ Risk Management", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
         btn_save: "💾 Save & Activate", btn_saved: "✅ SAVED SUCCESSFULLY!", nav_radar: "Radar",
-        nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RELOAD", copilot_title: "🧠 Copilot AI",
+        nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RELOAD", copilot_title: " Copilot AI",
         copilot_btn: "Request Analysis", copilot_analyzing: "⏳ Analyzing...", copilot_reanalyze: "🔄 Re-analyze",
-        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "WAITING...", live_tape_title: "🔴 Live Tape",
+        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "WAITING...", live_tape_title: " Live Tape",
         live_tape_listening: "Listening to blockchain...", loading_analysis: "⏳ Analyzing...",
-        loading_base: "✅ Base Data", loading_complete: "✅ Full Report", tracker_title: "💼 SMART MONEY",
+        loading_base: " Base Data", loading_complete: " Full Report", tracker_title: "💼 SMART MONEY",
         tracker_placeholder: "Address...", tracker_name: "Name (opt)", tracker_btn: "Track", spy_title: "🚨 LIVE SPY FEED",
         spy_waiting: "Waiting for signals...", judge_title: "Judge Verdict", done_in: "Done in",
         dev_history: "Developer History", supply_analysis: "Supply Analysis", high_risk_rug: "⚠️ HIGH RUG RISK.",
@@ -210,7 +210,7 @@ const TRANSLATIONS = {
         btn_save: "💾 Salva e Attiva", btn_saved: "✅ SALVATO CON SUCCESSO!", nav_radar: "Radar",
         nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RICARICA", copilot_title: "🧠 Copilota AI",
         copilot_btn: "Richiedi Analisi", copilot_analyzing: "⏳ Analisi in corso...", copilot_reanalyze: "🔄 Ri-analizza",
-        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "IN ATTESA...", live_tape_title: "🔴 Live Tape",
+        orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "IN ATTESA...", live_tape_title: " Live Tape",
         live_tape_listening: "In ascolto della blockchain...", loading_analysis: "⏳ Analisi...",
         loading_base: "✅ Dati Base", loading_complete: "✅ Report Completo", tracker_title: "💼 SMART MONEY",
         tracker_placeholder: "Address...", tracker_name: "Nome (opz)", tracker_btn: "Traccia", spy_title: "🚨 LIVE SPY FEED",
@@ -280,7 +280,7 @@ const TRANSLATIONS = {
         btn_save: "💾 Enregistrer", btn_saved: "✅ ENREGISTRÉ !", nav_radar: "Radar",
         nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RECHARGER", copilot_title: "🧠 Copilote IA",
         copilot_btn: "Demander Analyse", copilot_analyzing: "⏳ Analyse...", copilot_reanalyze: "🔄 Ré-analyser",
-        orderflow_title: "⏱️ Flux 10s", orderflow_waiting: "ATTENTE...", live_tape_title: "🔴 Live Tape",
+        orderflow_title: "⏱️ Flux 10s", orderflow_waiting: "ATTENTE...", live_tape_title: " Live Tape",
         live_tape_listening: "Écoute de la blockchain...", loading_analysis: "⏳ Analyse...",
         loading_base: "✅ Données de Base", loading_complete: "✅ Rapport Complet", tracker_title: "💼 SMART MONEY",
         tracker_placeholder: "Adresse...", tracker_name: "Nom (opt)", tracker_btn: "Traquer", spy_title: "🚨 LIVE SPY FEED",
@@ -512,37 +512,64 @@ if (matchEVM) {
         const av4 = chrome.runtime.getURL("avatar4.png");
 
         const copilotHTML = `
-            <div style="background: rgba(18, 10, 25, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #b366ff; box-shadow: inset 0 0 10px rgba(179, 102, 255, 0.15);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.75em; color: #b366ff; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">${t('copilot_title')}</span>
-                    <button id="btn-copilot" style="background: #b366ff; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase;">${t('copilot_btn')}</button>
+            <div style="background: #0f1118; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142; position: relative; overflow: hidden;">
+                <!-- Sfocatura decorativa -->
+                <div style="position: absolute; top: -20px; right: -20px; width: 60px; height: 60px; background: #b366ff; opacity: 0.15; filter: blur(20px); border-radius: 50%;"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2em;">🧠</span>
+                        <span style="font-size: 0.8em; color: #e4e4e7; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">${t('copilot_title')}</span>
+                    </div>
+                    <button id="btn-copilot" style="background: linear-gradient(90deg, #9333ea, #b366ff); color: #fff; border: none; padding: 6px 14px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.5px; transition: transform 0.1s; box-shadow: 0 2px 10px rgba(179, 102, 255, 0.3);">
+                        ${t('copilot_btn')}
+                    </button>
                 </div>
-                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; border-top: 1px dashed #4a2b66; padding-top: 10px; margin-top: 10px;"></div>
+                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; margin-top: 12px; position: relative; z-index: 2;"></div>
             </div>`;
 
         const orderFlowHTML = `
-            <div style="background: rgba(10, 12, 16, 0.9); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="background: #0f1118; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">${t('orderflow_title')}</span>
-                    <span id="flow-percentage" style="color: #00ffcc; font-weight: bold; font-family: monospace;">${t('orderflow_waiting')}</span>
+                    <span id="flow-percentage" style="color: #00ffcc; font-weight: 900; font-family: monospace; background: rgba(0, 255, 204, 0.1); padding: 2px 6px; border-radius: 4px;">${t('orderflow_waiting')}</span>
                 </div>
-                <div style="width: 100%; height: 10px; background: #ff4d4d; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);">
-                    <div id="flow-bar-green" style="width: 50%; height: 100%; background: #00e676; transition: width 0.3s ease-out;"></div>
+                
+                <div style="width: 100%; height: 8px; background: #2a1111; border-radius: 4px; overflow: hidden; display: flex;">
+                    <div id="flow-bar-green" style="width: 50%; height: 100%; background: linear-gradient(90deg, #00b38f, #00e676); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                    <div style="flex-grow: 1; height: 100%; background: linear-gradient(90deg, #ff4d4d, #cc0000);"></div>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-family: monospace; font-size: 0.75em; color: #aaa;">
-                    <span id="flow-vol-buy">0.0 SOL</span>
-                    <span id="flow-vol-sell">0.0 SOL</span>
+                
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-family: monospace; font-size: 0.75em; font-weight: bold;">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="color:#00e676;">IN:</span>
+                        <span id="flow-vol-buy" style="color: #fff;">0.0 SOL</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="color:#ff4d4d;">OUT:</span>
+                        <span id="flow-vol-sell" style="color: #fff;">0.0 SOL</span>
+                    </div>
                 </div>
             </div>`;
 
         const liveTapeHTML = `
-            <div style="background: rgba(10, 12, 16, 0.9); padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
-                <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between;">
-                    <span>${t('live_tape_title')}</span>
-                    <span style="color: #00ffcc; font-size: 0.8em;">WSS Sync</span>
+            <div style="background: #0f1118; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
+                <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="display:inline-block; width:8px; height:8px; background:#ff4d4d; border-radius:50%; animation: pulseGlow 1s infinite;"></span>
+                        <span>${t('live_tape_title')}</span>
+                    </div>
+                    <span style="color: #00ffcc; font-size: 0.8em; font-family: monospace; background:rgba(0,255,204,0.1); padding:2px 6px; border-radius:4px;">WSS Sync</span>
                 </div>
-                <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 6px; height: 180px; overflow-y: auto; padding-right: 4px;">
-                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:20px;">${t('live_tape_listening')}</div>
+                
+                <!-- Headers tabella visiva -->
+                <div style="display: flex; justify-content: space-between; font-size: 0.65em; color: #666; text-transform: uppercase; font-weight: bold; padding-bottom: 4px; border-bottom: 1px solid #2d3142; margin-bottom: 8px; padding-left: 8px; padding-right: 8px;">
+                    <span>Action / Size</span>
+                    <span>Wallet</span>
+                </div>
+                
+                <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 4px; height: 160px; overflow-y: auto; padding-right: 4px; scroll-behavior: smooth;">
+                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:30px;">${t('live_tape_listening')}</div>
                 </div>
             </div>`;
 
@@ -727,13 +754,15 @@ if (matchEVM) {
                     </div>
 
                     <!-- TAB 1: RADAR -->
+                    <!-- TAB 1: RADAR -->
                     <div id="view-radar">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29;">
-                                <span>🎯 ${tokenMint.substring(0,12)}...</span>
-                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.85em; font-weight: bold; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
+                            <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; height: 32px; box-sizing: border-box;">
+                                <span style="display: flex; align-items: center;"> ${tokenMint.substring(0,12)}...</span>
+                                <span style="color:#2d3142;">|</span>
+                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.95em; font-weight: bold; display: flex; align-items: center; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
                             </div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase;">Reload</button>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center;">Reload</button>
                         </div>
                         ${copilotHTML}
                         ${orderFlowHTML}
@@ -1316,7 +1345,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                         `;
                         notificaTracker.innerHTML = `
                             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                                <strong style="color:${azioneColor};">🎯 TRACKER: ${walletTrovato.name}</strong>
+                                <strong style="color:${azioneColor};"> TRACKER: ${walletTrovato.name}</strong>
                                 <span class="btn-chiudi-tracker" style="cursor:pointer; color:#888; font-size:1.2em; font-weight:bold;">✕</span>
                             </div>
                             <div style="font-size:0.9em; margin-bottom: 4px;"><b>${azioneTesto}</b></div>
@@ -1345,23 +1374,61 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     }
 
                     // 🔥 FILTRO SALVAVITA: Stampa a schermo SOLO i trade umani (> 0.02 SOL)
+                    // 🔥 FILTRO SALVAVITA: Stampa a schermo SOLO i trade umani (> 0.02 SOL)
+                    // 🔥 FILTRO SALVAVITA: Stampa a schermo SOLO i trade umani (> 0.02 SOL)
                     if (solAmount > 0.02) {
-                        const isBuy = trade.tipo.includes("BUY");
-                        const color = isBuy ? "#00e676" : "#ff4d4d";
+                        let cleanTipo = trade.tipo.replace(/🟢|🔴|📦/g, '').trim(); 
+                        let isBuy = cleanTipo.includes("BUY");
+                        let color = isBuy ? "#00e676" : "#ff4d4d";
+
+                        // 🎨 ICONE VETTORIALI FUTURISTICHE (Zero Emojis)
+                        let svgIcon = "";
+                        let tagColor = "#888";
+                        let tooltipText = "Retail Flow";
+                        
+                        if (trade.zooIcon.includes("📦") || trade.tipo.includes("BUNDLE")) { 
+                            tagColor = "#c084fc"; tooltipText = "Jito Bundle / Multi-Tx";
+                            svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+                        }
+                        else if (trade.zooIcon.includes("🐋")) { 
+                            tagColor = "#00ffcc"; tooltipText = "Whale Size";
+                            svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><path d="M6 3h12l4 7-10 11L2 10z"/></svg>`;
+                        }
+                        else if (trade.zooIcon.includes("🐬")) { 
+                            tagColor = "#ffaa00"; tooltipText = "Smart Money / Dolphin";
+                            svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+                        }
+                        else if (trade.zooIcon.includes("🤖")) { 
+                            tagColor = "#ff4d4d"; tooltipText = "MEV Bot / Algo";
+                            svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>`;
+                        } else {
+                            // Standard Retail Node
+                            svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
+                        }
+
                         const el = document.createElement('div');
-                        el.style.cssText = `font-family: monospace; font-size: 0.85em; color: ${color}; display: flex; justify-content: space-between; background: #161821; padding: 6px; border-radius: 4px; border-left: 3px solid ${color}; margin-bottom: 4px;`;
+                        el.style.cssText = `font-family: monospace; font-size: 0.8em; display: flex; justify-content: space-between; align-items:center; background: #161821; padding: 6px 8px; border-radius: 4px; margin-bottom: 3px; border-left: 3px solid ${color}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
                         
                         el.innerHTML = `
-                            <div style="display: flex; flex-direction: column; width: 100%;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span style="font-weight: bold;">${trade.tipo} ${solAmount.toFixed(2)} SOL</span>
-                                    <span title="${trade.zooTag}">${trade.zooIcon}</span>
+                            <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                                <!-- Icona SVG Istituzionale -->
+                                <div title="${tooltipText}" style="width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; background: ${tagColor}15; border: 1px solid ${tagColor}40; border-radius: 6px; box-shadow: inset 0 0 8px ${tagColor}20;">
+                                    ${svgIcon}
                                 </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em;">
-                                    <span style="color:#aaa;">${trade.wallet.substring(0,4)}...${trade.wallet.slice(-4)}</span>
-                                    <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none;">🔍 Solscan</a>
+                                
+                                <!-- Azione e Volume -->
+                                <div style="display: flex; flex-direction: column; flex-grow: 1;">
+                                    <strong style="color: ${color}; line-height: 1.1; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px;">${cleanTipo}</strong>
+                                    <span style="color: #fff; font-weight: bold; font-size: 1.1em; line-height: 1.2;">${solAmount.toFixed(2)} <span style="font-size:0.65em; color:#888;">SOL</span></span>
                                 </div>
-                            </div>`;
+                                
+                                <!-- Dati Wallet e Link -->
+                                <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                                    <span style="color:#aaa; font-weight:bold; font-size: 0.8em; font-family: 'Courier New', Courier, monospace;">${trade.wallet.substring(0,4)}..${trade.wallet.slice(-4)}</span>
+                                    <a href="${trade.solscan}" target="_blank" style="color: #4da6ff; text-decoration: none; font-size: 0.7em; margin-top:3px; background: rgba(77,166,255,0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(77,166,255,0.3); transition: 0.2s;">TX ↗</a>
+                                </div>
+                            </div>
+                        `;
                         
                         tapeList.prepend(el);
                         
@@ -1459,7 +1526,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
         
         let reportHTML = "";
         if (data.advice) {
-            // 👉 PASSIAMO LE FRASI AL NOSTRO SUPER TRADUTTORE
+            // ... (Manteniamo la traduzione esistente) ...
             let devText = traduciDalBackend(data.advice.devStatus || "");
             let devColor = '#00ffcc'; 
             let devIcon = '👨‍💻';
@@ -1467,7 +1534,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             if (devText.toUpperCase().match(/GIOVAN|FRESH|GIORNI|DAYS|NEW/)) {
                 devColor = '#ff4d4d'; 
                 devIcon = '🚨';
-                devText += ` <br><span style='color:#ff4d4d; font-size:0.85em; font-weight:bold;'>${t('high_risk_rug')}</span>`;
+                devText += ` <br><span style='display:inline-block; margin-top:4px; color:#ff4d4d; font-size:0.9em; font-weight:bold; background:rgba(255,77,77,0.1); padding:2px 6px; border-radius:4px;'>${t('high_risk_rug')}</span>`;
             } else if (devText.toUpperCase().match(/SERIAL|FARMER/)) {
                 devColor = '#ffaa00'; 
                 devIcon = '⚠️';
@@ -1478,18 +1545,25 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             
             if (bundleText.includes('0%')) {
                 bundleColor = '#ffaa00'; 
-                bundleText += ` <br><span style='color:#ffaa00; font-size:0.85em; font-weight:bold;'>${t('risk_bundle')}</span>`;
+                bundleText += ` <br><span style='display:inline-block; margin-top:4px; color:#ffaa00; font-size:0.9em; font-weight:bold; background:rgba(255,170,0,0.1); padding:2px 6px; border-radius:4px;'>${t('risk_bundle')}</span>`;
             }
             
             reportHTML += `
-                <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 15px;">
-                    <div style="background: linear-gradient(90deg, ${devColor}20, transparent); border-left: 4px solid ${devColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
-                        <div style="font-size: 0.7em; color: ${devColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">${devIcon} ${t('dev_history')}</div>
-                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${devText}</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: stretch; width: 100%; box-sizing: border-box;">
+                    <div style="flex: 1; background: linear-gradient(180deg, #161821, #0a0c10); border-top: 3px solid ${devColor}; padding: 12px; border-radius: 6px; border: 1px solid #1a1c29; box-shadow: 0 4px 6px rgba(0,0,0,0.4); display: flex; flex-direction: column;">
+                        <div style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 900; margin-bottom: 8px; letter-spacing: 1px; display:flex; align-items:center; gap:6px;">
+                            <span style="font-size: 1.3em;">${devIcon}</span>
+                            <span style="color: ${devColor}; margin-top: 2px;">${t('dev_history')}</span>
+                        </div>
+                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace; line-height: 1.4;">${devText}</div>
                     </div>
-                    <div style="background: linear-gradient(90deg, ${bundleColor}20, transparent); border-left: 4px solid ${bundleColor}; padding: 10px; border-radius: 4px; border: 1px solid #1a1c29;">
-                        <div style="font-size: 0.7em; color: ${bundleColor}; text-transform: uppercase; font-weight: 900; margin-bottom: 4px; letter-spacing: 1px;">🛡️ ${t('supply_analysis')}</div>
-                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace;">${bundleText}</div>
+                    
+                    <div style="flex: 1; background: linear-gradient(180deg, #161821, #0a0c10); border-top: 3px solid ${bundleColor}; padding: 12px; border-radius: 6px; border: 1px solid #1a1c29; box-shadow: 0 4px 6px rgba(0,0,0,0.4); display: flex; flex-direction: column;">
+                        <div style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 900; margin-bottom: 8px; letter-spacing: 1px; display:flex; align-items:center; gap:6px;">
+                            <span style="font-size: 1.3em;">🛡️</span>
+                            <span style="color: ${bundleColor}; margin-top: 2px;">${t('supply_analysis')}</span>
+                        </div>
+                        <div style="font-size: 0.85em; color: #e4e4e7; font-family: monospace; line-height: 1.4;">${bundleText}</div>
                     </div>
                 </div>`;
         }
@@ -1514,15 +1588,15 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             if (staticBox) staticBox.parentNode.insertBefore(container, staticBox);
         }
 
-        // 🔥 CRONOMETRO IN TEMPO REALE
+        // STATO DI CARICAMENTO PULITO (No Emoji)
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ ${t('judge_title')}</span>
+                <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">VERDICT</span>
                 <span id="judge-timer" style="background:#4a2b66; color:#fff; padding:2px 6px; border-radius:4px; font-family:monospace; font-size:0.8em; font-weight:bold;">0.0s</span>
             </div>
             <div style="text-align: center; padding: 10px; color: #c084fc;">
-                <span style="animation: pulseGlow 1.5s infinite; font-weight:bold;">${t('judge_load1')}</span>
-                <div style="font-size: 0.75em; color: #888; margin-top: 6px;">${t('judge_load2')}</div>
+                <span style="animation: pulseGlow 1.5s infinite; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">PROCESSING...</span>
+                <div style="font-size: 0.75em; color: #888; margin-top: 6px;">Analyzing on-chain metrics</div>
             </div>
         `;
 
@@ -1534,19 +1608,13 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
         }, 100);
 
         try {
-            // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
-            // 🔑 RECUPERA CONFIGURAZIONI, CHIAVE E TARGA
             const storageRes = await chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'userConfig']);
-            
-            // FORZA STRINGA E PULISCI
             const authToken = storageRes.userAuthToken ? String(storageRes.userAuthToken).trim() : "null";
             const deviceId = storageRes.device_fingerprint ? String(storageRes.device_fingerprint).trim() : "null";
             const requestedAi = storageRes.userConfig?.aiModel || "deepseek/deepseek-chat";
 
-            // 🔥 CHIAMATA AL SERVER PER IL GIUDICE
             const response = await fetch(`https://help-trading-production.up.railway.app/api/laboratorio/${tokenMint}?lang=${currentLang}`, {
                 headers: { 
-                    
                     "x-auth-token": authToken, 
                     "x-device-id": deviceId,
                     "x-ai-model": requestedAi 
@@ -1554,58 +1622,153 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             });
             
             const data = await response.json();
-            
-            clearInterval(timerInterval); // Ferma il cronometro
+            clearInterval(timerInterval);
 
             if (data.success) {
-                // 🟢 SCANSIONE ANDATA A BUON FINE (Crediti sufficienti)
+                // GENERAZIONE TESTO PULITO PER SHARE/COPY
+                // GENERAZIONE TESTO VIRALE & PROVOCATORIO (Zero Lag)
+                // GENERAZIONE TESTO COMPATTO (Sotto i 280 caratteri per evitare il blocco di X)
+                let tweetVerdict = data.verdetto.includes('RIDE') ? 'RIDE (Safe)' : (data.verdetto.includes('SCALP') ? 'SCALP (Risky)' : 'AVOID (Trap)');
+                const cleanHTML = data.verdetto.replace(/⚖️|⏳|🔄|💎|🚫|⚠️|❌|🚨|🛡️|👨‍💻|🏄‍♂️|⚡|🛑/g, '');
+                
+                let isEVM = tokenMint.startsWith("0x");
+                let chainTag = isEVM ? "#EVM #Base" : "#Solana #PumpFun";
+                
+                // 🔥 FIX INFALLIBILE: Estrae il punteggio esatto leggendolo direttamente dall'HTML a schermo!
+                let trustScore = 50;
+                const scoreMatch = data.verdetto.match(/>(\d{1,3})<\/span><span[^>]*>Trust/i);
+                if (scoreMatch && scoreMatch[1]) {
+                    trustScore = parseInt(scoreMatch[1]);
+                } else if (data.score) {
+                    trustScore = data.score;
+                }
+
+                // Testo ultra-compatto (circa 220 caratteri)
+                let rawShareText = `🤖 Meme Saver AI Scan\n\n🪙 CA: ${tokenMint.substring(0,8)}...\n⚖️ Verdict: ${tweetVerdict}\n📊 Trust Score: ${trustScore}/100\n\nStop being exit liquidity 👇\n🔗 memesaver.lol\n\n${chainTag} @H3lpTrading `;
+
+                let encodedTweetText = encodeURIComponent(rawShareText);
+
                 container.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">⚖️ ${t('judge_title')}</span>
+                        <span style="font-size: 0.75em; color: #c084fc; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">VERDICT</span>
                         <div style="display:flex; gap: 6px; align-items:center;">
-                            <span style="color:#888; font-family:monospace; font-size:0.7em;">${t('done_in')} ${sec.toFixed(1)}s</span>
-                            <button id="btn-refresh-judge" style="background: #c084fc; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7em;">🔄</button>
+                            <span style="color:#888; font-family:monospace; font-size:0.7em;">DONE IN ${sec.toFixed(1)}s</span>
+                            <button id="btn-refresh-judge" style="background: #c084fc; color: #000; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.7em; text-transform:uppercase;">RELOAD</button>
                         </div>
                     </div>
-                    ${traduciDalBackend(data.verdetto)}
+                    ${traduciDalBackend(cleanHTML)}
+                    
+                    <!-- FUNZIONI SHARE & COPY (Con icone SVG pulite) -->
+                    <!-- FUNZIONI SHARE & COPY -->
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button id="btn-share-x" style="flex: 2; display: flex; align-items: center; justify-content: center; gap: 8px; background: #000; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: background 0.2s;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.005 4.150h-1.91z"/></svg>
+                            Share on X
+                        </button>
+                        <button id="btn-copy-verdict" data-text="Meme Saver Analysis\nCA: ${tokenMint}\nScore: ${trustScore}/100" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #1a1c29; border: 1px solid #2d3142; color: #4da6ff; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: background 0.2s;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            Copy
+                        </button>
+                    </div>
                 `;
+
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
+                
+                // 🔥 LOGICA SMART TWEET: Calcola il Market Cap LIVE al momento del click
+                // 🔥 LOGICA SMART TWEET: Doppio controllo Market Cap (DexScreener -> Pump.fun)
+                document.getElementById('btn-share-x').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<span style="animation: pulseGlow 1s infinite;">FETCHING DATA...</span>';
+                    btn.style.pointerEvents = "none";
+                    
+                    let liveMC = "N/A";
+                    try {
+                        // 1. Tentativo Primario: DexScreener
+                        const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
+                        const dexData = await dexRes.json();
+                        if (dexData.pairs && dexData.pairs.length > 0) {
+                            const fdv = dexData.pairs[0].fdv || dexData.pairs[0].marketCap;
+                            liveMC = "$" + (fdv >= 1000000 ? (fdv/1000000).toFixed(2) + "M" : (fdv/1000).toFixed(1) + "K");
+                        } else {
+                            // 2. Tentativo Secondario (Fallback): API nativa di Pump.fun
+                            const pumpRes = await fetch(`https://frontend-api.pump.fun/coins/${tokenMint}`);
+                            if (pumpRes.ok) {
+                                const pumpData = await pumpRes.json();
+                                if (pumpData.usd_market_cap) {
+                                    const fdv = pumpData.usd_market_cap;
+                                    liveMC = "$" + (fdv >= 1000000 ? (fdv/1000000).toFixed(2) + "M" : (fdv/1000).toFixed(1) + "K");
+                                }
+                            }
+                        }
+                    } catch(err) {} 
 
+                    let rawShareText = `🤖 Meme Saver AI Scan\n\n🪙 CA: ${tokenMint}\n💎 Market Cap: ${liveMC}\n⚖️ Verdict: ${tweetVerdict}\n📊 Trust Score: ${trustScore}/100\n\nStop being exit liquidity 👇\n🔗 memesaver.lol\n\n${chainTag} @H3lpTrading `;
+                    
+                    btn.innerHTML = originalHTML;
+                    btn.style.pointerEvents = "auto";
+                    
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(rawShareText)}`, '_blank');
+                });
+
+                // Funzione Copia
+                document.getElementById('btn-copy-verdict').addEventListener('click', (e) => {
+                    navigator.clipboard.writeText(e.currentTarget.getAttribute('data-text')).then(() => {
+                        e.currentTarget.innerHTML = '<span style="color:#00e676;">COPIED!</span>';
+                        setTimeout(() => {
+                            e.currentTarget.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy';
+                        }, 2000);
+                    });
+                });
+
+                // Pulizia emoji anche nel tag status superiore (es. "✅ Full Report" diventa "FULL REPORT")
                 const mintStatus = document.getElementById('mint-loading-status');
-                if (mintStatus) mintStatus.innerHTML = t('loading_complete');
+                if (mintStatus) {
+                    mintStatus.innerHTML = "REPORT READY";
+                    mintStatus.style.color = "#00e676";
+                }
 
-                // 🔥 AGGIORNAMENTO DEL NUMERINO DEI CREDITI NELLA UI
-                const badge = document.getElementById('ai-lock-badge');
+                // FIX AGGIORNAMENTO BADGE CORRETTO
+                const badge = document.getElementById('ai-premium-badge') || document.getElementById('ai-lock-badge');
                 if (badge) {
                     if (data.plan === 'free') {
-                        badge.innerText = `🆓 FREE (${data.scansLeft}/5)`;
+                        badge.innerText = `FREE (${data.scansLeft}/5)`;
                         badge.style.color = "#fff";
                         badge.style.background = "#222";
                         badge.style.border = "1px solid #444";
                     } else if (data.plan === 'premium' || data.plan === 'pro' || data.plan === 'admin') {
-                        badge.innerText = "💎 UNLIMITED";
+                        badge.innerText = "UNLIMITED";
+                        badge.style.color = "#a855f7";
+                        badge.style.background = "rgba(168, 85, 247, 0.2)";
+                        badge.style.border = "1px solid #a855f7";
                     }
                 }
 
             } else if (data.limitReached || data.success === false) {
-                // 🟡 CREDITI FINITI O ACCESSO NEGATO: MOSTRA IL BANNER D'ORO PER IL PASSAGGIO A PRO
-                container.innerHTML = data.verdetto; // 🔥 Qui stampa il riquadro d'oro che arriva da Node.js!
+                // Banner limite raggiunto senza emoji
+                const cleanErrorHTML = data.verdetto.replace(/🔒|❌|⚠️|💎/g, '');
+                container.innerHTML = cleanErrorHTML;
 
-                // AGGIORNA IL BADGE A ZERO
-                const badge = document.getElementById('ai-lock-badge');
+                const badge = document.getElementById('ai-premium-badge') || document.getElementById('ai-lock-badge');
                 if (badge) {
-                    badge.innerText = "🚫 LIMIT (0/5)";
+                    badge.innerText = "LIMIT (0/5)";
                     badge.style.color = "#ff4d4d";
                     badge.style.border = "1px solid #ff4d4d";
                     badge.style.background = "rgba(255, 77, 77, 0.1)";
                 }
             } else {
-                // 🔴 ERRORE GENERICO DELL'IA O DI RETE
-                container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">⚠️ Error AI: ${data.verdetto || "Errore Sconosciuto"}</div>`;
+                // Errore formattazione AI
+                container.innerHTML = `<div style="color:#ff4d4d; padding:10px; font-weight:bold; text-transform:uppercase;">ERROR AI: PARSING FAILED</div>`;
             }
         } catch (error) {
             clearInterval(timerInterval);
-            container.innerHTML = `<div style="color:#ff4d4d; padding:10px;">❌ Connection error.</div>`;
+            // Errore di rete con tasto RETRY incorporato
+            container.innerHTML = `
+                <div style="color:#ff4d4d; padding:15px; text-align:center; font-weight:bold; text-transform:uppercase; letter-spacing: 1px;">
+                    CONNECTION ERROR
+                    <button id="btn-retry-judge" style="display:block; margin: 12px auto 0; background: #ff4d4d; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">RETRY</button>
+                </div>`;
+            document.getElementById('btn-retry-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
         }
     }
 
@@ -1738,7 +1901,7 @@ function aggiungiSpyCardHTML(data, isNew) {
     }
 
     // 1. UNIFICA I DATI (Accetta sia il formato dello Storico che quello della Diretta)
-    let esitoGrezzo = data.esito || (data.type === "BUY" ? "🟢 BOUGHT" : "🔴 SOLD");
+    let esitoGrezzo = data.esito || (data.type === "BUY" ? " BOUGHT" : " SOLD");
     let motivoGrezzo = data.motivo || (data.stats ? data.stats.classificazione : "");
     if (data.strategy && data.solSpent) motivoGrezzo += ` - Investment: ${data.solSpent.toFixed(2)} SOL`;
     else if (!data.esito && data.type !== "BUY") motivoGrezzo = "Exiting position";

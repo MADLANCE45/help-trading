@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meme Saver - Solana & EVM Pump Radar",
-  "version": "1.2",
+  "version": "1.1",
   "description": "AI Rug Pull Detector & Smart Money Tracker for Pump.fun and DexScreener",
   "icons": {
     "16": "icon128.png",
@@ -10,7 +10,8 @@
   },
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "https://help-trading-production.up.railway.app/*",
@@ -18,11 +19,16 @@
     "https://*.axiom.trade/*",
     "https://*.dexscreener.com/*"
   ],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Pump Radar"
   },
   "content_scripts": [
+    
     {
       "matches": [
         "*://*.pump.fun/*", 
@@ -32,9 +38,12 @@
         "*://*.dexscreener.com/*",
         "*://dexscreener.com/*",
         "*://*.dexscreener.com/robinhood/*"
+        
       ],
       "js": ["content.js"]
+      
     }
+    
   ],
   "web_accessible_resources": [
     {

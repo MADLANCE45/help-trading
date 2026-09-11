@@ -230,29 +230,34 @@ function avviaAscoltoLive(tokenMint) {
 
                 // IGNORIAMO SOLO IL VERO RUMORE, MA NON SCARTIAMO LE BALENE
                 if (deltaSol >= 0.05 || isBundle) {
-                    const tipoAzione = preSol > postSol ? "🟢 BUY" : "🔴 SELL";
+                    // Via i pallini colorati, il frontend penserà ad applicare i colori rosso/verde
+                    const tipoAzione = preSol > postSol ? "BUY" : "SELL";
                     
-                    // 🔥 FILTRO ZOO
-                    let iconaZoo = "🐒";
-                    let tagZoo = "Scimmia";
+                    // 🔥 FILTRO CLASSIFICAZIONE ISTITUZIONALE (Senza Emoji)
+                    let iconaZoo = "[RTL]";
+                    let tagZoo = "Retail Flow";
 
                     if (isBundle && deltaSol > 1) {
-                        iconaZoo = "📦"; tagZoo = "Jito Bundle";
+                        iconaZoo = "[BNDL]"; 
+                        tagZoo = "Jito Bundle / Multi-Tx";
                     } else if (deltaSol > 15) {
-                        iconaZoo = "🐋"; tagZoo = "Balena";
+                        iconaZoo = "[WHL]"; 
+                        tagZoo = "Whale Size";
                     } else if (deltaSol >= 3) {
-                        iconaZoo = "🐬"; tagZoo = "Delfino";
+                        iconaZoo = "[PRO]"; 
+                        tagZoo = "Smart Money / Dolphin";
                     }
 
                     if (knownBotsCache.has(feePayer)) {
-                        iconaZoo = "🤖"; tagZoo = "Robot Snipe";
+                        iconaZoo = "[MEV]"; 
+                        tagZoo = "MEV Bot / Algo";
                     }
 
                     const solscanLink = `https://solscan.io/tx/${signature}`;
                     
                     // 4. Creiamo il Pacchetto
                     const liveEvent = {
-                        tipo: isBundle ? `📦 BUNDLE ${tipoAzione.replace(/[🟢🔴]/,'').trim()}` : tipoAzione,
+                        tipo: isBundle ? `BUNDLE ${tipoAzione}` : tipoAzione,
                         sol: deltaSol.toFixed(2),
                         wallet: feePayer,
                         firma: signature,
@@ -269,15 +274,15 @@ function avviaAscoltoLive(tokenMint) {
                     const ora = new Date().toLocaleTimeString('it-IT', { hour12: false });
 
                     if (isBundle) {
-                        diarioEventi.push(`[${ora}] 📦 BUNDLE CECCHINO: Rilevato multi-trade simultaneo di ${deltaSol.toFixed(2)} SOL.`);
+                        diarioEventi.push(`[${ora}] [SNIPER BUNDLE]: Detected multi-trade of ${deltaSol.toFixed(2)} SOL.`);
                     } else if (deltaSol >= 1.5) {
-                        diarioEventi.push(`[${ora}] 🌊 SMART MONEY: ${tagZoo} -> ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
+                        diarioEventi.push(`[${ora}] [SMART MONEY]: ${tagZoo} -> ${tipoAzione} of ${deltaSol.toFixed(2)} SOL.`);
                     } else if (knownBotsCache.has(feePayer)) {
-                        diarioEventi.push(`[${ora}] 🤖 BOT ACTION: Il cecchino ha fatto un ${tipoAzione} di ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (tipoAzione === "🔴 SELL" && deltaSol >= 0.3) {
-                        diarioEventi.push(`[${ora}] 🩸 DUMPING LENTO: Vendita di ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (tipoAzione === "🟢 BUY" && deltaSol >= 0.5) {
-                        diarioEventi.push(`[${ora}] 🔥 FOMO RETAIL: Acquisto di ${deltaSol.toFixed(2)} SOL.`);
+                        diarioEventi.push(`[${ora}] [BOT ACTION]: MEV executed a ${tipoAzione} of ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (tipoAzione === "SELL" && deltaSol >= 0.3) {
+                        diarioEventi.push(`[${ora}] [SLOW DUMP]: Sell order of ${deltaSol.toFixed(2)} SOL.`);
+                    } else if (tipoAzione === "BUY" && deltaSol >= 0.5) {
+                        diarioEventi.push(`[${ora}] [RETAIL FOMO]: Buy order of ${deltaSol.toFixed(2)} SOL.`);
                     }
                     
                     if (diarioEventi.length > 20) diarioEventi.shift();
@@ -365,8 +370,55 @@ app.use(express.json({ limit: '50mb' }));
 //app.use(cors());
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius e Gemini
+// 🔥 RAM CACHE CON AUTO-PULIZIA (Anti Memory-Leak per Railway)
 const scanCache = new Map();
-const CACHE_TTL_MS = 60000; // 📉 Alzato a 60 secondi (salva le chiamate AI)
+const CACHE_TTL_MS = 60000;
+
+// Pulisce le vecchie voci di cache ogni 5 minuti per salvare la RAM
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of scanCache.entries()) {
+        if (now - val.timestamp > CACHE_TTL_MS) scanCache.delete(key);
+    }
+}, 300000);
+
+// 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms di latenza nello scan)
+let macroMarketData = {
+    memeChange24h: 0,
+    memeVolM: 0,
+    marketTrend: "NEUTRO",
+    hudColor: "#ffaa00",
+    marketIcon: "⚖️",
+    solPriceUsd: 150
+};
+
+async function aggiornaMacroMercato() {
+    try {
+        const [wif, bonk, sol] = await Promise.all([
+            fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=WIFUSDT").then(r => r.json()),
+            fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BONKUSDT").then(r => r.json()),
+            fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT").then(r => r.json())
+        ]);
+
+        const change = (((parseFloat(wif.priceChangePercent || 0) + parseFloat(bonk.priceChangePercent || 0)) / 2)).toFixed(2);
+        const vol = (((parseFloat(wif.quoteVolume || 0) + parseFloat(bonk.quoteVolume || 0)) / 1_000_000)).toFixed(1);
+        
+        let trend = "NEUTRO", color = "#ffaa00", icon = "⚖️";
+        if (change >= 3) { trend = "RISK-ON"; color = "#00e676"; icon = "🔥"; }
+        else if (change <= -3) { trend = "RISK-OFF"; color = "#ff4d4d"; icon = "🩸"; }
+
+        macroMarketData = {
+            memeChange24h: change,
+            memeVolM: vol,
+            marketTrend: trend,
+            hudColor: color,
+            marketIcon: icon,
+            solPriceUsd: parseFloat(sol.price || 150)
+        };
+    } catch (e) {}
+}
+setInterval(aggiornaMacroMercato, 45000);
+aggiornaMacroMercato(); // Prima esecuzione immediata all'avvio
 
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 500ms
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 150)));// 1. ANALISI DEL BUNDLE INIZIALE E BOT
@@ -472,11 +524,11 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     // 🔥 ORACOLO FEES DINAMICO BASATO SULLA VOLATILITÀ
     const volatilita = orderFlowData ? orderFlowData.volatilità : "NORMALE";
     if (txMinuto > 45 || volatilita === "ESTREMA") {
-        risultato.raccomandazioneFees = { slippage: "20%", fee: "0.006 SOL", text: "🔥 GUERRA SUI BLOCCHI" };
+        risultato.raccomandazioneFees = { slippage: "20%", fee: "0.006 SOL", text: "BLOCK WAR" };
     } else if (txMinuto > 15 || volatilita === "ALTA") {
-        risultato.raccomandazioneFees = { slippage: "8%", fee: "0.002 SOL", text: "⚡ ALTA CONGESTIONE" };
+        risultato.raccomandazioneFees = { slippage: "8%", fee: "0.002 SOL", text: "HIGH CONGESTION" };
     } else {
-        risultato.raccomandazioneFees = { slippage: "2%", fee: "0.0001 SOL", text: "🟢 RETE FLUIDA" };
+        risultato.raccomandazioneFees = { slippage: "2%", fee: "0.0001 SOL", text: "FLUID NETWORK" };
     }
 
     // 💣 CALCOLO SOGLIA DI LIQUIDAZIONE (INTENTO DEL BUNDLE)
@@ -487,21 +539,21 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     }
 
     if (bundleSupplyPct >= 20) {
-        risultato.azione = "DUMP PROGRAMMATO"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
-        risultato.testo = `📈 Simulazione: 🚨 BUNDLE PREDATORIO (${bundleSupplyPct}%). Il creatore aspetta liquidità. Soglia di scarico stimata a $${sogliaDump.toLocaleString()} MC.`;
-        risultato.simulatoreTesto = `⛔ NON ENTRARE: Stanno aspettando che i retail iniettino SOL per scaricare.`;
+        risultato.azione = "SCHEDULED DUMP"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
+        risultato.testo = `Simulation: PREDATORY BUNDLE (${bundleSupplyPct}%). Creator waiting for liquidity. Est. dump threshold: $${sogliaDump.toLocaleString()} MC.`;
+        risultato.simulatoreTesto = `AVOID: Waiting for retail to inject SOL before dumping.`;
     } 
     else if (mcAttuale >= 45000 && mcAttuale <= 69000) {
         if (clusterRisk > 0 || isFakeDev) {
-            risultato.azione = "🚨 DUMP PRE-RAYDIUM"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
-            risultato.testo = `📈 Simulazione: ☠️ ZONA GRADUATION. I bot dumperanno prima dei $69k per evitare i lock di Raydium.`;
-            risultato.simulatoreTesto = `⛔ PERICOLO: Dump matematico imminente prima della migrazione.`;
+            risultato.azione = "PRE-RAYDIUM DUMP"; risultato.coloreAzione = "#ff4d4d"; risultato.tradeValido = false;
+            risultato.testo = `Simulation: GRADUATION ZONE. Bots will dump before $69k to avoid Raydium lock.`;
+            risultato.simulatoreTesto = `DANGER: Mathematical dump imminent before migration.`;
         } else {
             nostraUscita = 69000; 
-            risultato.azione = "🟢 PUSH TO RAYDIUM"; risultato.coloreAzione = "#00e676";
-            risultato.testo = `📈 Simulazione: 🚀 Volume organico (${orderFlowData ? orderFlowData.buyPressure : 50}% Buy). Target Raydium: $69k.`;
+            risultato.azione = "PUSH TO RAYDIUM"; risultato.coloreAzione = "#00e676";
+            risultato.testo = `Simulation: Organic Volume (${orderFlowData ? orderFlowData.buyPressure : 50}% Buy). Target Raydium: $69k.`;
         }
-    } 
+    }
     else {
         // Calcolo Target Dinamico basato sull'Order Flow
         const buyPressure = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
@@ -637,8 +689,8 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
     let sybilStr = "Too early to map network";
     if (sybilData) {
         sybilStr = sybilData.rilevato 
-            ? `🚨 DANGER: ${sybilData.numeroWallet} wallets control ${sybilData.supplyControllata}% (Main Funder: ${sybilData.funderMadre}). Selling: ${sybilData.inVendita}`
-            : "🟢 CLEAN: Independent Top Holders. No Mixer detected.";
+            ? `DANGER: ${sybilData.numeroWallet} wallets control ${sybilData.supplyControllata}% (Main Funder: ${sybilData.funderMadre}). Selling: ${sybilData.inVendita}`
+            : "CLEAN: Independent Top Holders. No Mixer detected.";
     }
 
     const fedinaStr = fedinaDev ? JSON.stringify(fedinaDev) : "No data";
@@ -724,13 +776,13 @@ async function analizzaBattitoCardiaco(mintPubKey) {
 
         let stato = "", colore = "", blocco = false;
         if (secondiDaUltimaTx > 30 || txInLast60s < 5) {
-            stato = "☠️ ZERO LIQUIDITÀ (Trappola)"; colore = "#ff4d4d"; blocco = true;
+            stato = "ZERO LIQUIDITY (TRAP)"; colore = "#ff4d4d"; blocco = true;
         } else if (txInLast60s < 15) {
-            stato = "⚠️ MORENTE (Bassi scambi)"; colore = "#ffaa00"; blocco = false;
+            stato = "DYING (LOW VOLUME)"; colore = "#ffaa00"; blocco = false;
         } else if (txInLast60s < 40) {
-            stato = "🟢 SANO (Buon ritmo)"; colore = "#00e676"; blocco = false;
+            stato = "HEALTHY (GOOD PACE)"; colore = "#00e676"; blocco = false;
         } else {
-            stato = "🔥 IPER-ATTIVO (FOMO)"; colore = "#00aaff"; blocco = false;
+            stato = "HYPER-ACTIVE (FOMO)"; colore = "#00aaff"; blocco = false;
         }
 
         return { stato, txMinuto: txInLast60s, colore, blocco, secondiDaUltimaTx: secondiDaUltimaTx > 0 ? secondiDaUltimaTx : 0 };
@@ -1115,7 +1167,7 @@ async function analizzaReteSybil(arrayDiWallet) {
 
     return {
         rilevato: false,
-        messaggio: "🟢 Rete Pulita: I compratori sembrano avere origini finanziarie indipendenti."
+        messaggio: " Rete Pulita: I compratori sembrano avere origini finanziarie indipendenti."
     };
 }
 async function analizzaFedinaPenaleDev(devWalletAddress, currentTokenMint) {
@@ -1348,27 +1400,23 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     }
 }
 // =====================================================================
-// 🦊 MOTORE EVM (ROBINHOOD CHAIN, BASE, ARBITRUM) - A COSTO ZERO
+// 🦊 MOTORE EVM AVANZATO: ANTI-HONEYPOT & LIQUIDITY CHECK (COSTO 0)
+// =====================================================================
+// =====================================================================
+// 🦊 MOTORE EVM AVANZATO: ANTI-HONEYPOT & LIQUIDITY CHECK (COSTO 0)
 // =====================================================================
 async function analizzaTokenEVM(tokenAddress) {
     try {
-        console.log(`\n🦊 Scansione EVM via DexScreener per: ${tokenAddress}`);
+        console.log(`\n🦊 Scansione Forense EVM per: ${tokenAddress}`);
         
-        // 🔥 FIX 1: Usiamo /search?q= invece di /tokens/ per supportare sia Pair che Token address!
         const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`);
-        
-        if (!dexResp.ok) {
-            throw new Error("DexScreener API offline or rate limited.");
-        }
+        if (!dexResp.ok) throw new Error("DexScreener API offline.");
 
         const dexData = await dexResp.json();
-
-        // 🔥 FIX 2: Tradotto in inglese e gestito il fallback in modo sicuro
         if (!dexData.pairs || dexData.pairs.length === 0) {
-            throw new Error("Token not found on DexScreener (Unsupported network or zero liquidity).");
+            throw new Error("Token not found or zero liquidity pools.");
         }
 
-        // Estrae la pool con più liquidità
         const mainPair = dexData.pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
 
         const chain = mainPair.chainId.toUpperCase();
@@ -1376,44 +1424,101 @@ async function analizzaTokenEVM(tokenAddress) {
         const fdvUsd = mainPair.fdv || 0;
         const volume24h = mainPair.volume?.h24 || 0;
         const ageMinutes = mainPair.pairCreatedAt ? (Date.now() - mainPair.pairCreatedAt) / 60000 : 0;
+        
+        const txBuys = (mainPair.txns?.h1?.buys || 0) + (mainPair.txns?.m5?.buys || 0);
+        const txSells = (mainPair.txns?.h1?.sells || 0) + (mainPair.txns?.m5?.sells || 0);
 
-        // Logica euristica per reti EVM
-        let score = 50; let rischio = "MODERATE"; let azione = "WAIT"; let coloreAzione = "#ffaa00";
-        let logAnalisi = [
-            `🦊 Detected Network: ${chain}`,
-            `💧 Locked Liquidity: $${liqUsd.toLocaleString()}`,
-            `📊 Market Cap / FDV: $${fdvUsd.toLocaleString()}`
-        ];
+        // 🔍 TEST MATEMATICI SPIETATI
+        let scorePenalita = 0;
+        let bandiereRosse = [];
+
+        // 1. Test Honeypot (Nessuno riesce a vendere)
+        if (txBuys >= 15 && txSells === 0) {
+            scorePenalita += 80;
+            bandiereRosse.push("CRITICAL HONEYPOT: Multiple buys detected with 0 sells. Code likely blocks sell orders.");
+        }
+
+        // 2. Test Squilibrio Liquidità / Valutazione
+        const fdvToLiqRatio = liqUsd > 0 ? (fdvUsd / liqUsd) : 999;
+        if (fdvToLiqRatio > 50) {
+            scorePenalita += 40;
+            bandiereRosse.push(`GHOST LIQUIDITY: FDV/Liq ratio is ${fdvToLiqRatio.toFixed(0)}:1. Severe price collapse risk upon exit.`);
+        }
+
+        // 3. Liquidità Insufficiente
+        if (liqUsd < 6000) {
+            scorePenalita += 50;
+            bandiereRosse.push(`LOW CAPITAL: Pool liquidity is under $6k ($${liqUsd.toLocaleString()}). High slip hazard.`);
+        }
+
+        // 4. Token Neonati
+        if (ageMinutes < 20) {
+            scorePenalita += 20;
+            bandiereRosse.push("NEWBORN CONTRACT: Less than 20 minutes old. Extreme volatility.");
+        }
+
+        // Calcolo Punteggio Dinamico
+        let finalScore = Math.max(10, Math.min(95, 100 - scorePenalita));
+        let rischioStatus = finalScore < 45 ? "EXTREME / SCAM RISK" : (finalScore < 70 ? "HIGH / SPECULATIVE" : "MODERATE / ACTIVE POOL");
+        let verdictAction = finalScore < 45 ? "AVOID" : (finalScore < 70 ? "SCALP" : "RIDE");
+
+        // 🧠 GENERAZIONE DINAMICA E INTELLIGENTE DEI TESTI EVM (ZERO EMOJI)
+        let testoDev = "";
+        let testoSupply = "";
+
+        if (txBuys > 0 && txSells === 0 && ageMinutes > 5) {
+            testoDev = `HONEYPOT ALERT: ${txBuys} buys and 0 sells recorded. Smart contract likely blocks retail from exiting.`;
+        } else if (ageMinutes < 60) {
+            testoDev = `FRESH EVM CONTRACT (${chain}). Age: ${Math.round(ageMinutes)} mins. Code unverified, high volatility expected.`;
+        } else {
+            const ratio = txSells > 0 ? (txBuys / txSells).toFixed(1) : txBuys;
+            testoDev = `ACTIVE EVM CONTRACT (${chain}). Buy/Sell flow is operational (Ratio: ${ratio}). No immediate honeypot signs.`;
+        }
+
+        if (bandiereRosse.length > 0 && !testoDev.includes("HONEYPOT")) {
+            testoDev = `EVM RISK: ${bandiereRosse[0]}`;
+        }
 
         if (liqUsd < 5000) {
-            score = 90; rischio = "EXTREME / TRAP"; azione = "AVOID"; coloreAzione = "#ff4d4d";
-            logAnalisi.push("🛑 Illiquidity Risk: Impossible to sell without crashing the price.");
-        } else if (ageMinutes < 60 && liqUsd > 20000) {
-            score = 30; rischio = "TRENDING (New Launch)"; azione = "QUICK SCALP"; coloreAzione = "#00e676";
-            logAnalisi.push("🚀 Launch pressure. High volatility detected.");
+            testoSupply = `DEX Liquidity is extremely low ($${(liqUsd/1000).toFixed(1)}k). Any sell order will crash the chart.`;
+        } else {
+            const poolHealth = fdvToLiqRatio > 30 ? "FRAGILE (Ghost Liquidity)" : (fdvToLiqRatio > 10 ? "MODERATE" : "THICK & HEALTHY");
+            testoSupply = `DEX POOL: $${(liqUsd/1000).toFixed(1)}k. FDV/Liq Ratio: ${fdvToLiqRatio.toFixed(1)}:1. Supply structure looks ${poolHealth}.`;
         }
 
         const risultatoEVM = {
-            isEVM: true, // 🔥 IL SEGNALE SEGRETO PER IL FRONTEND
-            score: score, rischio: rischio, dettagli: logAnalisi,
-            graficoAttivo: false, devWallet: "EVM Smart Contract",
+            isEVM: true,
+            score: finalScore,
+            rischio: rischioStatus,
+            dettagli: bandiereRosse.length > 0 ? bandiereRosse : ["Healthy buy/sell transaction balance", `Liquidity backed: $${liqUsd.toLocaleString()}`],
+            graficoAttivo: false,
+            devWallet: mainPair.pairAddress || "EVM Pool",
             apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
             
-            // 🔥 FIX: Aggiungiamo 'advice' per far apparire i due box statici
+            // Dati strutturati puliti per la UI
             advice: {
-                devStatus: `EVM Network (${chain}). On-chain Dev tracking disabled.`,
-                topHoldersStatus: `DEX Liquidity: $${(liqUsd/1000).toFixed(1)}k. Sybil scan N/A.`
+                devStatus: testoDev,
+                topHoldersStatus: testoSupply
             },
             
-            vitaToken: ageMinutes.toFixed(1), azione: azione, fugaColor: coloreAzione,
-            hud: { change: mainPair.priceChange?.h24 || 0, volume: (volume24h/1000000).toFixed(2), trend: chain, color: "#00aaff", icon: "🦊" },
-            tradeValido: liqUsd >= 5000,
-            simulatoreTesto: `EVM Data Simulation (${chain}). Current Liquidity: $${(liqUsd/1000).toFixed(1)}k`,
-            moltiplicatore: 1.5, targetMC: fdvUsd * 1.5, prezzoSol: 0,
-            tradingFees: { slippage: "5%", fee: "Network Gas", text: chain }
+            vitaToken: ageMinutes.toFixed(1),
+            azione: verdictAction,
+            fugaColor: finalScore >= 70 ? "#00e676" : (finalScore >= 45 ? "#ffaa00" : "#ff4d4d"),
+            hud: { 
+                change: mainPair.priceChange?.h24 || 0, 
+                volume: (volume24h / 1000000).toFixed(2), 
+                trend: chain, 
+                color: finalScore >= 70 ? "#00e676" : "#ff4d4d", 
+                icon: "[EVM]" // Al posto della volpe, un tag più istituzionale
+            },
+            tradeValido: finalScore >= 50,
+            simulatoreTesto: `EVM Pool (${chain}) — Liq: $${(liqUsd/1000).toFixed(1)}k | FDV: $${(fdvUsd/1000).toFixed(1)}k`,
+            moltiplicatore: finalScore >= 50 ? 1.4 : 0,
+            targetMC: finalScore >= 50 ? fdvUsd * 1.4 : 0,
+            prezzoSol: 0,
+            tradingFees: { slippage: finalScore < 50 ? "50%" : "3%", fee: "EVM Gas", text: chain }
         };
 
-        // SALVATAGGIO IN MEMORIA: Così il Giudice AI potrà processarlo senza accorgersi della differenza!
         scanCache.set(tokenAddress, { timestamp: Date.now(), data: risultatoEVM });
         return risultatoEVM;
 
@@ -1498,176 +1603,133 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     }
     
 
-    // 🚀 INCAPSULIAMO LA TUA LOGICA IN UNA PROMISE
+    // 🚀 INCAPSULIAMO LA LOGICA NELLA PROMISE AD ALTE PRESTAZIONI
     const scanPromise = (async () => {
         console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
         const mintPubKey = new PublicKey(tokenMint);
 
-        // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
-        // 🛡️ 1° RESPIRO: Prima di calcolare il battito cardiaco
-        await delay(200);
-        let velocityData = { blocco: false, txMinuto: 0, secondiDaUltimaTx: 0, stato: "Sconosciuto", colore: "#ffaa00" };
-        try {
-            velocityData = await analizzaBattitoCardiaco(mintPubKey);
-        } catch (e) {
-            console.log("⚠️ Battito cardiaco saltato per limite RPC (429), procedo con l'analisi...");
+        // ⚡ FASE 1: Estrazione Dati Esterni + Firme Base in PARALLELO (Zero attese a cascata)
+        const [dexDataRaw, pumpDataRaw, rawSignatures] = await Promise.all([
+            fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`).then(r => r.json()).catch(() => ({})),
+            fetch(`https://frontend-api.pump.fun/coins/${tokenMint}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            getRPC().getSignaturesForAddress(mintPubKey, { limit: 25 }).catch(() => [])
+        ]);
+
+        // Calcolo rapido FDV e data creazione
+        let currentFdv = 0;
+        let pairCreatedAt = null;
+
+        if (dexDataRaw.pairs && dexDataRaw.pairs.length > 0) {
+            currentFdv = dexDataRaw.pairs[0].fdv || 0;
+            pairCreatedAt = dexDataRaw.pairs[0].pairCreatedAt;
+        } else if (pumpDataRaw && pumpDataRaw.usd_market_cap) {
+            currentFdv = pumpDataRaw.usd_market_cap;
+            pairCreatedAt = pumpDataRaw.created_timestamp;
         }
-        
-        // Blocchiamo l'analisi SOLO se siamo certi che il token è morto (es. ultima tx 2 ore fa), 
-        // non se Helius ci ha dato un errore temporaneo 429.
-        if (velocityData.blocco && velocityData.secondiDaUltimaTx > 300) {
+
+        // 🛡️ CHECK VELOCE: Battito cardiaco calcolato direttamente sulle firme già scaricate
+        const nowSec = Math.floor(Date.now() / 1000);
+        let txInLast60s = 0;
+        let lastTxTime = rawSignatures.length > 0 ? (rawSignatures[0].blockTime || nowSec) : nowSec;
+        let secondiDaUltimaTx = Math.max(0, nowSec - lastTxTime);
+
+        rawSignatures.forEach(sig => {
+            if (sig.blockTime && (nowSec - sig.blockTime <= 60)) txInLast60s++;
+        });
+
+        // Se il token non ha scambi da oltre 5 minuti, blocca ed esci subito risparmiando chiamate AI
+        if (secondiDaUltimaTx > 300 && rawSignatures.length > 0) {
             return {
-                score: 90, rischio: "MORTO / ILLIQUIDO", dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
+                score: 90, rischio: "MORTO / ILLIQUIDO",
+                dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
                 graficoAttivo: false, vitaToken: "N/A", azione: "EVITARE", fugaColor: "#ff4d4d",
-                hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" }, tradeValido: false,
-                simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Rischio token illiquido o abbandonato.`, moltiplicatore: 0, targetMC: 0, prezzoSol: 150
+                hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" },
+                tradeValido: false,
+                simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Token illiquido o abbandonato.`,
+                moltiplicatore: 0, targetMC: 0, prezzoSol: macroMarketData.solPriceUsd
             };
         }
 
-        // 🛡️ 2° RESPIRO: Prima di controllare i bot del blocco 0
-        await delay(200);
-        const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey);
-      
-        
-        let currentFdv = 0; let pairCreatedAt = null; 
-        try {
-            const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
-            const dexData = await dexResp.json();
-            if (dexData.pairs && dexData.pairs.length > 0) {
-                currentFdv = dexData.pairs[0].fdv || 0; pairCreatedAt = dexData.pairs[0].pairCreatedAt; 
-            }
-        } catch(e) {}
-
-        if (currentFdv === 0) {
-            try {
-                const pumpResp = await fetch(`https://frontend-api.pump.fun/coins/${tokenMint}`);
-                if (pumpResp.ok) {
-                    const pumpData = await pumpResp.json();
-                    if (pumpData && pumpData.usd_market_cap) {
-                        currentFdv = pumpData.usd_market_cap;
-                        if (pumpData.created_timestamp) pairCreatedAt = pumpData.created_timestamp;
-                    }
-                }
-            } catch(e) {}
-        }
-        // 🛡️ 3° RESPIRO: Prima dell'estrazione generale delle firme
-        
-        console.log("⚡ Estrazione Firme e Base...");
-        
-        let signatures = [];
-        try {
-            // Abbassiamo la profondità da 50 a 20 per salvare le API gratuite!
-            signatures = await getRPC().getSignaturesForAddress(mintPubKey, { limit: 20 });
-        } catch (e) {
-            console.log("⚠️ Helius in Rate Limit (429). Attivo il paracadute per non crashare...");
-        }
-
-        let cabalaData = null;
-        try {
-            cabalaData = await analizzaCabalaSupply(mintPubKey);
-        } catch (e) {}
-
-       
-
-        // 🧠 2. IDENTIFICAZIONE DEL DEV E DELL'ETÀ DEL TOKEN
-        let walletAgeDays = null;
-        let walletAgeHours = 0;
-        let isFakeDev = false;
-        let logAnalisi = [];
-        let devWallet = "Sconosciuto";
-        let fedinaDev = null;
-
+        // Calcolo età del token
         let tokenAgeMinutes = 0;
         if (pairCreatedAt) {
             tokenAgeMinutes = (Date.now() - pairCreatedAt) / 60000;
-        } else if (signatures.length > 0) {
-            const oldestTx = signatures[signatures.length - 1];
-            if (oldestTx.blockTime) tokenAgeMinutes = (Date.now() - (oldestTx.blockTime * 1000)) / 60000;
+        } else if (rawSignatures.length > 0 && rawSignatures[rawSignatures.length - 1].blockTime) {
+            tokenAgeMinutes = (Date.now() - (rawSignatures[rawSignatures.length - 1].blockTime * 1000)) / 60000;
         }
 
-        if (signatures.length > 0) {
-            const launchTx = signatures[signatures.length - 1];
-            const txDetails = await getRPC().getParsedTransaction(launchTx.signature, { maxSupportedTransactionVersion: 0 });
-            if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
-                devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
-                
-                // 🔥 BOOST VELOCITÀ: Controlla fedina e età del wallet contemporaneamente!
-                const [risultatoFedina, risultatoEta] = await Promise.all([
-                    analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
-                    calcolaEtaWallet(devWallet).catch(() => null)
-                ]);
-                fedinaDev = risultatoFedina;
-                walletAgeDays = risultatoEta;
-                if (walletAgeDays !== null) {
-                    walletAgeHours = walletAgeDays * 24;
-                    if (walletAgeDays < 1) {
-                        isFakeDev = true;
-                        // PRIMA: logAnalisi.push("🛑 FAKE DEV: Wallet creato da meno di 24 ore!");
-                        logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
-                    }
-                }
-            }
-        }
-
-        await delay(200);
-
-        // 📊 3. CALCOLO VOLUMI E ORDER FLOW
-        console.log("⚡ Estrazione Transazioni (UBI & Order Flow unificati)...");
-        console.log("⚡ Estrazione Transazioni (Order Flow rapido)...");
-const recentSigs = signatures.slice(0, 10).map(s => s.signature); // Solo le ultime 10 (bastano e avanzano)
-let parsedTxs = [];
-
-try {
-    // Zero cicli For lenti, spariamo la chiamata in blocco unico!
-    parsedTxs = await getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 });
-} catch(e) {
-    console.log("⚠️ Helius ha skippato le tx parsed, uso i metadati base.");
-}
+        // ⚡ FASE 2: Analisi Approfondita con Parsed Transactions
+        const recentSigs = rawSignatures.slice(0, 10).map(s => s.signature);
+        
+        // Eseguiamo in parallelo: Bot Launch, Parsed Txs per Order Flow, e i controlli Sybil
+        const [earlyBotData, parsedTxs, microDumpData, sybilData, cabalaData] = await Promise.all([
+            analizzaBotEarlyLaunch(mintPubKey).catch(() => ({ potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Analisi bot base." })),
+            recentSigs.length > 0 ? getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 }).catch(() => []) : Promise.resolve([]),
+            analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, scoreAggiuntivo: 0, testo: "Nessun dump" })),
+            analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" })),
+            analizzaCabalaSupply(mintPubKey).catch(() => null)
+        ]);
 
         const ubiData = analizzaUBI_Locale(parsedTxs);
         const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
 
-        await delay(200);
+        // 🧠 FASE 3: Identificazione Dev
+        let devWallet = "Sconosciuto";
+        let isFakeDev = false;
+        let walletAgeHours = 0;
+        let fedinaDev = null;
+        let logAnalisi = [];
 
-        // 🕵️ 4. ANALISI MANIPOLAZIONE
-        console.log("⚡ Analisi Dump e Sybil Tree in parallelo...");
-        
-        // 🔥 BOOST VELOCITÀ: Spariamo le API nello stesso momento!
-        const [microDumpData, sybilData] = await Promise.all([
-            analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, testo: "Nessun dump" })),
-            analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" }))
-        ]);
-        // 🔥 5. LO SCIAME AI ENTRA IN AZIONE
+        if (rawSignatures.length > 0) {
+            const launchSig = rawSignatures[rawSignatures.length - 1].signature;
+            try {
+                const txDetails = await getRPC().getParsedTransaction(launchSig, { maxSupportedTransactionVersion: 0 });
+                if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
+                    devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                    
+                    const [resFedina, resEta] = await Promise.all([
+                        analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
+                        calcolaEtaWallet(devWallet).catch(() => null)
+                    ]);
+                    fedinaDev = resFedina;
+                    if (resEta !== null) {
+                        walletAgeHours = resEta * 24;
+                        if (resEta < 1) {
+                            isFakeDev = true;
+                            logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // ⚡ FASE 4: Swarm Intelligence & Simulatore Rendimento
         const tacticalAdvice = await eseguiSwarmIntelligence(
-            walletAgeHours, 
-            ubiData, 
-            earlyBotData.supplyBundledPct, 
-            isFakeDev, 
-            sybilData, 
-            fedinaDev,
-            orderFlowData,
-            lingua
+            walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
+            isFakeDev, sybilData, fedinaDev, orderFlowData, lingua
         );
+
         logAnalisi.push(earlyBotData.indicatoreTesto);
-        logAnalisi.push(`✅ Battito Cardiaco: ${velocityData.txMinuto} tx/min (Ultima tx: ${velocityData.secondiDaUltimaTx}s fa) - ${velocityData.stato}`);
+        logAnalisi.push(`✅ Heartbeat: ${txInLast60s} tx/min (Last: ${secondiDaUltimaTx}s ago)`);
         if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
         if (microDumpData && microDumpData.testo) logAnalisi.push(microDumpData.testo);
         if (sybilData && sybilData.testo) logAnalisi.push(sybilData.testo);
 
         const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
-        let simulazione = calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, earlyBotData.supplyBundledPct, tokenAgeMinutes, velocityData.txMinuto, orderFlowData);
+        let simulazione = calcolaSimulazioneRendimento(
+            currentFdv, isFakeDev, clusterRisk, 
+            earlyBotData.supplyBundledPct, tokenAgeMinutes, txInLast60s, orderFlowData
+        );
 
-        // 🔥 NUOVO: VALUTAZIONE PANIC SELL
-        let sogliaDump = 0;
-        if (earlyBotData.supplyBundledPct > 0) {
-            sogliaDump = Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50));
-        }
-        
+        // Calcolo Panic Sell
+        let sogliaDump = earlyBotData.supplyBundledPct > 0 
+            ? Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50)) 
+            : 0;
+
         const statoPanicSell = valutaInnescoPanicSell(currentFdv, sogliaDump, microDumpData, orderFlowData);
-        
         if (statoPanicSell.innescato) {
             simulazione.azione = "🚨 PANIC SELL AUTO-TRIGGER";
-            simulazione.coloreAzione = "#ff0000"; 
+            simulazione.coloreAzione = "#ff0000";
             simulazione.simulatoreTesto = statoPanicSell.payloadEmergenza.log;
             simulazione.raccomandazioneFees = { 
                 slippage: statoPanicSell.payloadEmergenza.slippage, 
@@ -1676,58 +1738,27 @@ try {
             };
         }
 
-        if (cabalaData && cabalaData.pericolo) simulazione.tradeValido = false; 
-        if (microDumpData && microDumpData.pericolo) {
-            simulazione.tradeValido = false;
-            simulazione.azione = "MICRO-DUMPING IN CORSO";
-            simulazione.coloreAzione = "#ff4d4d";
-            simulazione.testo = `📈 Simulazione: ☠️ TRAPPOLA LENTA. I Top Holders stanno svuotando la liquidità. Fuggire.`;
-            simulazione.simulatoreTesto = `⛔ OPERAZIONE BLOCCATA: Rischio prosciugamento capitale.`;
-        }
-
         logAnalisi.push(simulazione.testo);
 
-        let memeChange24h = 0; let memeVolM = 0; let marketTrend = "Analisi..."; let hudColor = "#fff"; let marketIcon = "📊";
-        try {
-            const [wifResp, bonkResp] = await Promise.all([ fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=WIFUSDT"), fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BONKUSDT") ]);
-            const wifData = await wifResp.json(); const bonkData = await bonkResp.json();
-            memeChange24h = (((parseFloat(wifData.priceChangePercent||0) + parseFloat(bonkData.priceChangePercent||0)) / 2)).toFixed(2);
-            memeVolM = (((parseFloat(wifData.quoteVolume||0) + parseFloat(bonkData.quoteVolume||0)) / 1000000)).toFixed(1);
-            if (memeChange24h >= 3) { marketTrend = "RISK-ON"; hudColor = "#00e676"; marketIcon = "🔥"; } 
-            else if (memeChange24h <= -3) { marketTrend = "RISK-OFF"; hudColor = "#ff4d4d"; marketIcon = "🩸"; } 
-            else { marketTrend = "NEUTRO"; hudColor = "#ffaa00"; marketIcon = "⚖️"; }
-        } catch(e) {}
-
-        let solPriceUsd = 150;
-        try {
-            const solResp = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT");
-            const solData = await solResp.json();
-            if (solData.price) solPriceUsd = parseFloat(solData.price);
-        } catch(e) {}
-
+        // Calcolo Score Finale
         let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
         if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
         if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
-        if (earlyBotData.supplyBundledPct >= 20) finalScore = 100; 
+        if (earlyBotData.supplyBundledPct >= 20) finalScore = 100;
         if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
-
-        let rischioStatus = finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO");
 
         const risultatoFinale = {
             score: finalScore,
-            rischio: rischioStatus,
+            rischio: finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO"),
             dettagli: logAnalisi,
             graficoAttivo: false,
             datiGrafico: null,
             devWallet: devWallet,
             advice: tacticalAdvice,
             apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
-            
-            // 🛡️ ALIAS MULTIPLI PER EVITARE QUALSIASI ERRORE SULL'ESTENSIONE
             devHistory: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
             fedinaDev: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
-            
-            bundleShield: earlyBotData || { supplyBundledPct: 0, bundleSlot0: false },
+            bundleShield: earlyBotData,
             earlyRadar: {
                 potenzialeVolume: earlyBotData.potenzialeVolumeBot,
                 bundleSlot0: earlyBotData.bundleSlot0,
@@ -1735,30 +1766,31 @@ try {
                 masterWalletFull: earlyBotData.funderComune || "Nessuno",
                 masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
             },
-            
-            sybil: sybilData || { rilevato: false, testo: "Pulito" },
-            sanguisughe: microDumpData || { pericolo: false, testo: "Nessun dump" },
-            
+            sybil: sybilData,
+            sanguisughe: microDumpData,
             vitaToken: tokenAgeMinutes.toFixed(1),
-            azione: simulazione.azione, 
-            ctoStatus: simulazione.ctoStatus, 
-            fugaColor: simulazione.coloreAzione, 
-            hud: { change: memeChange24h, volume: memeVolM, trend: marketTrend, color: hudColor, icon: marketIcon },
+            azione: simulazione.azione,
+            ctoStatus: simulazione.ctoStatus,
+            fugaColor: simulazione.coloreAzione,
+            hud: { 
+                change: macroMarketData.memeChange24h, 
+                volume: macroMarketData.memeVolM, 
+                trend: macroMarketData.marketTrend, 
+                color: macroMarketData.hudColor, 
+                icon: macroMarketData.marketIcon 
+            },
             tradeValido: simulazione.tradeValido,
             panicSellAttivo: statoPanicSell.innescato,
             motivoPanic: statoPanicSell.motivo,
             simulatoreTesto: simulazione.simulatoreTesto,
             moltiplicatore: simulazione.moltiplicatore,
             targetMC: simulazione.targetMC,
-            prezzoSol: parseFloat(solPriceUsd),
+            prezzoSol: macroMarketData.solPriceUsd,
             tradingFees: simulazione.raccomandazioneFees
         };
-            
-            
-        // Salvataggio forzato in Cache (anche in caso di errore AI, per non rompere la catena)
-        scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
 
-        return risultatoFinale; // Restituiamo l'oggetto alla Promise
+        scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
+        return risultatoFinale;
     })();
 
     // INSERIAMO LA PROMISE NEL LUCCHETTO
@@ -2039,8 +2071,10 @@ JSON FORMAT:
             </div>
         `;
         
+        // Invia il referto al frontend
         res.json({ 
             success: true, 
+            score: globalScore, // 🔥 FIX: Ora il frontend riceve il punteggio reale per X!
             verdetto: reportHTML,
             plan: authStatus.plan,        
             scansLeft: authStatus.scansLeft 
@@ -2494,10 +2528,10 @@ async function valutaEsplosivitaToken(tokenMint, walletTarget) {
                     const mcEntrata = await ottieniPrezzoToken(tokenMint);
 
                     if (!mcEntrata) {
-                        console.log(`⚠️ [AUTO-SNIPER] Impossibile leggere il prezzo. Trade annullato.`);
+                        console.log(` [AUTO-SNIPER] Impossibile leggere il prezzo. Trade annullato.`);
                     } else {
-                        console.log(`🟢 [STALKER] Entrato a $${mcEntrata.toLocaleString()}!`);
-                        console.log(`👀 Mimetizzazione completata. Aspetto che la balena venda per uscire...`);
+                        console.log(` [STALKER] Entrato a $${mcEntrata.toLocaleString()}!`);
+                        console.log(` Mimetizzazione completata. Aspetto che la balena venda per uscire...`);
                         
                         // SALVIAMO NELLA MEMORIA STALKER
                         // SALVIAMO NELLA MEMORIA STALKER
