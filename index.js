@@ -1859,7 +1859,9 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 });
 
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
+// =====================================================================
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
+// =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
@@ -1869,30 +1871,28 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
             return res.status(400).json({ success: false, verdetto: "Invalid Token Address." });
         }
+        
         const lingua = req.query.lang || 'en'; 
+        const cacheKey = `${tokenMint}_${lingua}`; // 🔥 CHIAVE MULTILINGUA
 
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
         // 🔥 PASSAGGIO IP AL GATEKEEPER
-        // 🔥 PASSAGGIO IP AL GATEKEEPER
         authStatus = await checkAuthAndLimits(authToken, deviceId, req.ip);
         
         if (!authStatus.authorized) {
-            // Se la funzione checkAuthAndLimits ha restituito un messaggio specifico (es. Device Lock o Chiave errata)
             if (authStatus.message) {
                 return res.json({ 
                     success: false, 
                     tattica: "❌ **Access Denied**",
-                    puntoRottura: authStatus.message, // 👈 Qui passerà il testo con l'email "HelpTrading@proton.me"
-                    azione: "CONTACT_SUPPORT",        // 👈 Azione diversa! Così il frontend non mostra il tasto Upgrade
+                    puntoRottura: authStatus.message,
+                    azione: "CONTACT_SUPPORT",
                     plan: authStatus.plan || "unknown",
                     scansLeft: authStatus.scansLeft || 0
                 });
             } 
-            
-            // Se NON c'è un messaggio specifico, significa che è il classico utente FREE che ha finito le 5 scansioni
             return res.json({ 
                 success: false, 
                 tattica: "🔒 **Daily AI Limit Reached (0/5)**.",
@@ -1902,9 +1902,14 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
                 scansLeft: authStatus.scansLeft || 0
             });
         }
-// ... il resto continua uguale ...
 
-        const datiIniziali = scanCache.has(tokenMint) ? scanCache.get(tokenMint).data : null;
+        // 🧠 FIX BUG SOLANA/EVM: Cerca in memoria prima con la lingua, poi fa un fallback globale
+        let datiIniziali = null;
+        if (scanCache.has(cacheKey)) {
+            datiIniziali = scanCache.get(cacheKey).data;
+        } else if (scanCache.has(tokenMint)) {
+            datiIniziali = scanCache.get(tokenMint).data;
+        }
         
         if (!datiIniziali) {
             return res.json({ success: false, verdetto: "Insufficient data. Please run a base scan first." });
@@ -1921,14 +1926,12 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
 
         let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap loading");
 
-        // Trova queste costanti
         const devTxtStr = devStatusStr.toUpperCase();
         const bundleTxtStr = bundleInfo.toUpperCase();
         
-        // 🔥 NUOVO: Estraiamo il punteggio matematico per ancorare l'IA
+        // 🔥 ANCORAGGIO ALGORITMICO
         const baseScoreAlgoritmico = datiIniziali?.score || 50;
         
-        // 🔥 NUOVO: Mandato severo per l'IA
         let aiMandate = `Analyze the data cynically. Your final 'global_score' MUST stay very close to the Algorithmic Base Score (${baseScoreAlgoritmico}). EVM contracts carry inherent risk even if they flow normally. Do NOT inflate the score.`;
         
         if (devTxtStr.match(/RUG|FAKE|H OLD|GIOVAN|FRESH|GIORN|HONEYPOT/)) {
@@ -1986,15 +1989,13 @@ JSON FORMAT:
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let selectedModel = "deepseek/deepseek-chat"; 
         
-        // 🔥 FIX 2: Inseriamo CLAUDE 3.5 HAIKU come modello di punta per Anthropic
         const premiumModels = [
             "deepseek/deepseek-chat", 
             "openai/gpt-4o", 
-            "anthropic/claude-3.5-haiku" // Ultra-veloce, stabilissimo e intelligente
+            "anthropic/claude-3.5-haiku" 
         ];
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            // Se l'utente clicca Claude sull'estensione, lo instradiamo automaticamente su Haiku
             if (requestedModel.includes("claude")) {
                 selectedModel = "anthropic/claude-3.5-haiku";
             } else if (premiumModels.includes(requestedModel)) {
@@ -2002,13 +2003,8 @@ JSON FORMAT:
             } else {
                 selectedModel = "openai/gpt-4o"; 
             }
-            console.log(`💎 [PREMIUM/ADMIN] IA Selezionata: ${selectedModel}`);
-        } else {
-            selectedModel = "deepseek/deepseek-chat"; 
-            console.log(`🛡️ [STANDARD USER] IA Forzata a: ${selectedModel}`);
         }
 
-        // 🚀 CONNESSIONE A OPENROUTER
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
 
@@ -2030,10 +2026,8 @@ JSON FORMAT:
 
         let data = await response.json();
 
-        // 🪂 FIX 3: AUTO-FALLBACK SE CLAUDE DA' ERRORE!
+        // 🪂 FALLBACK
         if (data.error) {
-            console.log(`⚠️ Giudice Model ${selectedModel} bloccato (${data.error.message}). Fallback su DeepSeek!`);
-            
             response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: { 
@@ -2062,7 +2056,7 @@ JSON FORMAT:
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Risposta IA non valida o non in formato JSON`);
+            throw new Error(`Risposta IA non valida`);
         }
 
         const aiResult = JSON.parse(cleanText);
@@ -2070,42 +2064,29 @@ JSON FORMAT:
         let globalScore = aiResult.global_score || 50;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
-        // =====================================================================
-        // 🛑 KILL SWITCH MATEMATICO (Sicurezza Assoluta contro le allucinazioni IA)
-        // =====================================================================
-        
-        // Se la matematica rileva un rischio (score < 45) ma l'IA dà un voto alto
+        // 🛑 KILL SWITCH MATEMATICO
         if (baseScoreAlgoritmico < 45 && globalScore >= 50) {
-            console.log(`🛡️ KILL SWITCH: L'IA ha dato ${globalScore} a un token a rischio. Forzato a ${baseScoreAlgoritmico}.`);
             globalScore = baseScoreAlgoritmico; 
-            // Rimuove tag positivi e forza l'AVOID
             verdettoTesto = verdettoTesto.replace(/\[RIDE\]|\[SCALP\]/gi, '[AVOID]');
         }
         
-        // Se la matematica decreta un HONEYPOT, lo score crolla a 5 in modo assoluto
         if (devTxtStr.includes("HONEYPOT") && globalScore > 15) {
             globalScore = 5;
             verdettoTesto = "[AVOID] CRITICAL DANGER: Code logic blocks selling. Do not interact with this contract.";
         }
 
-        // 🎨 IMPOSTAZIONE COLORI
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
 
-        // 🏷️ SOSTITUZIONE TAG ISTITUZIONALE (Zero Emoji)
         verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">AVOID</span>');
         verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">SCALP</span>');
         verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">RIDE</span>');
 
-        // 📊 GENERAZIONE BARRE DELLE METRICHE
         let barsHTML = "";
         if(aiResult.metrics && aiResult.metrics.length > 0) {
             aiResult.metrics.forEach(m => {
                 let mScore = m.score;
-                
-                // Il Kill Switch interviene anche sulle singole barre: 
-                // se è un token truffa, nessuna metrica può superare il 60%
                 if (baseScoreAlgoritmico < 45 && mScore > 60) {
-                    mScore = Math.floor(Math.random() * 20) + 20; // Lo costringe tra il 20% e il 40%
+                    mScore = Math.floor(Math.random() * 20) + 20; 
                 }
 
                 const barColor = mScore >= 75 ? "#00e676" : (mScore >= 45 ? "#ffaa00" : "#ff4d4d");
@@ -2126,7 +2107,7 @@ JSON FORMAT:
             });
         }
 
-        // 🏗️ ASSEMBLAGGIO REPORT HTML CON DISCLAIMER
+        // 🏗️ ASSEMBLAGGIO REPORT HTML CON MICRO-DISCLAIMER
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2156,16 +2137,15 @@ JSON FORMAT:
                 </div>
                 <div style="padding-right: 5px;">${barsHTML}</div>
                 
-                <!-- 🛡️ DISCLAIMER LEGALE (Protezione per Te) -->
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #2d3142; text-align: center;">
-                    <span style="font-size: 0.6em; color: #555; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; display: block;">
+                <!-- 🛡️ MICRO-DISCLAIMER LEGALE (8px, Semitrasparente) -->
+                <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                    <span style="font-size: 8px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: block;">
                         Not Financial Advice. Risk models are algorithmic estimates and may contain errors.<br>Trading micro-cap tokens carries extreme risk of total loss.
                     </span>
                 </div>
             </div>
         `;
         
-        // 📤 INVIA IL REFERTO AL FRONTEND
         res.json({ 
             success: true, 
             score: globalScore,
@@ -2177,7 +2157,6 @@ JSON FORMAT:
     } catch (error) {
         console.error("❌ CRITICAL BACKEND ERROR:", error.message);
         
-        // 🌟 UX PREMIUM: Ora non può più crashare perché authStatus è dichiarato in alto!
         res.json({ 
             success: true, 
             verdetto: `
