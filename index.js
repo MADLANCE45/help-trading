@@ -1417,7 +1417,7 @@ async function analizzaTokenEVM(tokenAddress) {
         console.log(`\n🦊 Scansione Forense EVM Degen per: ${tokenAddress}`);
         
         // 1. FETCH DATI DI MERCATO (DexScreener)
-        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`);
+        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
         if (!dexResp.ok) throw new Error("DexScreener API offline.");
 
         const dexData = await dexResp.json();
