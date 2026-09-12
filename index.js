@@ -1598,65 +1598,67 @@ async function analizzaTokenEVM(tokenAddress) {
 // 4. API SCAN
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
-    const tokenMint = req.params.tokenMint;
-    const lingua = req.query.lang || 'en';
-
-    // 🛡️ ACCETTA SOLANA ED EVM
-    if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
-        return res.status(400).json({ error: "Invalid token address format." });
-    }
-
-    // CHIAVE UNICA PER TOKEN E LINGUA
-    const cacheKey = `${tokenMint}_${lingua}`;
-
-    // 🦊 EVM ROUTE
-    if (isValidEVMAddress(tokenMint)) {
-        try {
-            const dataEVM = await analizzaTokenEVM(tokenMint);
-            return res.json(dataEVM);
-        } catch (e) {
-            return res.status(500).json({ error: e.message });
-        }
-    }
-
-    avviaAscoltoLive(tokenMint);
-
-    // CONTROLLO CACHE MULTILINGUA
-    if (scanCache.has(cacheKey)) {
-        const cached = scanCache.get(cacheKey);
-        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
-            console.log(`⚡ CACHE HIT [${lingua.toUpperCase()}]: Dati per ${tokenMint} in 0ms`);
-            return res.json(cached.data);
-        }
-    }
-
-    if (pendingScans.has(cacheKey)) {
-        console.log(`⏳ Richiesta duplicata [${lingua.toUpperCase()}] per ${tokenMint}...`);
-        try {
-            const result = await pendingScans.get(cacheKey);
-            return res.json(result);
-        } catch (e) {
-            return res.status(500).json({ error: "Errore API backend durante l'attesa" });
-        }
-    }
-
-    const scanPromise = (async () => {
-        // ... (tutto il tuo codice di analisi rimane identico) ...
-
-        // SALVATAGGIO IN CACHE CON LA CHIAVE DELLA LINGUA
-        scanCache.set(cacheKey, { timestamp: Date.now(), data: risultatoFinale });
-        return risultatoFinale;
-    })();
-
-    pendingScans.set(cacheKey, scanPromise);
-
     try {
+        const tokenMint = req.params.tokenMint;
+        const lingua = req.query.lang || 'en';
+
+        // 🛡️ ACCETTA SOLANA ED EVM
+        if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
+            return res.status(400).json({ error: "Invalid token address format." });
+        }
+
+        // CHIAVE UNICA PER TOKEN E LINGUA
+        const cacheKey = `${tokenMint}_${lingua}`;
+
+        // 🦊 EVM ROUTE
+        if (isValidEVMAddress(tokenMint)) {
+            try {
+                const dataEVM = await analizzaTokenEVM(tokenMint);
+                return res.json(dataEVM);
+            } catch (e) {
+                return res.status(500).json({ error: e.message });
+            }
+        }
+
+        avviaAscoltoLive(tokenMint);
+
+        // CONTROLLO CACHE MULTILINGUA
+        if (scanCache.has(cacheKey)) {
+            const cached = scanCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+                console.log(`⚡ CACHE HIT [${lingua.toUpperCase()}]: Dati per ${tokenMint} in 0ms`);
+                return res.json(cached.data);
+            }
+        }
+
+        if (pendingScans.has(cacheKey)) {
+            console.log(`⏳ Richiesta duplicata [${lingua.toUpperCase()}] per ${tokenMint}...`);
+            try {
+                const result = await pendingScans.get(cacheKey);
+                return res.json(result);
+            } catch (e) {
+                return res.status(500).json({ error: "Errore API backend durante l'attesa" });
+            }
+        }
+
+        const scanPromise = (async () => {
+            // Esegue l'analisi (qui dentro l'await è perfettamente legale)
+            const risultatoFinale = await eseguiAnalisiCompleta(tokenMint, lingua);
+            
+            // SALVATAGGIO IN CACHE CON LA CHIAVE DELLA LINGUA
+            scanCache.set(cacheKey, { timestamp: Date.now(), data: risultatoFinale });
+            return risultatoFinale;
+        })();
+
+        pendingScans.set(cacheKey, scanPromise);
+
         const finalData = await scanPromise;
         pendingScans.delete(cacheKey);
-        res.json(finalData);
+        return res.json(finalData);
+
     } catch (error) { 
-        pendingScans.delete(cacheKey);
-        res.status(500).json({ error: "Errore API" }); 
+        console.error("Errore critico in /api/scan:", error);
+        return res.status(500).json({ error: "Errore API interno" }); 
     }
 });
 app.post('/api/paper-trading', express.json(), (req, res) => {
