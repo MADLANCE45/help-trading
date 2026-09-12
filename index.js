@@ -1667,9 +1667,9 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
         if (azione === "EXIT") {
             const pnl = parseFloat(pnlNetto) || 0;
-            db.bilancio += pnl; // Aggiorna la cassa totale
+            db.bilancio += pnl; 
             db.trades.unshift({ id: Date.now(), token: tokenMint, pnlSol: pnl, data: new Date().toLocaleString('it-IT') });
-            if (db.trades.length > 50) db.trades.length = 50; // Max 50 trade
+            if (db.trades.length > 50) db.trades.length = 50; 
             resMsg = `Uscita: ${pnl > 0 ? '+' : ''}${pnl.toFixed(3)} SOL`;
         }
 
