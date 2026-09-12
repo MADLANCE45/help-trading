@@ -455,41 +455,37 @@ if (matchEVM) {
                 resettaTimerNoia();
 
                 // 🔥 RECUPERA IL WALLET SALVATO INSIEME ALLA MEMORIA
-                chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan', 'userConnectedWallet'], (memoria) => {
+                // Recupera token, risultato, lingua della scansione e wallet
+                chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan', 'ultimoScanLang', 'userConnectedWallet'], (memoria) => {
                     const userWallet = memoria.userConnectedWallet || "null";
-                   
 
-                    if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan) {
+                    // Usa la cache SOLO se il token coincide E la lingua salvata è identica a quella attuale
+                    if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan && memoria.ultimoScanLang === currentLang) {
                         popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
                         avviaLaboratorioGemini(tokenMint); 
                         
-                        // 👉 FETCH IN BACKGROUND CON HEADER WALLET
                         fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
-                            headers: { 
-                                
-                                "x-wallet-address": userWallet 
-                            }
+                            headers: { "x-wallet-address": userWallet }
                         }).catch(() => {});
                     } else {
-                        
-                        // 👉 FETCH PRINCIPALE CON HEADER WALLET
+                        // Se la lingua è cambiata, forza la chiamata fresca al backend
                         fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
-                            headers: { 
-                                
-                                "x-wallet-address": userWallet 
-                            }
+                            headers: { "x-wallet-address": userWallet }
                         })
                         .then(res => res.json())
                         .then(data => {
                             if (data.error) throw new Error(data.error);
-                            chrome.storage.local.set({ ultimoTokenScansionato: tokenMint, ultimoRisultatoScan: data });
+                            chrome.storage.local.set({ 
+                                ultimoTokenScansionato: tokenMint, 
+                                ultimoRisultatoScan: data,
+                                ultimoScanLang: currentLang // Memorizza la lingua attuale della scansione
+                            });
                             popolaInterfacciaStatica(data, tokenMint);
-                            
                             avviaLaboratorioGemini(tokenMint);
                         })
                         .catch(err => {
                             const staticBox = document.getElementById('static-analysis-box');
-                            if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">⚠️ Error: ${err.message}</div>`;
+                            if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">Error: ${err.message}</div>`;
                         });
                     }
                 });
@@ -1147,14 +1143,17 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
     
         // 🌍 4. CAMBIO LINGUA LIVE
         // 🌍 4. CAMBIO LINGUA LIVE (Fix Caricamento Infinito)
+        // 🌍 4. CAMBIO LINGUA LIVE (Con Svuotamento Cache Vecchia)
         const langBtns = document.querySelectorAll('.lang-btn');
         langBtns.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const newLang = e.currentTarget.getAttribute('data-lang');
                 if (newLang !== currentLang) {
-                    chrome.storage.local.set({ userLanguage: newLang }, () => {
-                        // Invece di far incartare l'HTML, ricarichiamo il popup: tutto ripartirà a razzo nella nuova lingua!
-                        location.reload(); 
+                    // Elimina la scansione nella lingua precedente prima di ricaricare
+                    chrome.storage.local.remove(['ultimoRisultatoScan', 'ultimoTokenScansionato', 'ultimoScanLang'], () => {
+                        chrome.storage.local.set({ userLanguage: newLang }, () => {
+                            location.reload(); 
+                        });
                     });
                 }
             });
