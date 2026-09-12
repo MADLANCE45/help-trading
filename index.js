@@ -1685,17 +1685,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 
     
 
-    // 🔥 IL LUCCHETTO: Se c'è già una scansione in corso per questo token, l'API aspetta senza lanciare doppi calcoli!
-    if (pendingScans.has(tokenMint)) {
-        console.log(`⏳ Richiesta duplicata per ${tokenMint}, mi aggancio all'analisi in corso...`);
-        try {
-            const result = await pendingScans.get(tokenMint);
-            return res.json(result);
-        } catch (e) {
-            return res.status(500).json({ error: "Errore API backend durante l'attesa" });
-        }
-    }
-    
+   
 
     // 🚀 INCAPSULIAMO LA LOGICA NELLA PROMISE AD ALTE PRESTAZIONI
     const scanPromise = (async () => {
