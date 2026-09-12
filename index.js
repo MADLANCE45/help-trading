@@ -1400,7 +1400,7 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     }
 }
 // =====================================================================
-// 🦊 MOTORE EVM SUPREMO: DEGEN MODE (Solana-Style Intelligence)
+// 🦊 MOTORE EVM SUPREMO: MODALITÀ PARANOIDE (Solana-Style Intelligence)
 // =====================================================================
 
 function getGoPlusChainId(chainName) {
@@ -1414,18 +1414,49 @@ function getGoPlusChainId(chainName) {
 
 async function analizzaTokenEVM(tokenAddress) {
     try {
-        console.log(`\n🦊 Scansione Forense EVM Degen per: ${tokenAddress}`);
+        console.log(`\n🦊 Scansione Forense EVM Paranoide per: ${tokenAddress}`);
         
-        // 1. FETCH DATI DI MERCATO (DexScreener)
-        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
-        if (!dexResp.ok) throw new Error("DexScreener API offline.");
+        // 1. FETCH DATI DI MERCATO (Doppio Controllo Anti-Crash)
+        const [dexTokenResp, dexSearchResp] = await Promise.all([
+            fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`).catch(() => null),
+            fetch(`https://api.dexscreener.com/latest/dex/search?q=${tokenAddress}`).catch(() => null)
+        ]);
 
-        const dexData = await dexResp.json();
-        if (!dexData.pairs || dexData.pairs.length === 0) {
-            throw new Error("Token not found or zero liquidity pools.");
+        let validPairs = [];
+
+        if (dexTokenResp && dexTokenResp.ok) {
+            const data = await dexTokenResp.json().catch(() => ({}));
+            if (data.pairs && data.pairs.length > 0) validPairs = data.pairs;
+        }
+        
+        if (validPairs.length === 0 && dexSearchResp && dexSearchResp.ok) {
+            const data = await dexSearchResp.json().catch(() => ({}));
+            if (data.pairs && data.pairs.length > 0) validPairs = data.pairs;
         }
 
-        const mainPair = dexData.pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+        // 🔥 FIX BUG ROBINHOOD CHAIN (Se DexScreener è in ritardo, non crashiamo)
+        if (validPairs.length === 0) {
+            console.log(`⚠️ DexScreener API in ritardo di indicizzazione per: ${tokenAddress}`);
+            const fallbackEVM = {
+                isEVM: true, score: 50, rischio: "AWAITING INDEXING",
+                dettagli: ["⏳ DexScreener API is currently indexing this pool.", "Public API propagation in progress."],
+                graficoAttivo: false, devWallet: "Unknown",
+                apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
+                advice: {
+                    devStatus: `[PENDING] EVM Contract not yet broadcasted to public API.`,
+                    topHoldersStatus: `[AWAITING DATA] Liquidity pools are being scanned. Try again in 60s.`
+                },
+                vitaToken: "0.0", azione: "WAIT", fugaColor: "#ffaa00",
+                hud: { change: 0, volume: "0.00", trend: "EVM", color: "#ffaa00", icon: "⏳" },
+                tradeValido: false, simulatoreTesto: `API Indexing... Check back shortly.`,
+                moltiplicatore: 0, targetMC: 0, prezzoSol: 0,
+                tradingFees: { slippage: "N/A", fee: "N/A", text: "PENDING" }
+            };
+            scanCache.set(tokenAddress, { timestamp: Date.now(), data: fallbackEVM });
+            return fallbackEVM;
+        }
+
+        const mainPair = validPairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
 
         const chain = mainPair.chainId.toUpperCase();
         const liqUsd = mainPair.liquidity?.usd || 0;
@@ -1437,7 +1468,7 @@ async function analizzaTokenEVM(tokenAddress) {
         const txSells = (mainPair.txns?.h1?.sells || 0) + (mainPair.txns?.m5?.sells || 0);
         const txTotali = txBuys + txSells;
 
-        // 2. FETCH DATI DI SICUREZZA CONTRATTO (GoPlus Labs API)
+        // 2. FETCH DATI DI SICUREZZA CONTRATTO (GoPlus Labs)
         let securityData = null;
         const goPlusId = getGoPlusChainId(mainPair.chainId);
         
@@ -1450,14 +1481,11 @@ async function analizzaTokenEVM(tokenAddress) {
                         securityData = gpJson.result[tokenAddress.toLowerCase()];
                     }
                 }
-            } catch (e) {
-                console.log("⚠️ GoPlus limit, fallback su euristica.");
-            }
+            } catch (e) {}
         }
 
-        // 🔍 3. TEST MATEMATICI (DEGEN MODE)
-        // Partiamo da 65. Se non è una truffa palese, l'utente DEVE poter tradare.
-        let baseScore = 65; 
+        // 🔍 3. TEST MATEMATICI SPIETATI (DEGEN MODE PARANOIDE)
+        let baseScore = 50; // Si parte da 50 neutro. Nessun regalo.
         let bandiereRosse = [];
         let bonus = 0;
 
@@ -1465,71 +1493,76 @@ async function analizzaTokenEVM(tokenAddress) {
         let sellTax = 0;
         let isVerified = false;
 
-        // AUDIT DEL CODICE (Se mappato da GoPlus)
         if (securityData) {
             buyTax = parseFloat(securityData.buy_tax || "0") * 100;
             sellTax = parseFloat(securityData.sell_tax || "0") * 100;
             isVerified = securityData.is_open_source === "1";
 
-            if (securityData.is_honeypot === "1" || sellTax >= 90) {
+            if (securityData.is_honeypot === "1" || sellTax >= 50) {
                 bandiereRosse.push(`[HARD HONEYPOT] Smart contract blocks selling. Taxes: ${sellTax.toFixed(1)}%.`);
                 baseScore = 5; 
-            }
-            if (securityData.is_proxy === "1") {
-                bandiereRosse.push("[PROXY] Dev can change the code at any time.");
-                baseScore -= 15;
-            }
-            if (!isVerified) {
-                bandiereRosse.push("[UNVERIFIED] Contract source code is hidden.");
-                baseScore -= 10;
-            }
-            if (buyTax > 15 || sellTax > 15) {
-                bandiereRosse.push(`[HIGH TAX] Heavy fees on swaps (Buy: ${buyTax.toFixed(1)}%, Sell: ${sellTax.toFixed(1)}%).`);
-                baseScore -= 15;
-            }
-            if (isVerified && securityData.is_honeypot === "0" && sellTax < 5) {
-                bonus += 15; // Contratto pulitissimo, spingiamo il voto in alto
-            }
-        } 
-        
-        // 🚀 MOTORE EURISTICO PER ROBINHOOD E UNMAPPED CHAINS (Premiazione estrema)
-        if (!securityData) {
-            if (txBuys >= 10 && txSells === 0 && ageMinutes > 3) {
-                bandiereRosse.push("[SOFT HONEYPOT] Multiple buys with 0 sells. Code is blocking exits.");
-                baseScore = 5; 
-            } else if (txTotali === 0) {
-                bandiereRosse.push("[DEAD POOL] No recent transactions.");
-                baseScore -= 30;
             } else {
-                // Calcolo FOMO: Se ci sono transazioni normali, POMPIAMO il punteggio a RIDE
-                const flowRatio = txSells > 0 ? (txBuys / txSells) : 1;
-                
-                if (flowRatio >= 1.1) bonus += 15; // Più acquisti che vendite -> Bullish assoluto
-                else if (flowRatio >= 0.7) bonus += 5; // Mercato sano e neutrale
-                else baseScore -= 15; // Forte Dump in corso -> Abbassa il voto
+                if (securityData.is_proxy === "1") { bandiereRosse.push("[PROXY] Dev can change the code at any time."); baseScore -= 15; }
+                if (securityData.is_mintable === "1") { bandiereRosse.push("[MINTABLE] Infinite dilution risk."); baseScore -= 15; }
+                if (!isVerified) { bandiereRosse.push("[UNVERIFIED] Contract source code is hidden."); baseScore -= 20; }
+                if (buyTax > 10 || sellTax > 10) { bandiereRosse.push(`[HIGH TAX] Heavy fees on swaps (Buy: ${buyTax.toFixed(1)}%, Sell: ${sellTax.toFixed(1)}%).`); baseScore -= 15; }
 
-                if (txTotali > 80) bonus += 15; // Altissimo volume / FOMO
-                else if (txTotali > 20) bonus += 10; // Volume standard
+                if (isVerified && securityData.is_proxy === "0" && sellTax < 5 && securityData.is_mintable === "0") {
+                    bonus += 15; // Contratto immacolato
+                }
             }
+        } else {
+            bandiereRosse.push("[UNMAPPED] Contract unverified by security oracle.");
+            baseScore -= 15; // Penalità severa se non possiamo leggere il codice
         }
 
-        // ANALISI LIQUIDITÀ (Standard Degen)
-        if (liqUsd < 2000) {
-            bandiereRosse.push(`[ILLIQUID] Pool under $2k. Instant rug risk.`);
+        // 🚀 MOTORE EURISTICO DI FLUSSO E MOMENTUM
+        const flowRatio = txSells > 0 ? (txBuys / txSells) : (txBuys > 0 ? 99 : 1);
+
+        if (txBuys >= 5 && txSells === 0 && ageMinutes >= 2) {
+            bandiereRosse.push("[SOFT HONEYPOT] Multiple buys with 0 sells. Code is blocking exits.");
+            baseScore = 5; 
+        } else if (txTotali < 10) {
+            bandiereRosse.push("[DEAD POOL] Insufficient transaction volume.");
+            baseScore -= 25;
+        } else {
+            if (flowRatio >= 1.5) bonus += 10;
+            else if (flowRatio < 0.6) baseScore -= 15; // Pressione di vendita pesante
+
+            if (txTotali > 200) bonus += 15; 
+            else if (txTotali > 50) bonus += 5;
+        }
+
+        // ANALISI LIQUIDITÀ SPIETATA
+        if (liqUsd < 5000) {
+            bandiereRosse.push(`[ILLIQUID] Pool under $5k. Extreme rug hazard.`);
+            baseScore -= 20;
+        } else if (liqUsd > 30000) {
+            bonus += 15; // Liquidità a prova di balena
+        }
+
+        const fdvToLiqRatio = liqUsd > 0 ? (fdvUsd / liqUsd) : 999;
+        if (fdvToLiqRatio > 50) {
+            bandiereRosse.push(`[GHOST LIQ] FDV is ${fdvToLiqRatio.toFixed(0)}x the pool. Severe crash risk.`);
             baseScore -= 15;
-        } else if (liqUsd > 15000) {
-            bonus += 15; // Per una memecoin, 15k è già ottimo per tradare
-        } else if (liqUsd > 5000) {
-            bonus += 5;
+        } else if (fdvToLiqRatio <= 10 && liqUsd > 10000) {
+            bonus += 10;
         }
 
-        // 4. CALCOLO PUNTEGGIO E GIUDIZIO (Curva Dinamica)
+        // PENALITÀ ETÀ (Token troppo giovani sono scommesse al buio)
+        if (ageMinutes < 15) {
+            bandiereRosse.push("[NEWBORN] Age < 15m. Extreme volatility expected.");
+            baseScore -= 10; 
+        } else if (ageMinutes > 120) {
+            bonus += 10;
+        }
+
+        // 4. CALCOLO PUNTEGGIO FINALE PARANOIDE
         let finalScore = Math.max(5, Math.min(95, baseScore + bonus));
         
-        // L'unica cosa che blocca il punteggio in basso è un Honeypot matematico
-        if (bandiereRosse.some(b => b.includes("HONEYPOT"))) finalScore = Math.min(finalScore, 10);
+        // Se c'è un Honeypot, fine dei giochi.
+        if (bandiereRosse.some(b => b.includes("HONEYPOT"))) finalScore = Math.min(finalScore, 5);
 
-        // Ora RIDE parte da 75. Con i nuovi bonus, i token normali raggiungeranno 80-95 facilmente.
         let rischioStatus = finalScore < 45 ? "EXTREME / SCAM RISK" : (finalScore < 75 ? "HIGH / DEGEN" : "MODERATE / ACTIVE");
         let verdictAction = finalScore < 45 ? "AVOID" : (finalScore < 75 ? "SCALP" : "RIDE");
 
@@ -1539,26 +1572,25 @@ async function analizzaTokenEVM(tokenAddress) {
 
         if (securityData) {
             testoDev = `[AUDIT: ${isVerified ? 'VERIFIED' : 'HIDDEN'}] Taxes -> Buy: ${buyTax.toFixed(1)}% | Sell: ${sellTax.toFixed(1)}%.`;
-            if (bandiereRosse.some(b => b.includes("PROXY") || b.includes("HONEYPOT"))) {
-                testoDev += ` WARNING: Malicious functions detected.`;
+            if (bandiereRosse.some(b => b.includes("PROXY") || b.includes("MINTABLE") || b.includes("HONEYPOT") || b.includes("UNVERIFIED"))) {
+                testoDev += ` WARNING: Malicious functions or hidden code detected.`;
             } else {
-                testoDev += ` Code is structurally safe for trading.`;
+                testoDev += ` Code is structurally safe.`;
             }
         } else {
             const ratioStr = txSells > 0 ? (txBuys / txSells).toFixed(1) : txBuys;
-            testoDev = `[EVM UNMAPPED] Degen flow active (B/S Ratio: ${ratioStr}). Standard smart contract risk applies.`;
+            testoDev = `[EVM UNMAPPED] Buy/Sell Ratio: ${ratioStr}. Txs: ${txTotali}. Unaudited contract.`;
         }
 
         if (bandiereRosse.length > 0 && !testoDev.includes("WARNING") && !testoDev.includes("HONEYPOT")) {
             testoDev = `[EVM ALERT] ${bandiereRosse[0]}`;
         }
 
-        if (liqUsd < 2000) {
+        if (liqUsd < 5000) {
             testoSupply = `[DANGEROUS POOL] Only $${(liqUsd/1000).toFixed(1)}k. Any whale sell will drain liquidity.`;
         } else {
-            const fdvToLiqRatio = liqUsd > 0 ? (fdvUsd / liqUsd) : 999;
-            const poolHealth = fdvToLiqRatio > 50 ? "Fragile (Ghost Liq)" : (fdvToLiqRatio > 15 ? "Fair" : "Thick");
-            testoSupply = `[DEX POOL] $${(liqUsd/1000).toFixed(1)}k. Supply structure looks ${poolHealth}. Ready for flow.`;
+            const poolHealth = fdvToLiqRatio > 40 ? "Fragile (Ghost Liq)" : (fdvToLiqRatio > 15 ? "Fair" : "Thick");
+            testoSupply = `[DEX POOL] $${(liqUsd/1000).toFixed(1)}k. FDV/Liq Ratio: ${fdvToLiqRatio.toFixed(1)}:1. State: ${poolHealth}.`;
         }
 
         const risultatoEVM = {
@@ -1586,7 +1618,7 @@ async function analizzaTokenEVM(tokenAddress) {
                 icon: "[EVM]" 
             },
             tradeValido: finalScore >= 45,
-            simulatoreTesto: `EVM Pool (${chain}) — Liq: $${(liqUsd/1000).toFixed(1)}k | Target: Momentum Surf`,
+            simulatoreTesto: `EVM Pool (${chain}) — Liq: $${(liqUsd/1000).toFixed(1)}k | FDV: $${(fdvUsd/1000).toFixed(1)}k`,
             moltiplicatore: finalScore >= 45 ? 1.4 : 0,
             targetMC: finalScore >= 45 ? fdvUsd * 1.4 : 0,
             prezzoSol: 0,
