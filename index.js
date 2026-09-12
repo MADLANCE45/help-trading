@@ -1595,7 +1595,7 @@ async function analizzaTokenEVM(tokenAddress) {
     }
 }
 // =====================================================================
-// 4. API SCAN
+// 4. API SCAN (Solana & EVM)
 // =====================================================================
 app.get('/api/scan/:tokenMint', async (req, res) => {
     try {
@@ -1641,11 +1641,182 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
         }
 
+        // 🚀 LA VERA LOGICA DI SCANSIONE SOLANA (INCAPSULATA CORRETTAMENTE)
         const scanPromise = (async () => {
-            // Esegue l'analisi (qui dentro l'await è perfettamente legale)
-            const risultatoFinale = await eseguiAnalisiCompleta(tokenMint, lingua);
+            console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
+            const mintPubKey = new PublicKey(tokenMint);
+
+            // ⚡ FASE 1: Estrazione Dati Esterni + Firme Base in PARALLELO
+            const [dexDataRaw, pumpDataRaw, rawSignatures] = await Promise.all([
+                fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`).then(r => r.json()).catch(() => ({})),
+                fetch(`https://frontend-api.pump.fun/coins/${tokenMint}`).then(r => r.ok ? r.json() : null).catch(() => null),
+                getRPC().getSignaturesForAddress(mintPubKey, { limit: 25 }).catch(() => [])
+            ]);
+
+            let currentFdv = 0;
+            let pairCreatedAt = null;
+
+            if (dexDataRaw.pairs && dexDataRaw.pairs.length > 0) {
+                currentFdv = dexDataRaw.pairs[0].fdv || 0;
+                pairCreatedAt = dexDataRaw.pairs[0].pairCreatedAt;
+            } else if (pumpDataRaw && pumpDataRaw.usd_market_cap) {
+                currentFdv = pumpDataRaw.usd_market_cap;
+                pairCreatedAt = pumpDataRaw.created_timestamp;
+            }
+
+            const nowSec = Math.floor(Date.now() / 1000);
+            let txInLast60s = 0;
+            let lastTxTime = rawSignatures.length > 0 ? (rawSignatures[0].blockTime || nowSec) : nowSec;
+            let secondiDaUltimaTx = Math.max(0, nowSec - lastTxTime);
+
+            rawSignatures.forEach(sig => {
+                if (sig.blockTime && (nowSec - sig.blockTime <= 60)) txInLast60s++;
+            });
+
+            if (secondiDaUltimaTx > 300 && rawSignatures.length > 0) {
+                return {
+                    score: 90, rischio: "MORTO / ILLIQUIDO",
+                    dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
+                    graficoAttivo: false, vitaToken: "N/A", azione: "EVITARE", fugaColor: "#ff4d4d",
+                    hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" },
+                    tradeValido: false,
+                    simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Token illiquido o abbandonato.`,
+                    moltiplicatore: 0, targetMC: 0, prezzoSol: macroMarketData.solPriceUsd
+                };
+            }
+
+            let tokenAgeMinutes = 0;
+            if (pairCreatedAt) {
+                tokenAgeMinutes = (Date.now() - pairCreatedAt) / 60000;
+            } else if (rawSignatures.length > 0 && rawSignatures[rawSignatures.length - 1].blockTime) {
+                tokenAgeMinutes = (Date.now() - (rawSignatures[rawSignatures.length - 1].blockTime * 1000)) / 60000;
+            }
+
+            const recentSigs = rawSignatures.slice(0, 10).map(s => s.signature);
             
-            // SALVATAGGIO IN CACHE CON LA CHIAVE DELLA LINGUA
+            const [earlyBotData, parsedTxs, microDumpData, sybilData, cabalaData] = await Promise.all([
+                analizzaBotEarlyLaunch(mintPubKey).catch(() => ({ potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Analisi bot base." })),
+                recentSigs.length > 0 ? getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 }).catch(() => []) : Promise.resolve([]),
+                analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, scoreAggiuntivo: 0, testo: "Nessun dump" })),
+                analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" })),
+                analizzaCabalaSupply(mintPubKey).catch(() => null)
+            ]);
+
+            const ubiData = analizzaUBI_Locale(parsedTxs);
+            const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
+
+            let devWallet = "Sconosciuto";
+            let isFakeDev = false;
+            let walletAgeHours = 0;
+            let fedinaDev = null;
+            let logAnalisi = [];
+
+            if (rawSignatures.length > 0) {
+                const launchSig = rawSignatures[rawSignatures.length - 1].signature;
+                try {
+                    const txDetails = await getRPC().getParsedTransaction(launchSig, { maxSupportedTransactionVersion: 0 });
+                    if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
+                        devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
+                        
+                        const [resFedina, resEta] = await Promise.all([
+                            analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
+                            calcolaEtaWallet(devWallet).catch(() => null)
+                        ]);
+                        fedinaDev = resFedina;
+                        if (resEta !== null) {
+                            walletAgeHours = resEta * 24;
+                            if (resEta < 1) {
+                                isFakeDev = true;
+                                logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            const tacticalAdvice = await eseguiSwarmIntelligence(
+                walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
+                isFakeDev, sybilData, fedinaDev, orderFlowData, lingua
+            );
+
+            logAnalisi.push(earlyBotData.indicatoreTesto);
+            logAnalisi.push(`✅ Heartbeat: ${txInLast60s} tx/min (Last: ${secondiDaUltimaTx}s ago)`);
+            if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
+            if (microDumpData && microDumpData.testo) logAnalisi.push(microDumpData.testo);
+            if (sybilData && sybilData.testo) logAnalisi.push(sybilData.testo);
+
+            const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
+            let simulazione = calcolaSimulazioneRendimento(
+                currentFdv, isFakeDev, clusterRisk, 
+                earlyBotData.supplyBundledPct, tokenAgeMinutes, txInLast60s, orderFlowData
+            );
+
+            let sogliaDump = earlyBotData.supplyBundledPct > 0 
+                ? Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50)) 
+                : 0;
+
+            const statoPanicSell = valutaInnescoPanicSell(currentFdv, sogliaDump, microDumpData, orderFlowData);
+            if (statoPanicSell.innescato) {
+                simulazione.azione = "🚨 PANIC SELL AUTO-TRIGGER";
+                simulazione.coloreAzione = "#ff0000";
+                simulazione.simulatoreTesto = statoPanicSell.payloadEmergenza.log;
+                simulazione.raccomandazioneFees = { 
+                    slippage: statoPanicSell.payloadEmergenza.slippage, 
+                    fee: statoPanicSell.payloadEmergenza.priorityFee, 
+                    text: "💀 SALVATAGGIO CAPITALE" 
+                };
+            }
+
+            logAnalisi.push(simulazione.testo);
+
+            let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
+            if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
+            if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
+            if (earlyBotData.supplyBundledPct >= 20) finalScore = 100;
+            if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
+
+            const risultatoFinale = {
+                score: finalScore,
+                rischio: finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO"),
+                dettagli: logAnalisi,
+                graficoAttivo: false,
+                datiGrafico: null,
+                devWallet: devWallet,
+                advice: tacticalAdvice,
+                apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
+                devHistory: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
+                fedinaDev: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
+                bundleShield: earlyBotData,
+                earlyRadar: {
+                    potenzialeVolume: earlyBotData.potenzialeVolumeBot,
+                    bundleSlot0: earlyBotData.bundleSlot0,
+                    supplyBot: earlyBotData.supplyBundledPct,
+                    masterWalletFull: earlyBotData.funderComune || "Nessuno",
+                    masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
+                },
+                sybil: sybilData,
+                sanguisughe: microDumpData,
+                vitaToken: tokenAgeMinutes.toFixed(1),
+                azione: simulazione.azione,
+                ctoStatus: simulazione.ctoStatus,
+                fugaColor: simulazione.coloreAzione,
+                hud: { 
+                    change: macroMarketData.memeChange24h, 
+                    volume: macroMarketData.memeVolM, 
+                    trend: macroMarketData.marketTrend, 
+                    color: macroMarketData.hudColor, 
+                    icon: macroMarketData.marketIcon 
+                },
+                tradeValido: simulazione.tradeValido,
+                panicSellAttivo: statoPanicSell.innescato,
+                motivoPanic: statoPanicSell.motivo,
+                simulatoreTesto: simulazione.simulatoreTesto,
+                moltiplicatore: simulazione.moltiplicatore,
+                targetMC: simulazione.targetMC,
+                prezzoSol: macroMarketData.solPriceUsd,
+                tradingFees: simulazione.raccomandazioneFees
+            };
+
             scanCache.set(cacheKey, { timestamp: Date.now(), data: risultatoFinale });
             return risultatoFinale;
         })();
@@ -1661,6 +1832,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         return res.status(500).json({ error: "Errore API interno" }); 
     }
 });
+
+// =====================================================================
+// 5. PAPER TRADING API
+// =====================================================================
 app.post('/api/paper-trading', express.json(), (req, res) => {
     try {
         const { tokenMint, azione, pnlNetto } = req.body;
@@ -1680,215 +1855,6 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     } catch (e) {
         console.error("Errore POST Paper Trading:", e);
         res.status(500).json({ error: "Errore interno server" });
-    }
-});
-
-    
-
-   
-
-    // 🚀 INCAPSULIAMO LA LOGICA NELLA PROMISE AD ALTE PRESTAZIONI
-    const scanPromise = (async () => {
-        console.log(`\n🔍 Scansione Avanzata ON-CHAIN per: ${tokenMint}`);
-        const mintPubKey = new PublicKey(tokenMint);
-
-        // ⚡ FASE 1: Estrazione Dati Esterni + Firme Base in PARALLELO (Zero attese a cascata)
-        const [dexDataRaw, pumpDataRaw, rawSignatures] = await Promise.all([
-            fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`).then(r => r.json()).catch(() => ({})),
-            fetch(`https://frontend-api.pump.fun/coins/${tokenMint}`).then(r => r.ok ? r.json() : null).catch(() => null),
-            getRPC().getSignaturesForAddress(mintPubKey, { limit: 25 }).catch(() => [])
-        ]);
-
-        // Calcolo rapido FDV e data creazione
-        let currentFdv = 0;
-        let pairCreatedAt = null;
-
-        if (dexDataRaw.pairs && dexDataRaw.pairs.length > 0) {
-            currentFdv = dexDataRaw.pairs[0].fdv || 0;
-            pairCreatedAt = dexDataRaw.pairs[0].pairCreatedAt;
-        } else if (pumpDataRaw && pumpDataRaw.usd_market_cap) {
-            currentFdv = pumpDataRaw.usd_market_cap;
-            pairCreatedAt = pumpDataRaw.created_timestamp;
-        }
-
-        // 🛡️ CHECK VELOCE: Battito cardiaco calcolato direttamente sulle firme già scaricate
-        const nowSec = Math.floor(Date.now() / 1000);
-        let txInLast60s = 0;
-        let lastTxTime = rawSignatures.length > 0 ? (rawSignatures[0].blockTime || nowSec) : nowSec;
-        let secondiDaUltimaTx = Math.max(0, nowSec - lastTxTime);
-
-        rawSignatures.forEach(sig => {
-            if (sig.blockTime && (nowSec - sig.blockTime <= 60)) txInLast60s++;
-        });
-
-        // Se il token non ha scambi da oltre 5 minuti, blocca ed esci subito risparmiando chiamate AI
-        if (secondiDaUltimaTx > 300 && rawSignatures.length > 0) {
-            return {
-                score: 90, rischio: "MORTO / ILLIQUIDO",
-                dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
-                graficoAttivo: false, vitaToken: "N/A", azione: "EVITARE", fugaColor: "#ff4d4d",
-                hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" },
-                tradeValido: false,
-                simulatoreTesto: `⛔ OPERAZIONE BLOCCATA: Token illiquido o abbandonato.`,
-                moltiplicatore: 0, targetMC: 0, prezzoSol: macroMarketData.solPriceUsd
-            };
-        }
-
-        // Calcolo età del token
-        let tokenAgeMinutes = 0;
-        if (pairCreatedAt) {
-            tokenAgeMinutes = (Date.now() - pairCreatedAt) / 60000;
-        } else if (rawSignatures.length > 0 && rawSignatures[rawSignatures.length - 1].blockTime) {
-            tokenAgeMinutes = (Date.now() - (rawSignatures[rawSignatures.length - 1].blockTime * 1000)) / 60000;
-        }
-
-        // ⚡ FASE 2: Analisi Approfondita con Parsed Transactions
-        const recentSigs = rawSignatures.slice(0, 10).map(s => s.signature);
-        
-        // Eseguiamo in parallelo: Bot Launch, Parsed Txs per Order Flow, e i controlli Sybil
-        const [earlyBotData, parsedTxs, microDumpData, sybilData, cabalaData] = await Promise.all([
-            analizzaBotEarlyLaunch(mintPubKey).catch(() => ({ potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Analisi bot base." })),
-            recentSigs.length > 0 ? getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 }).catch(() => []) : Promise.resolve([]),
-            analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, scoreAggiuntivo: 0, testo: "Nessun dump" })),
-            analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" })),
-            analizzaCabalaSupply(mintPubKey).catch(() => null)
-        ]);
-
-        const ubiData = analizzaUBI_Locale(parsedTxs);
-        const orderFlowData = analizzaOrderFlow_Locale(parsedTxs);
-
-        // 🧠 FASE 3: Identificazione Dev
-        let devWallet = "Sconosciuto";
-        let isFakeDev = false;
-        let walletAgeHours = 0;
-        let fedinaDev = null;
-        let logAnalisi = [];
-
-        if (rawSignatures.length > 0) {
-            const launchSig = rawSignatures[rawSignatures.length - 1].signature;
-            try {
-                const txDetails = await getRPC().getParsedTransaction(launchSig, { maxSupportedTransactionVersion: 0 });
-                if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
-                    devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
-                    
-                    const [resFedina, resEta] = await Promise.all([
-                        analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
-                        calcolaEtaWallet(devWallet).catch(() => null)
-                    ]);
-                    fedinaDev = resFedina;
-                    if (resEta !== null) {
-                        walletAgeHours = resEta * 24;
-                        if (resEta < 1) {
-                            isFakeDev = true;
-                            logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
-                        }
-                    }
-                }
-            } catch (e) {}
-        }
-
-        // ⚡ FASE 4: Swarm Intelligence & Simulatore Rendimento
-        const tacticalAdvice = await eseguiSwarmIntelligence(
-            walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
-            isFakeDev, sybilData, fedinaDev, orderFlowData, lingua
-        );
-
-        logAnalisi.push(earlyBotData.indicatoreTesto);
-        logAnalisi.push(`✅ Heartbeat: ${txInLast60s} tx/min (Last: ${secondiDaUltimaTx}s ago)`);
-        if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
-        if (microDumpData && microDumpData.testo) logAnalisi.push(microDumpData.testo);
-        if (sybilData && sybilData.testo) logAnalisi.push(sybilData.testo);
-
-        const clusterRisk = earlyBotData.bundleSlot0 ? 80 : 0;
-        let simulazione = calcolaSimulazioneRendimento(
-            currentFdv, isFakeDev, clusterRisk, 
-            earlyBotData.supplyBundledPct, tokenAgeMinutes, txInLast60s, orderFlowData
-        );
-
-        // Calcolo Panic Sell
-        let sogliaDump = earlyBotData.supplyBundledPct > 0 
-            ? Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50)) 
-            : 0;
-
-        const statoPanicSell = valutaInnescoPanicSell(currentFdv, sogliaDump, microDumpData, orderFlowData);
-        if (statoPanicSell.innescato) {
-            simulazione.azione = "🚨 PANIC SELL AUTO-TRIGGER";
-            simulazione.coloreAzione = "#ff0000";
-            simulazione.simulatoreTesto = statoPanicSell.payloadEmergenza.log;
-            simulazione.raccomandazioneFees = { 
-                slippage: statoPanicSell.payloadEmergenza.slippage, 
-                fee: statoPanicSell.payloadEmergenza.priorityFee, 
-                text: "💀 SALVATAGGIO CAPITALE" 
-            };
-        }
-
-        logAnalisi.push(simulazione.testo);
-
-        // Calcolo Score Finale
-        let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
-        if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
-        if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
-        if (earlyBotData.supplyBundledPct >= 20) finalScore = 100;
-        if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
-
-        const risultatoFinale = {
-            score: finalScore,
-            rischio: finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO"),
-            dettagli: logAnalisi,
-            graficoAttivo: false,
-            datiGrafico: null,
-            devWallet: devWallet,
-            advice: tacticalAdvice,
-            apiRimanenti: typeof calcolaApiRimanenti === 'function' ? calcolaApiRimanenti() : 15,
-            devHistory: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
-            fedinaDev: fedinaDev || { status: "⚠️ SCONOSCIUTO", tokensLanciati: 0 },
-            bundleShield: earlyBotData,
-            earlyRadar: {
-                potenzialeVolume: earlyBotData.potenzialeVolumeBot,
-                bundleSlot0: earlyBotData.bundleSlot0,
-                supplyBot: earlyBotData.supplyBundledPct,
-                masterWalletFull: earlyBotData.funderComune || "Nessuno",
-                masterWallet: earlyBotData.funderComune ? `${earlyBotData.funderComune.substring(0,4)}...${earlyBotData.funderComune.slice(-4)}` : "Nessuno"
-            },
-            sybil: sybilData,
-            sanguisughe: microDumpData,
-            vitaToken: tokenAgeMinutes.toFixed(1),
-            azione: simulazione.azione,
-            ctoStatus: simulazione.ctoStatus,
-            fugaColor: simulazione.coloreAzione,
-            hud: { 
-                change: macroMarketData.memeChange24h, 
-                volume: macroMarketData.memeVolM, 
-                trend: macroMarketData.marketTrend, 
-                color: macroMarketData.hudColor, 
-                icon: macroMarketData.marketIcon 
-            },
-            tradeValido: simulazione.tradeValido,
-            panicSellAttivo: statoPanicSell.innescato,
-            motivoPanic: statoPanicSell.motivo,
-            simulatoreTesto: simulazione.simulatoreTesto,
-            moltiplicatore: simulazione.moltiplicatore,
-            targetMC: simulazione.targetMC,
-            prezzoSol: macroMarketData.solPriceUsd,
-            tradingFees: simulazione.raccomandazioneFees
-        };
-
-        scanCache.set(tokenMint, { timestamp: Date.now(), data: risultatoFinale });
-        return risultatoFinale;
-    })();
-
-    // INSERIAMO LA PROMISE NEL LUCCHETTO
-    pendingScans.set(tokenMint, scanPromise);
-
-    // ESEGUIAMO E GESTIAMO IL RISULTATO
-    try {
-        const finalData = await scanPromise;
-        pendingScans.delete(tokenMint); // Scansione finita, togliamo il lucchetto
-        res.json(finalData); // Inviamo al frontend
-    } catch (error) { 
-        console.error("Errore Dettagliato API Scan:", error);
-        pendingScans.delete(tokenMint); // In caso di crash, liberiamo comunque il lucchetto
-        res.status(500).json({ error: "Errore API" }); 
     }
 });
 
