@@ -1681,14 +1681,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     }
 });
 
-    // 🧠 CONTROLLO CACHE: Se ho già analizzato questo token negli ultimi 15 secondi, restituisco il dato istantaneamente.
-    if (scanCache.has(tokenMint)) {
-        const cached = scanCache.get(tokenMint);
-        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
-            console.log(`⚡ CACHE HIT: Restituisco i dati di ${tokenMint} in 0ms`);
-            return res.json(cached.data);
-        }
-    }
+    
 
     // 🔥 IL LUCCHETTO: Se c'è già una scansione in corso per questo token, l'API aspetta senza lanciare doppi calcoli!
     if (pendingScans.has(tokenMint)) {
