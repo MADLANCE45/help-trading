@@ -871,67 +871,61 @@ FORMAT:
   "azione": "[Translated Action, e.g. BUY, SELL, HOLD]"
 }`;
 
-        // 🏎️ IL CAMBIO MARCE DELL'IA (Ora definito correttamente anche nel Copilot!)
-        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
-        let selectedModel = "deepseek/deepseek-chat"; 
-
-        const premiumModels = [
-            "deepseek/deepseek-chat", 
-            "openai/gpt-4o", 
-            "anthropic/claude-3.5-sonnet-20241022",
-            "anthropic/claude-3.5-sonnet:beta"
-        ];
+        // =================================================================
+        // 🏎️ IL CAMBIO MARCE DELL'IA E CASCATA ANTI-CRASH (COPILOT)
+        // =================================================================
+        let primaryModel = "deepseek/deepseek-chat";
+        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Fallback velocissimo ed economico per i Free/Pro
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
+            let requestedModel = req.headers['x-ai-model'] || "openai/gpt-4o";
+            const premiumModels = [
+                "deepseek/deepseek-chat", 
+                "openai/gpt-4o", 
+                "anthropic/claude-3.5-sonnet-20241022",
+                "anthropic/claude-3.5-sonnet:beta"
+            ];
+
             if (requestedModel.includes("claude-3.5-sonnet")) {
-                selectedModel = "anthropic/claude-3.5-sonnet-20241022";
+                primaryModel = "anthropic/claude-3.5-sonnet-20241022";
             } else if (premiumModels.includes(requestedModel)) {
-                selectedModel = requestedModel;
+                primaryModel = requestedModel;
             } else {
-                selectedModel = "openai/gpt-4o"; 
+                primaryModel = "openai/gpt-4o"; 
             }
+            fallbackModel = "openai/gpt-4o-mini"; // Fallback ad altissime prestazioni per i Premium
         }
 
-        // 🚀 CONNESSIONE A OPENROUTER (Con Auto-Fallback)
+        // 🚀 CONNESSIONE A OPENROUTER (Con Auto-Fallback centralizzato)
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
-        let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { 
-                "Authorization": `Bearer ${apiKey}`, 
-                "HTTP-Referer": "https://www.memesaver.lol",
-                "X-Title": "Solana Radar Bot",
-                "Content-Type": "application/json" 
-            },
-            body: JSON.stringify({
-                model: selectedModel, 
-                messages: [{ role: "user", content: promptCopilot }],
-                temperature: 0.1,
-                response_format: { type: "json_object" }
-            })
-        });
-
-        let data = await response.json();
-
-        // 🪂 AUTO-FALLBACK: Se Claude od OpenRouter falliscono, passiamo a DeepSeek!
-        if (data.error) {
-            console.log(`⚠️ Copilot Model ${selectedModel} failed (${data.error.message}). Fallback to DeepSeek!`);
-            
-            response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const chiamaCopilot = async (nomeModello) => {
+            const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: { 
                     "Authorization": `Bearer ${apiKey}`, 
+                    "HTTP-Referer": "https://www.memesaver.lol",
+                    "X-Title": "Solana Radar Bot",
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    model: "deepseek/deepseek-chat",
+                    model: nomeModello, 
                     messages: [{ role: "user", content: promptCopilot }],
                     temperature: 0.1,
                     response_format: { type: "json_object" }
                 })
             });
-            data = await response.json();
+            return await resp.json();
+        };
+
+        // 1. TENTATIVO PRINCIPALE
+        let data = await chiamaCopilot(primaryModel);
+
+        // 2. AUTO-FALLBACK: Se il modello primario (es. DeepSeek) è intasato, salviamo la chat!
+        if (data.error) {
+            console.log(`⚠️ Copilot Model ${primaryModel} failed (${data.error.message}). Fallback to ${fallbackModel}!`);
+            data = await chiamaCopilot(fallbackModel);
         }
 
         if (data.error) throw new Error(data.error.message);
@@ -948,7 +942,7 @@ FORMAT:
             throw new Error(`Invalid JSON format from AI`);
         }
 
-        const aiResult = JSON.parse(cleanText); 
+        const aiResult = JSON.parse(cleanText);
         
         // 📦 RISPOSTA FINALE AL FRONTEND
         res.json({
@@ -1909,7 +1903,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 });
 
 // =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (DOPPIO CERVELLO CON TOOLTIP DINAMICI)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (V1.4 - DEFINITIVE EDITION)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
@@ -1950,7 +1944,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             });
         }
 
-        // Recupero Dati dalla Cache
+        // Recupero Dati dalla Cache Base
         let datiIniziali = null;
         if (scanCache.has(cacheKey)) {
             datiIniziali = scanCache.get(cacheKey).data;
@@ -1975,10 +1969,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
         let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "No bundle detected");
-        let liquidita = pulisciTesto(datiIniziali?.hud ? `Change: ${datiIniziali.hud.change}% | Volume: $${datiIniziali.hud.volume}M` : "Market data unavailable");
-        let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap loading");
         const devTxtStr = devStatusStr.toUpperCase();
-
         const serverVerdict = datiIniziali?.rawVerdict || "";
 
         // =================================================================
@@ -2003,7 +1994,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         }
 
         // =================================================================
-        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE)
+        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE A 0ms)
         // =================================================================
         if (labCache.has(cacheKey)) {
             const cachedLab = labCache.get(cacheKey);
@@ -2026,7 +2017,6 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             const m_saf = datiIniziali?.serverMetrics?.safety || baseScoreAlgoritmico;
             const m_man = datiIniziali?.serverMetrics?.manipulator || baseScoreAlgoritmico;
 
-            // 🔥 LOGICA TOOLTIP: Il server decide il testo in 0 millisecondi basandosi sui veri numeri
             const tt_mom = m_mom >= 75 ? 'Explosive FOMO detected. High transaction velocity and strong buy pressure.' : (m_mom <= 40 ? 'Dead momentum. Lack of buying volume and slow transactions.' : 'Standard market flow. No extreme momentum.');
             const tt_liq = m_liq >= 75 ? 'Deep liquidity. High resilience against whale dumps.' : (m_liq <= 40 ? 'Dangerously thin liquidity. Extreme slippage and rug risk.' : 'Moderate liquidity. Can sustain normal trading but vulnerable to large sells.');
             const tt_saf = m_saf >= 80 ? 'Contract verified. Safe taxes and no malicious functions detected.' : (m_saf <= 35 ? 'Unverified or Honeypot risk. Contract has hidden or malicious functions.' : 'Standard unmapped EVM contract. Usual risks apply.');
@@ -2059,14 +2049,12 @@ JSON FORMAT:
 }`;
         }
         // =================================================================
-        // RAMO 2: CERVELLO SOLANA (Predittore Mossa dello Scammer via Helius)
+        // RAMO 2: CERVELLO SOLANA (Predittore Mossa Scammer via Helius)
         // =================================================================
         else {
             let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
-            let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
-            
             let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
 
             let solanaMandate = `Analyze the data cynically. Base algorithmic score: ${baseScoreAlgoritmico}/100.`;
@@ -2076,7 +2064,6 @@ JSON FORMAT:
                 solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID] OR [SCALP].";
             }
 
-            // Metriche specifiche Solana
             const m_sup = Math.max(10, baseScoreAlgoritmico - 10);
             const m_dev = baseScoreAlgoritmico;
             const m_syb = Math.min(95, baseScoreAlgoritmico + 15);
@@ -2120,7 +2107,7 @@ JSON FORMAT:
         // =================================================================
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let primaryModel = "deepseek/deepseek-chat";
-        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Costa LA METÀ di DeepSeek. Perfetto per budget < 5€/mese.
+        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Ultra-Economico per budget ristretti
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
             const premiumModels = ["deepseek/deepseek-chat", "openai/gpt-4o", "anthropic/claude-3.5-haiku"];
@@ -2128,13 +2115,12 @@ JSON FORMAT:
             else if (premiumModels.includes(requestedModel)) primaryModel = requestedModel;
             else primaryModel = "openai/gpt-4o"; 
             
-            fallbackModel = "openai/gpt-4o-mini"; // Fallback veloce per chi paga il premium
+            fallbackModel = "openai/gpt-4o-mini"; // Fallback veloce per utenti premium
         }
 
         const apiKey = process.env.OPENROUTER_API_KEY;
         if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
 
-        // Funzione centralizzata per non ripetere il codice
         const chiamaOpenRouter = async (nomeModello) => {
             const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -2154,16 +2140,15 @@ JSON FORMAT:
             return await resp.json();
         };
 
-        // 1. TENTATIVO PRINCIPALE (Usa DeepSeek come vuoi tu)
+        // 1. TENTATIVO PRINCIPALE
         let data = await chiamaOpenRouter(primaryModel);
 
-        // 2. TENTATIVO FALLBACK (Se DeepSeek è intasato a livello globale, ti salva il trade)
+        // 2. FALLBACK SE IL MODELLO CADE
         if (data.error) {
-            console.log(`⚠️ Modello ${primaryModel} in sovraccarico globale (${data.error.message}). Passo al piano B ultra-economico: ${fallbackModel}...`);
+            console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback: ${fallbackModel}...`);
             data = await chiamaOpenRouter(fallbackModel);
         }
 
-        // Se OpenRouter stesso è completamente down
         if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
 
         let rawText = data.choices[0].message.content;
@@ -2177,77 +2162,11 @@ JSON FORMAT:
             throw new Error(`Risposta IA non valida: JSON non trovato.`);
         }
 
-        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
-        let selectedModel = "deepseek/deepseek-chat"; 
-        
-        const premiumModels = ["deepseek/deepseek-chat", "openai/gpt-4o", "anthropic/claude-3.5-haiku"];
-        if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            if (requestedModel.includes("claude")) selectedModel = "anthropic/claude-3.5-haiku";
-            else if (premiumModels.includes(requestedModel)) selectedModel = requestedModel;
-            else selectedModel = "openai/gpt-4o"; 
-        }
-
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
-
-        let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { 
-                "Authorization": `Bearer ${apiKey}`, 
-                "HTTP-Referer": "https://www.memesaver.lol",
-                "X-Title": "Solana Radar Bot",
-                "Content-Type": "application/json" 
-            },
-            body: JSON.stringify({
-                model: selectedModel, 
-                messages: [{ role: "user", content: promptLaboratorio }],
-                temperature: 0.1,
-                response_format: { type: "json_object" }
-            })
-        });
-
-        let data = await response.json();
-
-        // 🔥 FIX: FALLBACK D'EMERGENZA SU GPT-4o-mini (Veloce, Economico, 100% Uptime)
-        if (data.error) {
-            console.log(`⚠️ OpenRouter Model ${selectedModel} in sovraccarico (${data.error.message}). Attivo fallback istantaneo su GPT-4o-mini...`);
-            response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: { 
-                    "Authorization": `Bearer ${apiKey}`, 
-                    "HTTP-Referer": "https://www.memesaver.lol",
-                    "X-Title": "Solana Radar Bot",
-                    "Content-Type": "application/json" 
-                },
-                body: JSON.stringify({
-                    model: "openai/gpt-4o-mini", // Sostituito DeepSeek con GPT per azzerare i blackout
-                    messages: [{ role: "user", content: promptLaboratorio }],
-                    temperature: 0.1,
-                    response_format: { type: "json_object" }
-                })
-            });
-            data = await response.json();
-        }
-
-        // Se anche il fallback fallisce (rarissimo), sputa l'errore esatto nel terminale
-        if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
-
-        let rawText = data.choices[0].message.content;
-        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const startIdx = cleanText.indexOf('{');
-        const endIdx = cleanText.lastIndexOf('}');
-        
-        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-            cleanText = cleanText.substring(startIdx, endIdx + 1);
-        } else {
-            throw new Error(`Risposta IA non valida: Impossibile trovare il JSON.`);
-        }
-
         const aiResult = JSON.parse(cleanText);
         let globalScore = aiResult.global_score || baseScoreAlgoritmico;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
-        // Pulizia post-produzione contro frasi fatte
+        // Pulizia post-produzione
         verdettoTesto = verdettoTesto.replace(/Proceed with caution\.?/gi, "⚡ Momentum Check:");
         verdettoTesto = verdettoTesto.replace(/Always do your own research/gi, "");
 
@@ -2263,7 +2182,7 @@ JSON FORMAT:
 
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
 
-        // 🔥 REGEX INTELLIGENTE: Colora QUALSIASI tag tattico inventato dall'IA
+        // 🔥 REGEX INTELLIGENTE PER I COLORI DEI TAG TATTICI
         verdettoTesto = verdettoTesto.replace(/\[([A-Z0-9_ \-]+)\]/g, (match, tagNome) => {
             let textColor = "#ffaa00"; let bgColor = "rgba(255,170,0,0.2)";
             if (tagNome.includes("AVOID") || tagNome.includes("DUMP") || tagNome.includes("TRAP") || tagNome.includes("SCAM") || tagNome.includes("RUG")) {
@@ -2299,7 +2218,7 @@ JSON FORMAT:
             });
         }
 
-        // Interfaccia Grafica e Layout Flexbox Anti-Rottura
+        // Layout HTML Blindato (Flexbox CSS Overflow Protection)
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2310,7 +2229,6 @@ JSON FORMAT:
             <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif; overflow: hidden; width: 100%; box-sizing: border-box;">
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px; width: 100%;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
-                    
                     <div style="flex: 1; min-width: 0;">
                         <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Algorithmic Verdict</span>
                         <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
@@ -2327,7 +2245,7 @@ JSON FORMAT:
             </div>
         `;
         
-        // Salvataggio in memoria e output finale
+        // 💾 SALVATAGGIO IN MEMORIA PER RECUPERO ISTANTANEO
         const finalResponse = { success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft };
         labCache.set(cacheKey, { timestamp: Date.now(), data: finalResponse });
         return res.json(finalResponse);
