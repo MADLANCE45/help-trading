@@ -1425,11 +1425,20 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
 // 🦊 MOTORE EVM SUPREMO: SCAMMER EXPLOIT (Surfa l'onda del Bundler)
 // =====================================================================
 
+// =====================================================================
+// 🦊 MOTORE EVM SUPREMO: SCAMMER EXPLOIT (Con Doppio Oracolo)
+// =====================================================================
+
 function getGoPlusChainId(chainName) {
     const map = {
-        'ethereum': '1', 'bsc': '56', 'arbitrum': '42161',
-        'polygon': '137', 'base': '8453', 'optimism': '10',
-        'avalanche': '43114', 'linea': '59144', 'cronos': '25'
+        'ethereum': '1', 'eth': '1', 
+        'bsc': '56', 
+        'arbitrum': '42161',
+        'polygon': '137', 'polygon_pos': '137',
+        'base': '8453', 
+        'optimism': '10',
+        'avalanche': '43114', 'avax': '43114',
+        'linea': '59144', 'cronos': '25'
     };
     return map[chainName.toLowerCase()] || null;
 }
@@ -1454,6 +1463,45 @@ async function analizzaTokenEVM(tokenAddress) {
             if (data.pairs && data.pairs.length > 0) validPairs = data.pairs;
         }
 
+        // 🚀 MOTORE DI RISERVA: GECKOTERMINAL (Se DexScreener è in ritardo)
+        if (validPairs.length === 0) {
+            console.log(`⚠️ DexScreener vuoto. Attivazione GeckoTerminal Fallback per ${tokenAddress}...`);
+            try {
+                const gtResp = await fetch(`https://api.geckoterminal.com/api/v2/search/pools?query=${tokenAddress}`);
+                if (gtResp.ok) {
+                    const gtData = await gtResp.json();
+                    if (gtData.data && gtData.data.length > 0) {
+                        const pool = gtData.data[0].attributes;
+                        const network = gtData.data[0].relationships?.network?.data?.id || "EVM";
+                        
+                        validPairs = [{
+                            chainId: network,
+                            pairAddress: pool.address,
+                            liquidity: { usd: parseFloat(pool.reserve_in_usd || 0) },
+                            fdv: parseFloat(pool.fdv_usd || pool.reserve_in_usd || 0),
+                            volume: { h24: parseFloat(pool.volume_usd?.h24 || 0) },
+                            pairCreatedAt: pool.pool_created_at ? new Date(pool.pool_created_at).getTime() : Date.now() - 3600000,
+                            txns: {
+                                h1: { 
+                                    buys: pool.transactions?.h1?.buys || 15,
+                                    sells: pool.transactions?.h1?.sells || 5 
+                                }
+                            },
+                            priceChange: {
+                                h24: parseFloat(pool.price_change_percentage?.h24 || 0),
+                                h1: parseFloat(pool.price_change_percentage?.h1 || 0),
+                                m5: parseFloat(pool.price_change_percentage?.m5 || 0)
+                            }
+                        }];
+                        console.log(`✅ Trovata pool su GeckoTerminal in rete ${network}!`);
+                    }
+                }
+            } catch (e) {
+                console.log(`❌ Anche GeckoTerminal ha fallito.`);
+            }
+        }
+
+        // 🛑 SE ANCHE IL SECONDO ORACOLO FALLISCE, LA COIN NON ESISTE ANCORA.
         if (validPairs.length === 0) {
             const fallbackEVM = {
                 isEVM: true, score: 50, rischio: "AWAITING INDEXING",
@@ -1465,7 +1513,7 @@ async function analizzaTokenEVM(tokenAddress) {
                 hud: { change: 0, volume: "0.00", trend: "EVM", color: "#ffaa00", icon: "⏳" },
                 tradeValido: false, simulatoreTesto: `API Indexing...`, moltiplicatore: 0, targetMC: 0, prezzoSol: 0,
                 tradingFees: { slippage: "N/A", fee: "N/A", text: "PENDING" },
-                rawVerdict: "[WAIT] Pool is too new for DexScreener to map. Waiting for block propagation."
+                rawVerdict: "[WAIT] Pool is too new. Waiting for block propagation."
             };
             scanCache.set(tokenAddress, { timestamp: Date.now(), data: fallbackEVM });
             return fallbackEVM;
@@ -1939,6 +1987,35 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         let liquidita = pulisciTesto(datiIniziali?.hud ? `Change: ${datiIniziali.hud.change}% | Volume: $${datiIniziali.hud.volume}M` : "Market data unavailable");
         let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap loading");
         const devTxtStr = devStatusStr.toUpperCase();
+
+        const serverVerdict = datiIniziali?.rawVerdict || "";
+
+        // =================================================================
+        // 🛑 BYPASS TOTALE PER I TOKEN NON ANCORA INDICIZZATI 
+        // =================================================================
+        if (serverVerdict.includes("[WAIT]")) {
+            const reportHTML = `
+                <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div style="font-size: 2.5em;">⏳</div>
+                        <div style="flex-grow: 1;">
+                            <span style="font-size: 0.7em; color: #ffaa00; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Awaiting Indexing</span>
+                            <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
+                                <span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">WAITING</span><br><br>
+                                The liquidity pool is too new. Neither DexScreener nor GeckoTerminal have indexed it yet. Please wait 30-60 seconds for block propagation before scanning again.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return res.json({ 
+                success: true, 
+                score: 50,
+                verdetto: reportHTML,
+                plan: authStatus.plan,        
+                scansLeft: authStatus.scansLeft 
+            });
+        }
 
         let promptLaboratorio = "";
 
