@@ -1429,6 +1429,10 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
 // 🦊 MOTORE EVM SUPREMO: SCAMMER EXPLOIT (Con Doppio Oracolo)
 // =====================================================================
 
+// =====================================================================
+// 🦊 MOTORE EVM SUPREMO: SCAMMER EXPLOIT (Con Doppio Oracolo)
+// =====================================================================
+
 function getGoPlusChainId(chainName) {
     const map = {
         'ethereum': '1', 'eth': '1', 
@@ -1558,18 +1562,16 @@ async function analizzaTokenEVM(tokenAddress) {
         }
 
         // Se non abbiamo GoPlus, usiamo l'euristica matematica per l'Honeypot
-        // 🚀 POTENZIAMENTO 2: HONEYPOT 2.0 DETECTOR (Anti-Whitelist)
         if (!securityData) {
             if (txBuys >= 7 && txSells === 0 && ageMinutes >= 2) {
                 isHoneypot = true; // Classico Honeypot
             } else if (txBuys >= 40 && txSells <= 2 && ageMinutes >= 5) {
                 // TRUFFA AVANZATA: Il dev ha fatto 1-2 vendite col suo wallet whitelistato per ingannare i bot!
                 isHoneypot = true;
-                bandiereRosse.push("[WHITELIST HONEYPOT] Massive buys but only 1-2 sells. Dev is faking sells.");
             }
         }
 
-        // 🔍 3. IL CERVELLO STRATEGICO (Calcolo Voto e Testo Hardcoded)
+        // 🔍 3. IL CERVELLO STRATEGICO E LE METRICHE REALI
         let finalScore = 50;
         let finalAction = "SCALP";
         let rawVerdict = "";
@@ -1588,49 +1590,75 @@ async function analizzaTokenEVM(tokenAddress) {
             rawVerdict = `[AVOID] Liquidity is virtually non-existent ($${(liqUsd/1000).toFixed(1)}k). Mathematical certainty of extreme slippage or rug pull.`;
         }
         else {
-            // THE "EXPLOIT THE SCAMMER" ALGORITHM
             if (volToLiqRatio > 10 && txVelocity > 10 && fdvUsd < 150000) {
-                // FASE 1: Early Bundle / Wash Trading Pumping
-                finalScore = 88;
-                finalAction = "RIDE";
-                color = "#00e676";
+                finalScore = 88; finalAction = "RIDE"; color = "#00e676";
                 rawVerdict = `[RIDE] Early Bundle/Wash-Trading detected (Vol/Liq Ratio: ${volToLiqRatio.toFixed(1)}x). The creator is artificially pumping volume to attract retail at low MC ($${(fdvUsd/1000).toFixed(1)}k). Surf the manipulator's wave, but exit before $200k.`;
             } 
             else if (fdvUsd >= 150000 && fdvUsd <= 300000 && buySellRatio < 1.2) {
-                // FASE 2: Distribution Zone (The Trap)
-                finalScore = 35;
-                finalAction = "AVOID";
-                color = "#ff4d4d";
+                finalScore = 35; finalAction = "AVOID"; color = "#ff4d4d";
                 rawVerdict = `[AVOID] Distribution Phase. The token reached $${(fdvUsd/1000).toFixed(1)}k MC and momentum is slowing (B/S Ratio: ${buySellRatio.toFixed(2)}). The manipulator is dumping on late retail buyers. You are exit liquidity.`;
             }
             else if (fdvUsd > 300000 && txVelocity > 30 && buySellRatio >= 1.2) {
-                // FASE 3: Parabolic / Real FOMO ($3M+ Target)
-                finalScore = 95;
-                finalAction = "RIDE";
-                color = "#00e676";
+                finalScore = 95; finalAction = "RIDE"; color = "#00e676";
                 rawVerdict = `[RIDE] Parabolic Momentum. Token survived the initial dump and is experiencing massive FOMO (${txVelocity.toFixed(0)} tx/min). Strong Buy pressure (Ratio ${buySellRatio.toFixed(2)}). Target MC tier: $1M - $3M.`;
             }
             else if (fdvUsd > 300000 && txVelocity < 5) {
-                // FASE 4: Dead High-MC
-                finalScore = 40;
-                finalAction = "AVOID";
-                color = "#ff4d4d";
+                finalScore = 40; finalAction = "AVOID"; color = "#ff4d4d";
                 rawVerdict = `[AVOID] Ghost Town. High valuation ($${(fdvUsd/1000).toFixed(1)}k) but severe lack of volume (${txVelocity.toFixed(1)} tx/min). Price will slowly bleed out.`;
             }
             else {
-                // FASE 5: Standard Scalping
-                finalScore = 65;
-                finalAction = "SCALP";
-                color = "#ffaa00";
-                rawVerdict = `[SCALP] Moderate flow. Liquidity: $${(liqUsd/1000).toFixed(1)}k. B/S Ratio: ${buySellRatio.toFixed(2)}. ${taxWarning}Trade with tight stop-losses as no extreme momentum is present.`;
+                // 🔥 FASE 5: SCORING DINAMICO E INTELLIGENTE
+                let dynamicScore = 40; // Base di partenza severa
+                
+                // Pressione BUY/SELL
+                if (buySellRatio >= 2.0) dynamicScore += 25;
+                else if (buySellRatio >= 1.3) dynamicScore += 15;
+                else if (buySellRatio < 0.7) dynamicScore -= 20;
+
+                // Velocità Transazioni (FOMO)
+                if (txVelocity > 30) dynamicScore += 20;
+                else if (txVelocity > 10) dynamicScore += 10;
+                else if (txVelocity < 2) dynamicScore -= 15;
+
+                // Profondità Liquidità
+                if (liqUsd > 60000) dynamicScore += 20;
+                else if (liqUsd > 20000) dynamicScore += 10;
+                else if (liqUsd < 5000) dynamicScore -= 15;
+
+                finalScore = Math.max(10, Math.min(95, dynamicScore));
+                
+                if (finalScore >= 75) {
+                    finalAction = "RIDE"; color = "#00e676";
+                    rawVerdict = `[RIDE] Strong bullish flow confirmed. Liquidity is healthy at $${(liqUsd/1000).toFixed(1)}k. B/S Ratio (${buySellRatio.toFixed(2)}) shows aggressive accumulation. Speed: ${txVelocity.toFixed(1)} tx/m.`;
+                } else if (finalScore < 45) {
+                    finalAction = "AVOID"; color = "#ff4d4d";
+                    rawVerdict = `[AVOID] Weak Flow. Liquidity: $${(liqUsd/1000).toFixed(1)}k. B/S Ratio is poor (${buySellRatio.toFixed(2)}). Chart is bleeding.`;
+                } else {
+                    finalAction = "SCALP"; color = "#ffaa00";
+                    rawVerdict = `[SCALP] Neutral Consolidation. Liquidity: $${(liqUsd/1000).toFixed(1)}k. B/S Ratio: ${buySellRatio.toFixed(2)}. Speed: ${txVelocity.toFixed(1)} tx/m. Trade level-to-level, no parabolic momentum yet.`;
+                }
             }
         }
 
+        // 🧠 CALCOLO DELLE 4 METRICHE REALI (Matematica cruda)
+        const metric_momentum = Math.min(99, Math.max(5, Math.round((txVelocity / 40) * 100) + (buySellRatio >= 1.2 ? 15 : 0)));
+        const metric_liquidity = Math.min(99, Math.max(5, Math.round((liqUsd / 80000) * 100)));
+        const metric_safety = securityData ? (isHoneypot ? 5 : 95) : 35; // Se Robinhood (niente audit), la sicurezza base è 35%
+        const metric_manipulator = (volToLiqRatio > 20 || isHoneypot) ? 10 : (buySellRatio < 0.6 ? 30 : 85);
+
         // Testi HUD
+        let buyTaxStr = 0;
+        let sellTaxStr = 0;
+        if (securityData) {
+            buyTaxStr = parseFloat(securityData.buy_tax || "0") * 100;
+            sellTaxStr = parseFloat(securityData.sell_tax || "0") * 100;
+        }
+
         const devStatus = securityData 
-            ? `[AUDIT: OK] Taxes: B:${buyTax.toFixed(1)}% S:${sellTax.toFixed(1)}%.` 
+            ? `[AUDIT: OK] Taxes: B:${buyTaxStr.toFixed(1)}% S:${sellTaxStr.toFixed(1)}%.` 
             : `[EVM UNMAPPED] B/S Ratio: ${buySellRatio.toFixed(2)}. TxSpeed: ${txVelocity.toFixed(1)}/m.`;
 
+        // L'OGGETTO COSTRUITO CORRETTAMENTE
         const risultatoEVM = {
             isEVM: true,
             score: finalScore,
@@ -1649,8 +1677,11 @@ async function analizzaTokenEVM(tokenAddress) {
             hud: { change: mainPair.priceChange?.h24 || 0, volume: (volume24h / 1000000).toFixed(2), trend: chain, color: color, icon: "[EVM]" },
             tradeValido: finalScore >= 45,
             simulatoreTesto: rawVerdict,
-            rawVerdict: rawVerdict, // 🔥 PASSATO ALL'IA PER LA TRADUZIONE
-            moltiplicatore: finalScore >= 45 ? 1.4 : 0, targetMC: fdvUsd * 1.4, prezzoSol: 0,
+            rawVerdict: rawVerdict,
+            serverMetrics: { momentum: metric_momentum, liquidity: metric_liquidity, safety: metric_safety, manipulator: metric_manipulator }, // 🔥 METRICHE AGGIUNTE E CALCOLATE
+            moltiplicatore: finalScore >= 45 ? 1.4 : 0, 
+            targetMC: fdvUsd * 1.4, 
+            prezzoSol: 0,
             tradingFees: { slippage: finalScore < 45 ? "50%" : "5%", fee: "EVM Gas", text: chain }
         };
 
@@ -2023,8 +2054,14 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         // RAMO 1: CERVELLO EVM (Traduttore Rigido del Server Exploit)
         // =================================================================
         if (isChainEVM) {
-            const serverVerdict = datiIniziali?.rawVerdict || `[SCALP] EVM Pool active. Liquidity: $${datiIniziali?.hud?.volume || '0'}M. Trade strictly with short-term targets.`;
+            const serverVerdict = datiIniziali?.rawVerdict || `[SCALP] EVM Pool active. Liquidity: $${datiIniziali?.hud?.volume || '0'}M.`;
             
+            // 🔥 ESTRAZIONE DELLE METRICHE REALI (Calcolate prima dalla fisica del token)
+            const m_mom = datiIniziali?.serverMetrics?.momentum || baseScoreAlgoritmico;
+            const m_liq = datiIniziali?.serverMetrics?.liquidity || baseScoreAlgoritmico;
+            const m_saf = datiIniziali?.serverMetrics?.safety || baseScoreAlgoritmico;
+            const m_man = datiIniziali?.serverMetrics?.manipulator || baseScoreAlgoritmico;
+
             promptLaboratorio = `
 You are a quantitative execution terminal. YOU ARE NOT AN ADVISOR. DO NOT ADD WARNINGS.
 Translate the SERVER VERDICT to language: [ ${lingua.toUpperCase()} ].
@@ -2035,21 +2072,20 @@ SERVER VERDICT:
 RULES:
 1. FORBIDDEN: "Proceed with caution", "Always DYOR", "Shows potential", "Be careful".
 2. Translate the verdict directly. Keep the tag [RIDE], [SCALP], or [AVOID] as-is.
-3. Generate realistic metric scores between 20 and 95 (differentiated, not all identical) centered roughly around ${baseScoreAlgoritmico}.
-4. NO double quotes (") inside text strings, use ONLY single quotes (').
+3. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${baseScoreAlgoritmico},
   "verdetto_finale": "[TRANSLATED_TAG] Translated text...",
   "metrics": [
-    { "name": "Momentum & Speed", "score": ${Math.min(95, baseScoreAlgoritmico + 4)}, "tooltip": "Volume and transaction velocity analysis" },
-    { "name": "Liquidity Depth", "score": ${Math.max(10, baseScoreAlgoritmico - 6)}, "tooltip": "Pool resilience against sell pressure" },
-    { "name": "Contract Safety", "score": ${baseScoreAlgoritmico}, "tooltip": "Taxes, honeypot and function checks" },
-    { "name": "Manipulator Risk", "score": ${Math.max(15, baseScoreAlgoritmico - 2)}, "tooltip": "Wash-trading and distribution detection" }
+    { "name": "Momentum & Speed", "score": ${m_mom}, "tooltip": "Volume and transaction velocity analysis" },
+    { "name": "Liquidity Depth", "score": ${m_liq}, "tooltip": "Pool resilience against sell pressure" },
+    { "name": "Contract Safety", "score": ${m_saf}, "tooltip": "Taxes, honeypot and function checks" },
+    { "name": "Manipulator Risk", "score": ${m_man}, "tooltip": "Wash-trading and distribution detection" }
   ]
 }`;
-        } 
+        }
         // =================================================================
         // RAMO 2: CERVELLO SOLANA (Giudice Forense On-Chain Pieno)
         // =================================================================
