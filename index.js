@@ -2181,7 +2181,6 @@ JSON FORMAT:
             throw new Error(`Risposta IA non valida`);
         }
 
-        const aiResult = JSON.parse(cleanText);
         let globalScore = aiResult.global_score || baseScoreAlgoritmico;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
@@ -2201,9 +2200,23 @@ JSON FORMAT:
 
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
 
-        verdettoTesto = verdettoTesto.replace(/\[AVOID\]/gi, '<span style="color:#ff4d4d; font-weight:900; background:rgba(255,77,77,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ff4d4d;">AVOID</span>');
-        verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">SCALP</span>');
-        verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">RIDE</span>');
+        // 🔥 REGEX INTELLIGENTE: Colora QUALSIASI tag tattico inventato dall'IA
+        verdettoTesto = verdettoTesto.replace(/\[([A-Z0-9_ \-]+)\]/g, (match, tagNome) => {
+            let textColor = "#ffaa00"; // Giallo (Default)
+            let bgColor = "rgba(255,170,0,0.2)";
+            
+            // Se il tag contiene pericolo -> ROSSO
+            if (tagNome.includes("AVOID") || tagNome.includes("DUMP") || tagNome.includes("TRAP") || tagNome.includes("SCAM") || tagNome.includes("RUG")) {
+                textColor = "#ff4d4d"; bgColor = "rgba(255,77,77,0.2)";
+            } 
+            // Se il tag contiene fomo/buy -> VERDE
+            else if (tagNome.includes("RIDE") || tagNome.includes("PUMP") || tagNome.includes("BULL") || tagNome.includes("SAFE") || tagNome.includes("MOON")) {
+                // Se è un Pump & Dump, la parola Dump (rossa) intercetta prima, salvandoti la vita. Altrimenti verde.
+                textColor = "#00e676"; bgColor = "rgba(0,230,118,0.2)";
+            }
+            
+            return `<span style="color:${textColor}; font-weight:900; background:${bgColor}; padding:2px 6px; border-radius:4px; border: 1px solid ${textColor}; margin-right:5px; display:inline-block;">${tagNome}</span>`;
+        });
 
         // Generazione Barre Metriche
         let barsHTML = "";
@@ -2223,7 +2236,7 @@ JSON FORMAT:
                         <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
                             <div style="width: ${mScore}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
                         </div>
-                        <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4;">
+                        <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4; word-wrap: break-word; white-space: normal;">
                             ${m.tooltip}
                         </div>
                     </div>
@@ -2231,6 +2244,7 @@ JSON FORMAT:
             });
         }
 
+        // 🔥 FIX CSS HFT: Aggiunti "min-width: 0" e "word-wrap" per blindare la card da testi troppo lunghi
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2238,17 +2252,22 @@ JSON FORMAT:
                 .donut-inner { width: 78px; height: 78px; background: #0a0c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; position: absolute; z-index: 2; }
                 .donut-inner span { z-index: 3; position: relative; }
             </style>
-            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
-                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
+            <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif; overflow: hidden; width: 100%; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px; width: 100%;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
-                    <div style="flex-grow: 1;">
+                    
+                    <!-- 🛡️ IL CONTENITORE BLINDATO -->
+                    <div style="flex: 1; min-width: 0;">
                         <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Algorithmic Verdict</span>
-                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">${verdettoTesto}</div>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
+                            ${verdettoTesto}
+                        </div>
                     </div>
+
                 </div>
-                <div style="padding-right: 5px;">${barsHTML}</div>
+                <div style="padding-right: 5px; width: 100%; box-sizing: border-box;">${barsHTML}</div>
                 <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
-                    <span style="font-size: 8px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: block;">
+                    <span style="font-size: 8px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: block; word-wrap: break-word;">
                         Not Financial Advice. Risk models are algorithmic estimates and may contain errors.<br>Trading micro-cap tokens carries extreme risk of total loss.
                     </span>
                 </div>
