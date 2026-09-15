@@ -2116,8 +2116,67 @@ JSON FORMAT:
         }
 
         // =================================================================
-        // ESECUZIONE CHIAMATA IA (OPENROUTER)
+        // ESECUZIONE CHIAMATA IA (CASCATA ANTI-CRASH E SALVA-BUDGET)
         // =================================================================
+        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
+        let primaryModel = "deepseek/deepseek-chat";
+        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Costa LA METÀ di DeepSeek. Perfetto per budget < 5€/mese.
+
+        if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
+            const premiumModels = ["deepseek/deepseek-chat", "openai/gpt-4o", "anthropic/claude-3.5-haiku"];
+            if (requestedModel.includes("claude")) primaryModel = "anthropic/claude-3.5-haiku";
+            else if (premiumModels.includes(requestedModel)) primaryModel = requestedModel;
+            else primaryModel = "openai/gpt-4o"; 
+            
+            fallbackModel = "openai/gpt-4o-mini"; // Fallback veloce per chi paga il premium
+        }
+
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
+
+        // Funzione centralizzata per non ripetere il codice
+        const chiamaOpenRouter = async (nomeModello) => {
+            const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: { 
+                    "Authorization": `Bearer ${apiKey}`, 
+                    "HTTP-Referer": "https://www.memesaver.lol",
+                    "X-Title": "Solana Radar Bot",
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({
+                    model: nomeModello, 
+                    messages: [{ role: "user", content: promptLaboratorio }],
+                    temperature: 0.1,
+                    response_format: { type: "json_object" }
+                })
+            });
+            return await resp.json();
+        };
+
+        // 1. TENTATIVO PRINCIPALE (Usa DeepSeek come vuoi tu)
+        let data = await chiamaOpenRouter(primaryModel);
+
+        // 2. TENTATIVO FALLBACK (Se DeepSeek è intasato a livello globale, ti salva il trade)
+        if (data.error) {
+            console.log(`⚠️ Modello ${primaryModel} in sovraccarico globale (${data.error.message}). Passo al piano B ultra-economico: ${fallbackModel}...`);
+            data = await chiamaOpenRouter(fallbackModel);
+        }
+
+        // Se OpenRouter stesso è completamente down
+        if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
+
+        let rawText = data.choices[0].message.content;
+        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const startIdx = cleanText.indexOf('{');
+        const endIdx = cleanText.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+            cleanText = cleanText.substring(startIdx, endIdx + 1);
+        } else {
+            throw new Error(`Risposta IA non valida: JSON non trovato.`);
+        }
+
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let selectedModel = "deepseek/deepseek-chat"; 
         
@@ -2149,7 +2208,9 @@ JSON FORMAT:
 
         let data = await response.json();
 
+        // 🔥 FIX: FALLBACK D'EMERGENZA SU GPT-4o-mini (Veloce, Economico, 100% Uptime)
         if (data.error) {
+            console.log(`⚠️ OpenRouter Model ${selectedModel} in sovraccarico (${data.error.message}). Attivo fallback istantaneo su GPT-4o-mini...`);
             response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: { 
@@ -2159,7 +2220,7 @@ JSON FORMAT:
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    model: "deepseek/deepseek-chat",
+                    model: "openai/gpt-4o-mini", // Sostituito DeepSeek con GPT per azzerare i blackout
                     messages: [{ role: "user", content: promptLaboratorio }],
                     temperature: 0.1,
                     response_format: { type: "json_object" }
@@ -2168,7 +2229,8 @@ JSON FORMAT:
             data = await response.json();
         }
 
-        if (data.error) throw new Error(data.error.message);
+        // Se anche il fallback fallisce (rarissimo), sputa l'errore esatto nel terminale
+        if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
 
         let rawText = data.choices[0].message.content;
         let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -2178,9 +2240,10 @@ JSON FORMAT:
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Risposta IA non valida`);
+            throw new Error(`Risposta IA non valida: Impossibile trovare il JSON.`);
         }
 
+        const aiResult = JSON.parse(cleanText);
         let globalScore = aiResult.global_score || baseScoreAlgoritmico;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
@@ -2202,19 +2265,13 @@ JSON FORMAT:
 
         // 🔥 REGEX INTELLIGENTE: Colora QUALSIASI tag tattico inventato dall'IA
         verdettoTesto = verdettoTesto.replace(/\[([A-Z0-9_ \-]+)\]/g, (match, tagNome) => {
-            let textColor = "#ffaa00"; // Giallo (Default)
-            let bgColor = "rgba(255,170,0,0.2)";
-            
-            // Se il tag contiene pericolo -> ROSSO
+            let textColor = "#ffaa00"; let bgColor = "rgba(255,170,0,0.2)";
             if (tagNome.includes("AVOID") || tagNome.includes("DUMP") || tagNome.includes("TRAP") || tagNome.includes("SCAM") || tagNome.includes("RUG")) {
                 textColor = "#ff4d4d"; bgColor = "rgba(255,77,77,0.2)";
             } 
-            // Se il tag contiene fomo/buy -> VERDE
             else if (tagNome.includes("RIDE") || tagNome.includes("PUMP") || tagNome.includes("BULL") || tagNome.includes("SAFE") || tagNome.includes("MOON")) {
-                // Se è un Pump & Dump, la parola Dump (rossa) intercetta prima, salvandoti la vita. Altrimenti verde.
                 textColor = "#00e676"; bgColor = "rgba(0,230,118,0.2)";
             }
-            
             return `<span style="color:${textColor}; font-weight:900; background:${bgColor}; padding:2px 6px; border-radius:4px; border: 1px solid ${textColor}; margin-right:5px; display:inline-block;">${tagNome}</span>`;
         });
 
@@ -2223,9 +2280,7 @@ JSON FORMAT:
         if (aiResult.metrics && aiResult.metrics.length > 0) {
             aiResult.metrics.forEach(m => {
                 let mScore = m.score;
-                if (baseScoreAlgoritmico < 45 && mScore > 60) {
-                    mScore = Math.floor(Math.random() * 20) + 20; 
-                }
+                if (baseScoreAlgoritmico < 45 && mScore > 60) mScore = Math.floor(Math.random() * 20) + 20; 
                 const barColor = mScore >= 75 ? "#00e676" : (mScore >= 45 ? "#ffaa00" : "#ff4d4d");
                 barsHTML += `
                     <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
@@ -2244,7 +2299,7 @@ JSON FORMAT:
             });
         }
 
-        // 🔥 FIX CSS HFT: Aggiunti "min-width: 0" e "word-wrap" per blindare la card da testi troppo lunghi
+        // Interfaccia Grafica e Layout Flexbox Anti-Rottura
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2256,14 +2311,12 @@ JSON FORMAT:
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px; width: 100%;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
                     
-                    <!-- 🛡️ IL CONTENITORE BLINDATO -->
                     <div style="flex: 1; min-width: 0;">
                         <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Algorithmic Verdict</span>
                         <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal;">
                             ${verdettoTesto}
                         </div>
                     </div>
-
                 </div>
                 <div style="padding-right: 5px; width: 100%; box-sizing: border-box;">${barsHTML}</div>
                 <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
@@ -2274,17 +2327,13 @@ JSON FORMAT:
             </div>
         `;
         
-        // 💾 SALVATAGGIO IN MEMORIA PER RECUPERO ISTANTANEO
-        const finalResponse = { 
-            success: true, score: globalScore, verdetto: reportHTML, 
-            plan: authStatus.plan, scansLeft: authStatus.scansLeft 
-        };
-        
+        // Salvataggio in memoria e output finale
+        const finalResponse = { success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft };
         labCache.set(cacheKey, { timestamp: Date.now(), data: finalResponse });
         return res.json(finalResponse);
         
     } catch (error) {
-        console.error("❌ CRITICAL BACKEND ERROR:", error.message);
+        console.error("❌ CRITICAL BACKEND ERROR IN LABORATORIO:", error.message);
         res.json({ 
             success: true, 
             verdetto: `
