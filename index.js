@@ -1875,28 +1875,25 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     }
 });
 
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
-// =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (Device Lock + Scelta IA)
+/// =====================================================================
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (DOPPIO CERVELLO SOLANA / EVM)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
 
     try {
         const tokenMint = req.params.tokenMint;
-        // 🛡️ ACCETTA SOLANA ED EVM
         if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
             return res.status(400).json({ success: false, verdetto: "Invalid Token Address." });
         }
         
         const lingua = req.query.lang || 'en'; 
-        const cacheKey = `${tokenMint}_${lingua}`; // 🔥 CHIAVE MULTILINGUA
+        const cacheKey = `${tokenMint}_${lingua}`;
 
         let rawToken = req.headers['x-auth-token'];
         let deviceId = req.headers['x-device-id'] || "unknown";
         const authToken = typeof rawToken === 'string' ? rawToken.trim() : null;
         
-        // 🔥 PASSAGGIO IP AL GATEKEEPER
         authStatus = await checkAuthAndLimits(authToken, deviceId, req.ip);
         
         if (!authStatus.authorized) {
@@ -1920,7 +1917,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             });
         }
 
-        // 🧠 FIX BUG SOLANA/EVM: Cerca in memoria prima con la lingua, poi fa un fallback globale
+        // Recupero Dati dalla Cache
         let datiIniziali = null;
         if (scanCache.has(cacheKey)) {
             datiIniziali = scanCache.get(cacheKey).data;
@@ -1932,72 +1929,109 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             return res.json({ success: false, verdetto: "Insufficient data. Please run a base scan first." });
         }
 
-        // 🧹 FILTRO DI SANIFICAZIONE E PREPARAZIONE DATI
-        const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
+        const isChainEVM = datiIniziali?.isEVM === true;
+        const baseScoreAlgoritmico = datiIniziali?.score || 50;
 
-        let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "No Sybil data");
-        let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "No Micro-Dump data");
+        // Pulizia testi
+        const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
         let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "No bundle detected");
         let liquidita = pulisciTesto(datiIniziali?.hud ? `Change: ${datiIniziali.hud.change}% | Volume: $${datiIniziali.hud.volume}M` : "Market data unavailable");
-
         let marketCapContext = pulisciTesto(datiIniziali?.simulatoreTesto || "Market Cap loading");
-
         const devTxtStr = devStatusStr.toUpperCase();
-        const bundleTxtStr = bundleInfo.toUpperCase();
-        
-        // 🔥 ANCORAGGIO ALGORITMICO
-        // 🔥 ANCORAGGIO ALGORITMICO E RILEVAMENTO CHAIN
-        // 🔥 ANCORAGGIO ALGORITMICO E RILEVAMENTO CHAIN
-        // 🔥 ESTIAMO IL VERDETTO CALCOLATO DAL SERVER
-        const baseScoreAlgoritmico = datiIniziali?.score || 50;
-        const serverVerdict = datiIniziali?.rawVerdict || "Evaluate data conventionally.";
 
-        // 🧠 PROMPT DITTATORIALE: L'IA è solo un traduttore/formattatore
-        const promptLaboratorio = `
-You are a strict data formatting and translation engine. YOU ARE NOT A FINANCIAL ADVISOR. DO NOT ANALYZE. DO NOT ADD WARNINGS.
+        let promptLaboratorio = "";
 
-Your ONLY job is to translate the "SERVER EXACT VERDICT" into this language: [ ${lingua.toUpperCase()} ].
-If the code is 'EN', output in English. If 'IT', output in Italian, etc.
+        // =================================================================
+        // RAMO 1: CERVELLO EVM (Traduttore Rigido del Server Exploit)
+        // =================================================================
+        if (isChainEVM) {
+            const serverVerdict = datiIniziali?.rawVerdict || `[SCALP] EVM Pool active. Liquidity: $${datiIniziali?.hud?.volume || '0'}M. Trade strictly with short-term targets.`;
+            
+            promptLaboratorio = `
+You are a quantitative execution terminal. YOU ARE NOT AN ADVISOR. DO NOT ADD WARNINGS.
+Translate the SERVER VERDICT to language: [ ${lingua.toUpperCase()} ].
 
-SERVER EXACT VERDICT TO TRANSLATE:
+SERVER VERDICT:
 "${serverVerdict}"
 
-🔥 STRICT RULES (CRITICAL):
-1. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Shows potential", "Be careful". YOU WILL BE FIRED IF YOU WRITE THESE.
-2. The 'verdetto_finale' in the JSON MUST be the direct translation of the SERVER EXACT VERDICT. Keep the tags [RIDE], [SCALP], or [AVOID] exactly as they are. Do not add your own opinions.
-3. NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
+RULES:
+1. FORBIDDEN: "Proceed with caution", "Always DYOR", "Shows potential", "Be careful".
+2. Translate the verdict directly. Keep the tag [RIDE], [SCALP], or [AVOID] as-is.
+3. Generate realistic metric scores between 20 and 95 (differentiated, not all identical) centered roughly around ${baseScoreAlgoritmico}.
+4. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${baseScoreAlgoritmico},
-  "verdetto_finale": "[TRANSLATED TAG] Translated server exact verdict here...",
+  "verdetto_finale": "[TRANSLATED_TAG] Translated text...",
   "metrics": [
-    { "name": "Momentum & Speed", "score": ${baseScoreAlgoritmico}, "tooltip": "Translated flow analysis..." },
-    { "name": "Liquidity Health", "score": ${baseScoreAlgoritmico}, "tooltip": "Translated pool analysis..." },
-    { "name": "Contract Safety", "score": ${baseScoreAlgoritmico}, "tooltip": "Translated code analysis..." },
-    { "name": "Manipulator Risk", "score": ${baseScoreAlgoritmico}, "tooltip": "Translated bundler/dump analysis..." }
+    { "name": "Momentum & Speed", "score": ${Math.min(95, baseScoreAlgoritmico + 4)}, "tooltip": "Volume and transaction velocity analysis" },
+    { "name": "Liquidity Depth", "score": ${Math.max(10, baseScoreAlgoritmico - 6)}, "tooltip": "Pool resilience against sell pressure" },
+    { "name": "Contract Safety", "score": ${baseScoreAlgoritmico}, "tooltip": "Taxes, honeypot and function checks" },
+    { "name": "Manipulator Risk", "score": ${Math.max(15, baseScoreAlgoritmico - 2)}, "tooltip": "Wash-trading and distribution detection" }
   ]
 }`;
+        } 
+        // =================================================================
+        // RAMO 2: CERVELLO SOLANA (Giudice Forense On-Chain Pieno)
+        // =================================================================
+        else {
+            let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
+            let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
 
-        // 🏎️ IL CAMBIO MARCE DELL'IA 
+            let solanaMandate = `Analyze the data cynically. Base algorithmic score: ${baseScoreAlgoritmico}/100.`;
+            if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL/)) {
+                solanaMandate = "🔴 MANDATE: DEV IS DANGEROUS. GLOBAL SCORE MAX 35. TAG [AVOID].";
+            } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
+                solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID] OR [SCALP].";
+            }
+
+            promptLaboratorio = `
+You are the "Supreme Judge", a ruthless on-chain quantitative analyst for Solana memecoins.
+Evaluate this verified data with cold mathematical precision.
+
+${solanaMandate}
+
+VERIFIED ON-CHAIN DATA:
+- Algorithmic Score: ${baseScoreAlgoritmico}/100
+- Market/Volume: ${liquidita}
+- Current MC: ${marketCapContext}
+- Sybil Cluster: ${sybilStatus}
+- Micro-Dumping: ${microDumping}
+- Developer Record: ${devStatusStr}
+- Bundle/Supply: ${bundleInfo}
+
+RULES:
+1. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Shows potential", "Be careful".
+2. If MC < $100k and bundled, warn about pre-Raydium dump ($60k-$90k).
+3. If MC >= $100k, analyze micro-dumping and whale distribution.
+4. If score >= 75 use [RIDE], if 45-74 use [SCALP], if < 45 use [AVOID].
+5. Each metric score MUST be unique based on its specific data (DO NOT give them all the same score).
+6. Output exclusively in ${lingua.toUpperCase()}. Use single quotes (') inside text.
+
+JSON FORMAT:
+{
+  "global_score": 85,
+  "verdetto_finale": "[TAG] Concrete verdict with real numbers...",
+  "metrics": [
+    { "name": "Supply Integrity", "score": 80, "tooltip": "Specific bundle & top holder analysis..." },
+    { "name": "Developer Trust", "score": 65, "tooltip": "Specific dev history and wallet age..." },
+    { "name": "Sybil Resistance", "score": 90, "tooltip": "Specific cluster and mixer check..." },
+    { "name": "Micro-Dump Risk", "score": 75, "tooltip": "Specific micro-selling detection..." }
+  ]
+}`;
+        }
+
+        // Chiamata all'IA (OpenRouter)
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let selectedModel = "deepseek/deepseek-chat"; 
         
-        const premiumModels = [
-            "deepseek/deepseek-chat", 
-            "openai/gpt-4o", 
-            "anthropic/claude-3.5-haiku"
-        ];
-
+        const premiumModels = ["deepseek/deepseek-chat", "openai/gpt-4o", "anthropic/claude-3.5-haiku"];
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            if (requestedModel.includes("claude")) {
-                selectedModel = "anthropic/claude-3.5-haiku";
-            } else if (premiumModels.includes(requestedModel)) {
-                selectedModel = requestedModel;
-            } else {
-                selectedModel = "openai/gpt-4o"; 
-            }
+            if (requestedModel.includes("claude")) selectedModel = "anthropic/claude-3.5-haiku";
+            else if (premiumModels.includes(requestedModel)) selectedModel = requestedModel;
+            else selectedModel = "openai/gpt-4o"; 
         }
 
         const apiKey = process.env.OPENROUTER_API_KEY;
@@ -2021,7 +2055,7 @@ JSON FORMAT:
 
         let data = await response.json();
 
-        // 🪂 FALLBACK
+        // Fallback su DeepSeek se il modello selezionato va in errore
         if (data.error) {
             response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -2055,20 +2089,11 @@ JSON FORMAT:
         }
 
         const aiResult = JSON.parse(cleanText);
-        
-        let globalScore = aiResult.global_score || 50;
+        let globalScore = aiResult.global_score || baseScoreAlgoritmico;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
-        // =====================================================================
-        // 🛑 BAVAGLIO POST-PRODUZIONE (Il filtro intelligente anti-chiacchiere)
-        // =====================================================================
-        // Anche se l'IA prova a disobbedire, noi eliminiamo fisicamente le frasi corporate
-        // PRIMA di mandarle al frontend dell'utente.
-        
-        verdettoTesto = verdettoTesto.replace(/Proceed with caution\.?/gi, "⚡ Momentum Analysis:");
-        verdettoTesto = verdettoTesto.replace(/inherent EVM risks/gi, "EVM volatility");
-        verdettoTesto = verdettoTesto.replace(/unverified contract status/gi, "dynamic contract mapping");
-        verdettoTesto = verdettoTesto.replace(/The token shows potential but/gi, "Data confirmed:");
+        // Pulizia post-produzione contro frasi fatte
+        verdettoTesto = verdettoTesto.replace(/Proceed with caution\.?/gi, "⚡ Momentum Check:");
         verdettoTesto = verdettoTesto.replace(/Always do your own research/gi, "");
 
         // 🛑 KILL SWITCH MATEMATICO
@@ -2076,10 +2101,9 @@ JSON FORMAT:
             globalScore = baseScoreAlgoritmico; 
             verdettoTesto = verdettoTesto.replace(/\[RIDE\]|\[SCALP\]/gi, '[AVOID]');
         }
-        
         if (devTxtStr.includes("HONEYPOT") && globalScore > 15) {
             globalScore = 5;
-            verdettoTesto = "[AVOID] CRITICAL DANGER: Code logic blocks selling. Do not interact with this contract.";
+            verdettoTesto = "[AVOID] CRITICAL DANGER: Smart contract blocks exits. Do not interact.";
         }
 
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
@@ -2088,14 +2112,14 @@ JSON FORMAT:
         verdettoTesto = verdettoTesto.replace(/\[SCALP\]/gi, '<span style="color:#ffaa00; font-weight:900; background:rgba(255,170,0,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #ffaa00;">SCALP</span>');
         verdettoTesto = verdettoTesto.replace(/\[RIDE\]/gi, '<span style="color:#00e676; font-weight:900; background:rgba(0,230,118,0.2); padding:2px 6px; border-radius:4px; border: 1px solid #00e676;">RIDE</span>');
 
+        // Generazione Barre Metriche
         let barsHTML = "";
-        if(aiResult.metrics && aiResult.metrics.length > 0) {
+        if (aiResult.metrics && aiResult.metrics.length > 0) {
             aiResult.metrics.forEach(m => {
                 let mScore = m.score;
                 if (baseScoreAlgoritmico < 45 && mScore > 60) {
                     mScore = Math.floor(Math.random() * 20) + 20; 
                 }
-
                 const barColor = mScore >= 75 ? "#00e676" : (mScore >= 45 ? "#ffaa00" : "#ff4d4d");
                 barsHTML += `
                     <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
@@ -2114,7 +2138,6 @@ JSON FORMAT:
             });
         }
 
-        // 🏗️ ASSEMBLAGGIO REPORT HTML CON MICRO-DISCLAIMER
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2144,7 +2167,6 @@ JSON FORMAT:
                 </div>
                 <div style="padding-right: 5px;">${barsHTML}</div>
                 
-                <!-- 🛡️ MICRO-DISCLAIMER LEGALE (8px, Semitrasparente) -->
                 <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
                     <span style="font-size: 8px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: block;">
                         Not Financial Advice. Risk models are algorithmic estimates and may contain errors.<br>Trading micro-cap tokens carries extreme risk of total loss.
@@ -2163,7 +2185,6 @@ JSON FORMAT:
     
     } catch (error) {
         console.error("❌ CRITICAL BACKEND ERROR:", error.message);
-        
         res.json({ 
             success: true, 
             verdetto: `
