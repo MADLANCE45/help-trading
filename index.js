@@ -1906,7 +1906,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
     }
 });
 
-/// =====================================================================
+// =====================================================================
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (DOPPIO CERVELLO SOLANA / EVM)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
@@ -2037,21 +2037,15 @@ JSON FORMAT:
   ]
 }`;
         }
-        }
-        // =================================================================
-        // RAMO 2: CERVELLO SOLANA (Giudice Forense On-Chain Pieno)
-        // =================================================================
         // =================================================================
         // RAMO 2: CERVELLO SOLANA (Predittore Mossa dello Scammer via Helius)
         // =================================================================
         else {
-            // Estrazione dati puramente ON-CHAIN (Niente macro-volumi falsati)
             let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
             let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             
-            // Deduzione Market Cap reale dai dati del simulatore (TargetMC / 1.4)
             let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
 
             let solanaMandate = `Analyze the data cynically. Base algorithmic score: ${baseScoreAlgoritmico}/100.`;
@@ -2099,10 +2093,9 @@ JSON FORMAT:
 }`;
         }
 
-        // Chiamata all'IA (OpenRouter)
-        }
-
-        // Chiamata all'IA (OpenRouter)
+        // =================================================================
+        // ESECUZIONE CHIAMATA IA (OPENROUTER)
+        // =================================================================
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let selectedModel = "deepseek/deepseek-chat"; 
         
@@ -2220,32 +2213,19 @@ JSON FORMAT:
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
-                .donut-chart {
-                    width: 90px; height: 90px; border-radius: 50%;
-                    background: conic-gradient(${mainColor} ${globalScore}%, #161821 0);
-                    display: flex; align-items: center; justify-content: center;
-                    position: relative; box-shadow: 0 0 15px ${mainColor}40; flex-shrink: 0;
-                }
-                .donut-inner {
-                    width: 78px; height: 78px; background: #0a0c10; border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center;
-                    flex-direction: column; position: absolute; z-index: 2;
-                }
+                .donut-chart { width: 90px; height: 90px; border-radius: 50%; background: conic-gradient(${mainColor} ${globalScore}%, #161821 0); display: flex; align-items: center; justify-content: center; position: relative; box-shadow: 0 0 15px ${mainColor}40; flex-shrink: 0; }
+                .donut-inner { width: 78px; height: 78px; background: #0a0c10; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-direction: column; position: absolute; z-index: 2; }
                 .donut-inner span { z-index: 3; position: relative; }
             </style>
-
             <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
                 <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
                     <div style="flex-grow: 1;">
                         <span style="font-size: 0.7em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Algorithmic Verdict</span>
-                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">
-                            ${verdettoTesto}
-                        </div>
+                        <div style="font-size: 0.9em; color: #e4e4e7; line-height: 1.5; margin-top: 6px; font-weight: 500;">${verdettoTesto}</div>
                     </div>
                 </div>
                 <div style="padding-right: 5px;">${barsHTML}</div>
-                
                 <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
                     <span style="font-size: 8px; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: block;">
                         Not Financial Advice. Risk models are algorithmic estimates and may contain errors.<br>Trading micro-cap tokens carries extreme risk of total loss.
@@ -2254,14 +2234,8 @@ JSON FORMAT:
             </div>
         `;
         
-        res.json({ 
-            success: true, 
-            score: globalScore,
-            verdetto: reportHTML,
-            plan: authStatus.plan,        
-            scansLeft: authStatus.scansLeft 
-        });
-    
+        res.json({ success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft });
+        
     } catch (error) {
         console.error("❌ CRITICAL BACKEND ERROR:", error.message);
         res.json({ 
@@ -2278,8 +2252,8 @@ JSON FORMAT:
                     </div>
                 </div>
             </div>`,
-            plan: authStatus.plan,
-            scansLeft: authStatus.scansLeft
+            plan: authStatus?.plan || "free",
+            scansLeft: authStatus?.scansLeft || 0
         });
     }
 });
