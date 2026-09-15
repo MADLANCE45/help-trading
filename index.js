@@ -335,10 +335,16 @@ function avviaAscoltoLive(tokenMint) {
         (logsInfo, context) => {
             if (logsInfo.err) return; 
             
-            // 🔥 LA MAGIA: Non scartiamo PIÙ NULLA! Mettiamo tutto in coda.
             codaTransazioni.push({ signature: logsInfo.signature, logsInfo });
             
-            // Se il worker è fermo, sveglialo!
+            // 🚀 POTENZIAMENTO 1: HFT SMART DROP (Zero Lag System)
+            // Se la moneta va virale e la coda si intasa, filtriamo il rumore per non rimanere indietro!
+            if (codaTransazioni.length > 40) {
+                console.log(`⚠️ CODA INTASATA (${codaTransazioni.length} tx). Attivo HFT Drop Mode per restare in Real-Time!`);
+                // Teniamo solo le ultime 15 transazioni più recenti per resettare il lag a ZERO
+                codaTransazioni = codaTransazioni.slice(-15);
+            }
+            
             if (!workerAttivo) {
                 smaltisciCoda();
             }
@@ -371,16 +377,32 @@ app.use(express.json({ limit: '50mb' }));
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius
 // 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius e Gemini
 // 🔥 RAM CACHE CON AUTO-PULIZIA (Anti Memory-Leak per Railway)
+// 🔥 RAM CACHE CON AUTO-PULIZIA GLOBALE (Anti Memory-Leak)
 const scanCache = new Map();
 const CACHE_TTL_MS = 60000;
 
-// Pulisce le vecchie voci di cache ogni 5 minuti per salvare la RAM
 setInterval(() => {
     const now = Date.now();
+    let puliti = 0;
+
+    // 1. Pulisce la cache delle scansioni statiche
     for (const [key, val] of scanCache.entries()) {
-        if (now - val.timestamp > CACHE_TTL_MS) scanCache.delete(key);
+        if (now - val.timestamp > CACHE_TTL_MS) {
+            scanCache.delete(key);
+            puliti++;
+        }
     }
-}, 300000);
+
+    // 2. Pulisce la memoria Spy e BlackBox dei token non più attivi da 15 minuti
+    for (const [token, eventi] of blackBoxEventi.entries()) {
+        if (eventi.length === 0 || now - (eventi[eventi.length-1].timestamp || 0) > 900000) {
+            blackBoxEventi.delete(token);
+            spyCache.delete(token);
+        }
+    }
+    
+    if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] Memoria RAM ottimizzata. Rimossi ${puliti} vecchi dati.`);
+}, 180000); // Gira ogni 3 minuti
 
 // 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms di latenza nello scan)
 let macroMarketData = {
@@ -1488,8 +1510,15 @@ async function analizzaTokenEVM(tokenAddress) {
         }
 
         // Se non abbiamo GoPlus, usiamo l'euristica matematica per l'Honeypot
-        if (!securityData && txBuys >= 7 && txSells === 0 && ageMinutes >= 2) {
-            isHoneypot = true;
+        // 🚀 POTENZIAMENTO 2: HONEYPOT 2.0 DETECTOR (Anti-Whitelist)
+        if (!securityData) {
+            if (txBuys >= 7 && txSells === 0 && ageMinutes >= 2) {
+                isHoneypot = true; // Classico Honeypot
+            } else if (txBuys >= 40 && txSells <= 2 && ageMinutes >= 5) {
+                // TRUFFA AVANZATA: Il dev ha fatto 1-2 vendite col suo wallet whitelistato per ingannare i bot!
+                isHoneypot = true;
+                bandiereRosse.push("[WHITELIST HONEYPOT] Massive buys but only 1-2 sells. Dev is faking sells.");
+            }
         }
 
         // 🔍 3. IL CERVELLO STRATEGICO (Calcolo Voto e Testo Hardcoded)
