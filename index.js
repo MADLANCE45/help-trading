@@ -379,21 +379,23 @@ app.use(express.json({ limit: '50mb' }));
 // 🔥 RAM CACHE CON AUTO-PULIZIA (Anti Memory-Leak per Railway)
 // 🔥 RAM CACHE CON AUTO-PULIZIA GLOBALE (Anti Memory-Leak)
 const scanCache = new Map();
-const CACHE_TTL_MS = 60000;
-
+const labCache = new Map(); // 🧠 NUOVA MEMORIA: Salva i referti dell'IA
+const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
 setInterval(() => {
     const now = Date.now();
     let puliti = 0;
 
     // 1. Pulisce la cache delle scansioni statiche
     for (const [key, val] of scanCache.entries()) {
-        if (now - val.timestamp > CACHE_TTL_MS) {
-            scanCache.delete(key);
-            puliti++;
-        }
+        if (now - val.timestamp > CACHE_TTL_MS) { scanCache.delete(key); puliti++; }
+    }
+    
+    // 2. Pulisce i referti vecchi dell'IA
+    for (const [key, val] of labCache.entries()) {
+        if (now - val.timestamp > CACHE_TTL_MS) { labCache.delete(key); }
     }
 
-    // 2. Pulisce la memoria Spy e BlackBox dei token non più attivi da 15 minuti
+    // 3. Pulisce la memoria Spy e BlackBox dei token non più attivi
     for (const [token, eventi] of blackBoxEventi.entries()) {
         if (eventi.length === 0 || now - (eventi[eventi.length-1].timestamp || 0) > 900000) {
             blackBoxEventi.delete(token);
@@ -401,7 +403,7 @@ setInterval(() => {
         }
     }
     
-    if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] Memoria RAM ottimizzata. Rimossi ${puliti} vecchi dati.`);
+    if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] RAM ottimizzata. Rimossi ${puliti} vecchi dati.`);
 }, 180000); // Gira ogni 3 minuti
 
 // 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms di latenza nello scan)
@@ -1970,6 +1972,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
         // Pulizia testi
+        // Pulizia testi
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
         let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
         let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "No bundle detected");
@@ -1978,6 +1981,23 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const devTxtStr = devStatusStr.toUpperCase();
 
         const serverVerdict = datiIniziali?.rawVerdict || "";
+
+        // =================================================================
+        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE)
+        // =================================================================
+        // Se l'utente chiude l'estensione per sbaglio, peschiamo il verdetto già pronto!
+        if (labCache.has(cacheKey)) {
+            const cachedLab = labCache.get(cacheKey);
+            if (Date.now() - cachedLab.timestamp < CACHE_TTL_MS) {
+                console.log(`⚡ LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
+                
+                // Aggiorniamo al volo solo i crediti rimasti, per non mostrare numeri vecchi
+                cachedLab.data.scansLeft = authStatus.scansLeft; 
+                cachedLab.data.plan = authStatus.plan;
+                
+                return res.json(cachedLab.data);
+            }
+        }
 
         // =================================================================
         // 🛑 BYPASS TOTALE PER I TOKEN NON ANCORA INDICIZZATI 
@@ -2234,7 +2254,16 @@ JSON FORMAT:
             </div>
         `;
         
-        res.json({ success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft });
+        const finalResponse = { 
+            success: true, 
+            score: globalScore, 
+            verdetto: reportHTML, 
+            plan: authStatus.plan, 
+            scansLeft: authStatus.scansLeft 
+        };
+        
+        labCache.set(cacheKey, { timestamp: Date.now(), data: finalResponse });
+        return res.json(finalResponse);
         
     } catch (error) {
         console.error("❌ CRITICAL BACKEND ERROR:", error.message);
