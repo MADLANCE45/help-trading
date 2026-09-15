@@ -1909,7 +1909,7 @@ app.post('/api/paper-trading', express.json(), (req, res) => {
 });
 
 // =====================================================================
-// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (DOPPIO CERVELLO SOLANA / EVM)
+// ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (DOPPIO CERVELLO CON TOOLTIP DINAMICI)
 // =====================================================================
 app.get('/api/laboratorio/:tokenMint', async (req, res) => {
     let authStatus = { plan: "free", scansLeft: 0 }; 
@@ -1965,13 +1965,12 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const isChainEVM = datiIniziali?.isEVM === true;
         const baseScoreAlgoritmico = datiIniziali?.score || 50;
 
-        // 🔥 MAPPA LINGUISTICA ASSOLUTA E INVALICABILE
+        // 🔥 MAPPA LINGUISTICA ASSOLUTA
         const langMap = {
             'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN'
         };
         const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
-        // Pulizia testi
         // Pulizia testi
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
         let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
@@ -1981,23 +1980,6 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         const devTxtStr = devStatusStr.toUpperCase();
 
         const serverVerdict = datiIniziali?.rawVerdict || "";
-
-        // =================================================================
-        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE)
-        // =================================================================
-        // Se l'utente chiude l'estensione per sbaglio, peschiamo il verdetto già pronto!
-        if (labCache.has(cacheKey)) {
-            const cachedLab = labCache.get(cacheKey);
-            if (Date.now() - cachedLab.timestamp < CACHE_TTL_MS) {
-                console.log(`⚡ LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
-                
-                // Aggiorniamo al volo solo i crediti rimasti, per non mostrare numeri vecchi
-                cachedLab.data.scansLeft = authStatus.scansLeft; 
-                cachedLab.data.plan = authStatus.plan;
-                
-                return res.json(cachedLab.data);
-            }
-        }
 
         // =================================================================
         // 🛑 BYPASS TOTALE PER I TOKEN NON ANCORA INDICIZZATI 
@@ -2020,16 +2002,35 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             return res.json({ success: true, score: 50, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft });
         }
 
+        // =================================================================
+        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE)
+        // =================================================================
+        if (labCache.has(cacheKey)) {
+            const cachedLab = labCache.get(cacheKey);
+            if (Date.now() - cachedLab.timestamp < CACHE_TTL_MS) {
+                console.log(`⚡ LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
+                cachedLab.data.scansLeft = authStatus.scansLeft; 
+                cachedLab.data.plan = authStatus.plan;
+                return res.json(cachedLab.data);
+            }
+        }
+
         let promptLaboratorio = "";
 
         // =================================================================
-        // RAMO 1: CERVELLO EVM (Traduttore Rigido del Server Exploit)
+        // RAMO 1: CERVELLO EVM (Traduttore Rigido + Tooltip Dinamici)
         // =================================================================
         if (isChainEVM) {
             const m_mom = datiIniziali?.serverMetrics?.momentum || baseScoreAlgoritmico;
             const m_liq = datiIniziali?.serverMetrics?.liquidity || baseScoreAlgoritmico;
             const m_saf = datiIniziali?.serverMetrics?.safety || baseScoreAlgoritmico;
             const m_man = datiIniziali?.serverMetrics?.manipulator || baseScoreAlgoritmico;
+
+            // 🔥 LOGICA TOOLTIP: Il server decide il testo in 0 millisecondi basandosi sui veri numeri
+            const tt_mom = m_mom >= 75 ? 'Explosive FOMO detected. High transaction velocity and strong buy pressure.' : (m_mom <= 40 ? 'Dead momentum. Lack of buying volume and slow transactions.' : 'Standard market flow. No extreme momentum.');
+            const tt_liq = m_liq >= 75 ? 'Deep liquidity. High resilience against whale dumps.' : (m_liq <= 40 ? 'Dangerously thin liquidity. Extreme slippage and rug risk.' : 'Moderate liquidity. Can sustain normal trading but vulnerable to large sells.');
+            const tt_saf = m_saf >= 80 ? 'Contract verified. Safe taxes and no malicious functions detected.' : (m_saf <= 35 ? 'Unverified or Honeypot risk. Contract has hidden or malicious functions.' : 'Standard unmapped EVM contract. Usual risks apply.');
+            const tt_man = m_man >= 75 ? 'Clean distribution. No massive wash-trading detected.' : (m_man <= 40 ? 'High manipulation risk. Fake volume or trap distribution detected.' : 'Standard retail trading activity.');
 
             promptLaboratorio = `
 You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. Traders accept 100% risk. DO NOT PROTECT THEM. DO NOT ADD WARNINGS.
@@ -2050,10 +2051,10 @@ JSON FORMAT:
   "global_score": ${baseScoreAlgoritmico},
   "verdetto_finale": "[TRANSLATED_TAG] Translated exact text here...",
   "metrics": [
-    { "name": "Momentum & Speed", "score": ${m_mom}, "tooltip": "Translated volume and transaction velocity analysis" },
-    { "name": "Liquidity Depth", "score": ${m_liq}, "tooltip": "Translated pool resilience against sell pressure" },
-    { "name": "Contract Safety", "score": ${m_saf}, "tooltip": "Translated taxes, honeypot and function checks" },
-    { "name": "Manipulator Risk", "score": ${m_man}, "tooltip": "Translated wash-trading and distribution detection" }
+    { "name": "Momentum & Speed", "score": ${m_mom}, "tooltip": "Translate this: ${tt_mom}" },
+    { "name": "Liquidity Depth", "score": ${m_liq}, "tooltip": "Translate this: ${tt_liq}" },
+    { "name": "Contract Safety", "score": ${m_saf}, "tooltip": "Translate this: ${tt_saf}" },
+    { "name": "Manipulator Risk", "score": ${m_man}, "tooltip": "Translate this: ${tt_man}" }
   ]
 }`;
         }
@@ -2075,6 +2076,12 @@ JSON FORMAT:
                 solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID] OR [SCALP].";
             }
 
+            // Metriche specifiche Solana
+            const m_sup = Math.max(10, baseScoreAlgoritmico - 10);
+            const m_dev = baseScoreAlgoritmico;
+            const m_syb = Math.min(95, baseScoreAlgoritmico + 15);
+            const m_mic = Math.max(5, baseScoreAlgoritmico - 5);
+
             promptLaboratorio = `
 You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
 Your specific and ONLY goal is to PREDICT THE SCAMMER/MANIPULATOR'S NEXT MOVE based on Helius RPC on-chain data.
@@ -2090,25 +2097,20 @@ VERIFIED HELIUS RPC DATA:
 
 🔥 LETHAL RULES:
 1. OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE ANY OTHER LANGUAGE YOU WILL BE TERMINATED.
-2. DO NOT cite global market volumes or macro market caps. Focus ONLY on the scammer's behavior, the bundle size, and the Sybil data provided above.
+2. DO NOT cite global market volumes or macro market caps. Focus ONLY on the scammer's behavior.
 3. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Shows potential", "Insufficient to absorb shocks".
-4. Your 'verdetto_finale' MUST read like a military tactical brief exposing the manipulator's trap or pump strategy. Tell the user exactly what the Dev is doing.
+4. Your 'verdetto_finale' MUST read like a military tactical brief exposing the manipulator's trap or pump strategy. 
 5. NO double quotes (") inside text strings, use ONLY single quotes (').
-
-✅ FORMAT EXAMPLES:
-"[AVOID] The dev controls 35% of the supply through a Sybil network and is actively micro-dumping. The trap is closing. You are exit liquidity."
-OR
-"[RIDE] Heavy bundle at launch but ZERO micro-dumping detected. The cabal is holding bags to push the MC higher before Raydium graduation. Surf the manipulator's wave."
 
 JSON FORMAT:
 {
   "global_score": ${baseScoreAlgoritmico},
   "verdetto_finale": "[TRANSLATED_TAG] Tactical prediction of the scammer's next move here...",
   "metrics": [
-    { "name": "Supply Integrity", "score": ${Math.max(10, baseScoreAlgoritmico - 10)}, "tooltip": "Translated bundle & top holder analysis..." },
-    { "name": "Developer Trust", "score": ${baseScoreAlgoritmico}, "tooltip": "Translated dev history analysis..." },
-    { "name": "Sybil Resistance", "score": ${Math.min(95, baseScoreAlgoritmico + 15)}, "tooltip": "Translated cluster and mixer analysis..." },
-    { "name": "Micro-Dump Risk", "score": ${Math.max(5, baseScoreAlgoritmico - 5)}, "tooltip": "Translated micro-selling detection..." }
+    { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${bundleInfo}" },
+    { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${devStatusStr}" },
+    { "name": "Sybil Resistance", "score": ${m_syb}, "tooltip": "Translate this: ${sybilStatus}" },
+    { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${microDumping}" }
   ]
 }`;
         }
@@ -2147,7 +2149,6 @@ JSON FORMAT:
 
         let data = await response.json();
 
-        // Fallback su DeepSeek se il modello selezionato va in errore
         if (data.error) {
             response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
@@ -2254,12 +2255,10 @@ JSON FORMAT:
             </div>
         `;
         
+        // 💾 SALVATAGGIO IN MEMORIA PER RECUPERO ISTANTANEO
         const finalResponse = { 
-            success: true, 
-            score: globalScore, 
-            verdetto: reportHTML, 
-            plan: authStatus.plan, 
-            scansLeft: authStatus.scansLeft 
+            success: true, score: globalScore, verdetto: reportHTML, 
+            plan: authStatus.plan, scansLeft: authStatus.scansLeft 
         };
         
         labCache.set(cacheKey, { timestamp: Date.now(), data: finalResponse });
