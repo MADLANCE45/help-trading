@@ -850,25 +850,37 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
         const datiLive = req.body;
         const lingua = req.query.lang || 'en'; 
 
-        const promptCopilot = `
-You are the Tactical Quantitative Assistant (Copilot) for a Solana trader.
-Analyze real-time flows for extreme scalping (trade duration: 1-3 minutes).
+        // 🔥 MAPPA LINGUISTICA ASSOLUTA E INVALICABILE
+        const langMap = {
+            'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN'
+        };
+        const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
-LIVE DATA (Last 10 seconds):
+        // 🧠 PROMPT CO-PILOT: IL CECCHINO (Predatore da Scalping)
+        const promptCopilot = `
+You are a ruthless High-Frequency Trading (HFT) Copilot for memecoins. YOU ARE NOT A FINANCIAL ADVISOR. 
+Your goal is to guide extreme scalping (trades lasting 10 seconds to 3 minutes). Exploit the scammers.
+
+LIVE TAPE (Last 10 seconds):
 - Buy Pressure: ${datiLive.buyPressure}%
 - Buy Vol: ${datiLive.buyVol} SOL
 - Sell Vol: ${datiLive.sellVol} SOL
 
-🔥 CRITICAL RULE:
-You MUST translate ALL output texts into this language: ${lingua.toUpperCase()} (EN=English, IT=Italian, ZH=Chinese, FR=French).
-You are a soulless parser. NO greetings, NO warnings.
-ONLY output valid JSON. Use single quotes (') inside your sentences, NEVER double quotes.
+🔥 SCALPING RULES (THE JUNGLE):
+1. Dead Tape (Near zero vol): The manipulator is waiting. Action: WAIT.
+2. Heavy Buy Vol (0 Sells): The bundler is artificially pumping the chart. Action: RIDE (Surf the fake volume, but prepare to exit).
+3. Sell Vol matches/exceeds Buy Vol: The manipulator is distributing bags to retail. Action: DUMP immediately. You are exit liquidity.
+4. Write like a cynical sniper. Short, brutal, actionable. No pleasantries.
 
-FORMAT:
+🔥 LINGUISTIC RULE (CRITICAL):
+OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE MULTIPLE LANGUAGES YOU WILL BE TERMINATED.
+NO double quotes (") inside text strings, use ONLY single quotes (').
+
+JSON FORMAT:
 {
-  "tattica": "[Translated Tactics text]",
-  "puntoRottura": "[Translated Prediction text]",
-  "azione": "[Translated Action, e.g. BUY, SELL, HOLD]"
+  "tattica": "Tactical analysis of the 10-second order flow...",
+  "puntoRottura": "Prediction: what the manipulator will do in the next 30 seconds...",
+  "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;
 
         // =================================================================
