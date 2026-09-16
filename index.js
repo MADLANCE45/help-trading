@@ -2173,18 +2173,35 @@ JSON FORMAT:
 
         if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
 
+        // =================================================================
+        // 🪤 PARSING SICURO (Protezione dai "Pensieri" di DeepSeek V3)
+        // =================================================================
         let rawText = data.choices[0].message.content;
-        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        // 🔥 FIX: Rimuove i blocchi di ragionamento <think>...</think> prima di estrarre il JSON
+        let cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        cleanText = cleanText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
         const startIdx = cleanText.indexOf('{');
         const endIdx = cleanText.lastIndexOf('}');
         
         if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
             cleanText = cleanText.substring(startIdx, endIdx + 1);
         } else {
-            throw new Error(`Risposta IA non valida: JSON non trovato.`);
+            throw new Error(`Risposta IA non valida: JSON non trovato nel testo pulito.`);
         }
 
+        const aiResult = JSON.parse(cleanText);
+        let globalScore = aiResult.global_score || baseScoreAlgoritmico;
+        let verdettoTesto = aiResult.verdetto_finale || "";
+
+        // Pulizia post-produzione
+        verdettoTesto = verdettoTesto.replace(/Proceed with caution\.?/gi, "⚡ Momentum Check:");
+        verdettoTesto = verdettoTesto.replace(/Always do your own research/gi, "");
+
+        // =================================================================
         // 🛑 KILL SWITCH MATEMATICO E TRADUZIONI DI EMERGENZA (0ms)
+        // =================================================================
         const langKS = lingua.toLowerCase();
         
         const testHoneypot = {
@@ -2216,9 +2233,9 @@ JSON FORMAT:
             verdettoTesto = testHoneypot[langKS] || testHoneypot['en'];
         }
 
-        // 🔥 Kill Switch 2: EVM (Anti-Scalinata / Finto Pump)
-        if (isChainEVM && aiResult.metrics) {
-            const safetyMetric = aiResult.metrics.find(m => m.name.includes("Safety"));
+        // Kill Switch 2: EVM (Anti-Scalinata / Finto Pump)
+        if (isChainEVM && aiResult.metrics && Array.isArray(aiResult.metrics)) {
+            const safetyMetric = aiResult.metrics.find(m => m.name && m.name.includes("Safety"));
             if (safetyMetric && safetyMetric.score < 40) {
                 globalScore = Math.min(globalScore, safetyMetric.score); 
                 verdettoTesto = testoScalinata[langKS] || testoScalinata['en'];
@@ -2226,6 +2243,7 @@ JSON FORMAT:
         }
 
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
+
         // 🔥 REGEX INTELLIGENTE PER I COLORI DEI TAG TATTICI
         verdettoTesto = verdettoTesto.replace(/\[([A-Z0-9_ \-]+)\]/g, (match, tagNome) => {
             let textColor = "#ffaa00"; let bgColor = "rgba(255,170,0,0.2)";
@@ -2238,24 +2256,24 @@ JSON FORMAT:
             return `<span style="color:${textColor}; font-weight:900; background:${bgColor}; padding:2px 6px; border-radius:4px; border: 1px solid ${textColor}; margin-right:5px; display:inline-block;">${tagNome}</span>`;
         });
 
-        // Generazione Barre Metriche
+        // Generazione Barre Metriche (Con array validation)
         let barsHTML = "";
-        if (aiResult.metrics && aiResult.metrics.length > 0) {
+        if (aiResult.metrics && Array.isArray(aiResult.metrics)) {
             aiResult.metrics.forEach(m => {
-                let mScore = m.score;
+                let mScore = m.score || 50;
                 if (baseScoreAlgoritmico < 45 && mScore > 60) mScore = Math.floor(Math.random() * 20) + 20; 
                 const barColor = mScore >= 75 ? "#00e676" : (mScore >= 45 ? "#ffaa00" : "#ff4d4d");
                 barsHTML += `
                     <div style="margin-bottom: 12px; position: relative; cursor: help;" class="metric-container">
                         <div style="display: flex; justify-content: space-between; font-size: 0.8em; margin-bottom: 4px; color: #ccc; font-weight: bold; text-transform: uppercase;">
-                            <span>${m.name}</span>
+                            <span>${m.name || 'Metric'}</span>
                             <span style="color: ${barColor};">${mScore}%</span>
                         </div>
                         <div style="width: 100%; background: #161821; border-radius: 4px; height: 6px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
                             <div style="width: ${mScore}%; background: ${barColor}; height: 100%; border-radius: 4px; box-shadow: 0 0 8px ${barColor}80;"></div>
                         </div>
                         <div class="metric-tooltip" style="position: absolute; bottom: 100%; left: 0; background: #000; border: 1px solid ${barColor}; color: #fff; padding: 8px; border-radius: 4px; font-size: 0.75em; font-family: monospace; width: 100%; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.8); line-height: 1.4; word-wrap: break-word; white-space: normal;">
-                            ${m.tooltip}
+                            ${m.tooltip || ''}
                         </div>
                     </div>
                 `;
@@ -2263,7 +2281,7 @@ JSON FORMAT:
         }
 
         // =================================================================
-        // 🛡️ DISCLAIMER TATTICO SOLO PER EVM (Visione Termica)
+        // 🛡️ DISCLAIMER TATTICO SOLO PER EVM
         // =================================================================
         let evmDisclaimer = "";
         if (isChainEVM) {
@@ -2280,7 +2298,7 @@ JSON FORMAT:
             `;
         }
 
-        // Layout HTML Blindato (Flexbox CSS Overflow Protection)
+        // Layout HTML Blindato
         const reportHTML = `
             <style>
                 .metric-container:hover .metric-tooltip { display: block !important; }
@@ -2290,7 +2308,7 @@ JSON FORMAT:
             </style>
             <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif; overflow: hidden; width: 100%; box-sizing: border-box;">
                 
-                ${evmDisclaimer} <!-- 🔥 Il banner compare SOLO se la chain è Ethereum/Base -->
+                ${evmDisclaimer}
 
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px; width: 100%;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
