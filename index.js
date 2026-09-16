@@ -2232,6 +2232,24 @@ JSON FORMAT:
             });
         }
 
+        // =================================================================
+        // 🛡️ DISCLAIMER TATTICO SOLO PER EVM (Visione Termica)
+        // =================================================================
+        let evmDisclaimer = "";
+        if (isChainEVM) {
+            evmDisclaimer = `
+                <div style="margin-bottom: 15px; padding: 10px; background: rgba(255, 170, 0, 0.05); border: 1px dashed #ffaa00; border-radius: 6px; position: relative; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; position: relative; z-index: 2;">
+                        <span style="font-size: 1.1em; filter: drop-shadow(0 0 5px #ffaa00);">📡</span>
+                        <span style="color: #ffaa00; font-weight: 900; font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px;">EVM Heuristic Mode</span>
+                    </div>
+                    <div style="color: #aaa; font-size: 0.75em; line-height: 1.4; position: relative; z-index: 2;">
+                        Deep wallet forensics unavailable. Operating on volume/liquidity projection (Thermal Vision). Standard EVM manipulation risks apply.
+                    </div>
+                </div>
+            `;
+        }
+
         // Layout HTML Blindato (Flexbox CSS Overflow Protection)
         const reportHTML = `
             <style>
@@ -2241,6 +2259,9 @@ JSON FORMAT:
                 .donut-inner span { z-index: 3; position: relative; }
             </style>
             <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #2d3142; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif; overflow: hidden; width: 100%; box-sizing: border-box;">
+                
+                ${evmDisclaimer} <!-- 🔥 Il banner compare SOLO se la chain è Ethereum/Base -->
+
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid #2d3142; padding-bottom: 15px; width: 100%;">
                     <div class="donut-chart"><div class="donut-inner"><span style="font-size: 1.5em; font-weight: 900; color: ${mainColor}; line-height: 1;">${globalScore}</span><span style="font-size: 0.55em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Trust</span></div></div>
                     <div style="flex: 1; min-width: 0;">
