@@ -245,7 +245,7 @@ const TRANSLATIONS = {
         btn_saved: "✅ 保存成功！", nav_radar: "雷达", nav_tracker: "追踪", nav_spy: "预警",
         btn_reload: "刷新", copilot_title: " AI 助手", copilot_btn: "请求分析",
         copilot_analyzing: "⏳ 分析中...", copilot_reanalyze: "🔄 重新分析", orderflow_title: "⏱️ 10秒订单流",
-        orderflow_waiting: "等待中...", live_tape_title: "🔴 实时流水", live_tape_listening: "正在监听区块链...",
+        orderflow_waiting: "等待中...", live_tape_title: " 实时流水", live_tape_listening: "正在监听区块链...",
         loading_analysis: "⏳ 分析中...", loading_base: " 基础数据", loading_complete: " 完整报告",
         tracker_title: "💼 聪明钱追踪", tracker_placeholder: "钱包地址...", tracker_name: "名称(可选)", tracker_btn: "追踪",
         spy_title: "🚨 实时预警", spy_waiting: "等待链上信号...", judge_title: "法官裁决",

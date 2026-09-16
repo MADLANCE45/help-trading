@@ -2184,35 +2184,48 @@ JSON FORMAT:
             throw new Error(`Risposta IA non valida: JSON non trovato.`);
         }
 
-        const aiResult = JSON.parse(cleanText);
-        let globalScore = aiResult.global_score || baseScoreAlgoritmico;
-        let verdettoTesto = aiResult.verdetto_finale || "";
+        // 🛑 KILL SWITCH MATEMATICO E TRADUZIONI DI EMERGENZA (0ms)
+        const langKS = lingua.toLowerCase();
+        
+        const testHoneypot = {
+            'it': "[AVOID] PERICOLO CRITICO: Il contratto blocca le vendite (Honeypot). Non interagire.",
+            'fr': "[AVOID] DANGER CRITIQUE : Le contrat bloque les ventes (Honeypot). N'interagissez pas.",
+            'es': "[AVOID] PELIGRO CRÍTICO: El contrato bloquea las salidas (Honeypot). No interactuar.",
+            'zh': "[AVOID] 严重危险：智能合约阻止退出 (Honeypot)。切勿交互。",
+            'de': "[AVOID] KRITISCHE GEFAHR: Smart Contract blockiert Verkäufe. Nicht interagieren.",
+            'en': "[AVOID] CRITICAL DANGER: Smart contract blocks exits. Do not interact."
+        };
 
-        // Pulizia post-produzione
-        verdettoTesto = verdettoTesto.replace(/Proceed with caution\.?/gi, "⚡ Momentum Check:");
-        verdettoTesto = verdettoTesto.replace(/Always do your own research/gi, "");
+        const testoScalinata = {
+            'it': "[AVOID] GRAFICO INNATURALE. Sicurezza contratto critica. Rilevato Wash-trading o pump a scalinata. Non fare da liquidità d'uscita.",
+            'fr': "[AVOID] GRAPHIQUE NON NATUREL. Sécurité du contrat critique. Wash-trading ou manipulation en escalier détectée. Ne soyez pas la liquidité de sortie.",
+            'es': "[AVOID] GRÁFICO NO NATURAL. Seguridad del contrato crítica. Manipulación en escalera o Wash-trading. No seas la liquidez de salida.",
+            'zh': "[AVOID] 图表异常。合约安全性极低。检测到洗盘或阶梯式操纵。不要成为退出流动性。",
+            'de': "[AVOID] UNNATÜRLICHER CHART. Vertragssicherheit kritisch. Wash-Trading oder Treppenmanipulation. Sei keine Exit-Liquidität.",
+            'en': "[AVOID] UNNATURAL CHART PATTERN. Contract safety is critically low. Wash-trading or stair-step manipulation detected. Do not be exit liquidity."
+        };
 
-        // 🛑 KILL SWITCH MATEMATICO
         if (baseScoreAlgoritmico < 45 && globalScore >= 50) {
             globalScore = baseScoreAlgoritmico; 
             verdettoTesto = verdettoTesto.replace(/\[RIDE\]|\[SCALP\]/gi, '[AVOID]');
         }
+        
+        // Kill Switch 1: Honeypot
         if (devTxtStr.includes("HONEYPOT") && globalScore > 15) {
             globalScore = 5;
-            verdettoTesto = "[AVOID] CRITICAL DANGER: Smart contract blocks exits. Do not interact.";
+            verdettoTesto = testHoneypot[langKS] || testHoneypot['en'];
         }
 
-        // 🔥 NUOVO KILL SWITCH EVM (Anti-Scalinata / Finto Pump)
+        // 🔥 Kill Switch 2: EVM (Anti-Scalinata / Finto Pump)
         if (isChainEVM && aiResult.metrics) {
             const safetyMetric = aiResult.metrics.find(m => m.name.includes("Safety"));
             if (safetyMetric && safetyMetric.score < 40) {
                 globalScore = Math.min(globalScore, safetyMetric.score); 
-                verdettoTesto = "[AVOID] UNNATURAL CHART PATTERN. Contract safety is critically low. Wash-trading or stair-step manipulation detected. Do not be exit liquidity.";
+                verdettoTesto = testoScalinata[langKS] || testoScalinata['en'];
             }
         }
 
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
-
         // 🔥 REGEX INTELLIGENTE PER I COLORI DEI TAG TATTICI
         verdettoTesto = verdettoTesto.replace(/\[([A-Z0-9_ \-]+)\]/g, (match, tagNome) => {
             let textColor = "#ffaa00"; let bgColor = "rgba(255,170,0,0.2)";
