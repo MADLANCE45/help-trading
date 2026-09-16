@@ -2061,6 +2061,7 @@ JSON FORMAT:
         else {
             let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
+            let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
 
@@ -2075,6 +2076,12 @@ JSON FORMAT:
             const m_dev = baseScoreAlgoritmico;
             const m_syb = Math.min(95, baseScoreAlgoritmico + 15);
             const m_mic = Math.max(5, baseScoreAlgoritmico - 5);
+
+            // 🔥 FIX: TOOLTIP DINAMICI ANCHE PER SOLANA (Mai più frasi fisse!)
+            const tt_sup = bundleInfo !== "No bundle detected" ? bundleInfo : (m_sup >= 75 ? "Supply is well distributed. No massive bundles detected." : (m_sup <= 40 ? "Warning: Concentrated supply. High risk of coordinated dump." : "Moderate supply concentration. Monitor top holders."));
+            const tt_dev = devStatusStr !== "Unknown" ? devStatusStr : (m_dev >= 75 ? "Developer history is clean. No serial rug traces found." : (m_dev <= 40 ? "Suspicious developer activity. High risk of scam." : "Standard new developer. Usual meme risks apply."));
+            const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
+            const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
             promptLaboratorio = `
 You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
@@ -2101,12 +2108,13 @@ JSON FORMAT:
   "global_score": ${baseScoreAlgoritmico},
   "verdetto_finale": "[TRANSLATED_TAG] Tactical prediction of the scammer's next move here...",
   "metrics": [
-    { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${bundleInfo}" },
-    { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${devStatusStr}" },
-    { "name": "Sybil Resistance", "score": ${m_syb}, "tooltip": "Translate this: ${sybilStatus}" },
-    { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${microDumping}" }
+    { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
+    { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
+    { "name": "Sybil Resistance", "score": ${m_syb}, "tooltip": "Translate this: ${tt_syb}" },
+    { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${tt_mic}" }
   ]
 }`;
+        
         }
 
         // =================================================================
