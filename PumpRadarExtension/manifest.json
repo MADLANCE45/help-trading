@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meme Saver - Solana & EVM Pump Radar",
-  "version": "1.3",
+  "version": "1.4",
   "description": "AI Rug Pull Detector & Smart Money Tracker for Pump.fun and DexScreener",
   "icons": {
     "16": "icon128.png",
