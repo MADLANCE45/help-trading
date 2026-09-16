@@ -2194,6 +2194,15 @@ JSON FORMAT:
             verdettoTesto = "[AVOID] CRITICAL DANGER: Smart contract blocks exits. Do not interact.";
         }
 
+        // 🔥 NUOVO KILL SWITCH EVM (Anti-Scalinata / Finto Pump)
+        if (isChainEVM && aiResult.metrics) {
+            const safetyMetric = aiResult.metrics.find(m => m.name.includes("Safety"));
+            if (safetyMetric && safetyMetric.score < 40) {
+                globalScore = Math.min(globalScore, safetyMetric.score); 
+                verdettoTesto = "[AVOID] UNNATURAL CHART PATTERN. Contract safety is critically low. Wash-trading or stair-step manipulation detected. Do not be exit liquidity.";
+            }
+        }
+
         const mainColor = globalScore >= 75 ? "#00e676" : (globalScore >= 45 ? "#ffaa00" : "#ff4d4d");
 
         // 🔥 REGEX INTELLIGENTE PER I COLORI DEI TAG TATTICI
