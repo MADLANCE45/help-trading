@@ -1184,7 +1184,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                 const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
                 const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
                 const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
-
+                const storageConfig = await chrome.storage.local.get(['userConfig']);
+                    const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
                 try {
                     const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
                     
@@ -1195,7 +1196,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             'Content-Type': 'application/json', 
                             
                             "x-auth-token": authToken,  // Manda la chiave al server!
-                            "x-device-id": deviceId     // Manda la targa al server!
+                            "x-device-id": deviceId,    // Manda la targa al server!
+                            "x-ai-model": currentAiModel
                         },
                         body: JSON.stringify(payloadDatiLive)
                     });

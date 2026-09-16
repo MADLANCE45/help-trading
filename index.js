@@ -884,28 +884,20 @@ JSON FORMAT:
 }`;
 
         // =================================================================
-        // 🏎️ IL CAMBIO MARCE DELL'IA E CASCATA ANTI-CRASH (COPILOT)
+        // COPILOT AI ENGINE (ZERO GPT-4o PESANTE)
         // =================================================================
+        let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         let primaryModel = "deepseek/deepseek-chat";
-        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Fallback velocissimo ed economico per i Free/Pro
+        let fallbackModel = "openai/gpt-4o-mini";
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            let requestedModel = req.headers['x-ai-model'] || "openai/gpt-4o";
-            const premiumModels = [
-                "deepseek/deepseek-chat", 
-                "openai/gpt-4o", 
-                "anthropic/claude-3.5-sonnet-20241022",
-                "anthropic/claude-3.5-sonnet:beta"
-            ];
-
-            if (requestedModel.includes("claude-3.5-sonnet")) {
-                primaryModel = "anthropic/claude-3.5-sonnet-20241022";
-            } else if (premiumModels.includes(requestedModel)) {
-                primaryModel = requestedModel;
+            if (requestedModel.includes("claude")) {
+                primaryModel = "anthropic/claude-3.5-haiku";
+            } else if (requestedModel.includes("mini")) {
+                primaryModel = "openai/gpt-4o-mini";
             } else {
-                primaryModel = "openai/gpt-4o"; 
+                primaryModel = "deepseek/deepseek-chat";
             }
-            fallbackModel = "openai/gpt-4o-mini"; // Fallback ad altissime prestazioni per i Premium
         }
 
         // 🚀 CONNESSIONE A OPENROUTER (Con Auto-Fallback centralizzato)
@@ -1346,17 +1338,20 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
             if (!user) return { authorized: false, message: "❌ Sync Key not found or expired." };
 
             // DEVICE LOCK (Anti-Condivisione)
+            // DEVICE LOCK (Anti-Condivisione & Installazione Multipla)
             if (user.plan_type === 'pro' || user.plan_type === 'premium') {
                 if (!user.device_id) {
+                    // Prima installazione in assoluto: blinda la chiave a questo dispositivo
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
                 } else if (user.device_id !== cleanDevice) {
+                    // L'utente ha reinstallato l'estensione o ha cambiato PC (ID diverso)
                     return { 
                         authorized: false, 
-                         message: "❌ This Sync Key is already locked to another device. Contact Support at HelpTrading@proton.me to request a device reset." 
-                        };
-                    }
+                        message: "❌ SECURITY LOCK: This Sync Key is already locked to another device or previous installation.<br><br>If you reinstalled the extension, please contact <b>HelpTrading@proton.me</b> or open a ticket on our Discord to reset your Device ID." 
+                    };
+                }
                 
-                // Se è PRO, salta il blocco IP e passa!
+                // Se è PRO/PREMIUM e il dispositivo combacia, passa senza limiti!
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             }
         } 
@@ -2115,19 +2110,26 @@ JSON FORMAT:
         }
 
         // =================================================================
-        // ESECUZIONE CHIAMATA IA (CASCATA ANTI-CRASH E SALVA-BUDGET)
+        // ESECUZIONE CHIAMATA IA (CASCATA SALVA-BUDGET: ZERO GPT-4o PESANTE)
         // =================================================================
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
+        
+        // Default assoluto sempre DeepSeek per proteggere il budget
         let primaryModel = "deepseek/deepseek-chat";
-        let fallbackModel = "google/gemini-flash-1.5"; // 🔥 Ultra-Economico per budget ristretti
+        let fallbackModel = "openai/gpt-4o-mini"; // Costa $0.15/1M (identico a DeepSeek)
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            const premiumModels = ["deepseek/deepseek-chat", "openai/gpt-4o", "anthropic/claude-3.5-haiku"];
-            if (requestedModel.includes("claude")) primaryModel = "anthropic/claude-3.5-haiku";
-            else if (premiumModels.includes(requestedModel)) primaryModel = requestedModel;
-            else primaryModel = "openai/gpt-4o"; 
-            
-            fallbackModel = "openai/gpt-4o-mini"; // Fallback veloce per utenti premium
+            // Se l'utente ha scelto esplicitamente Claude o Mini, lo usiamo, altrimenti DeepSeek
+            if (requestedModel.includes("claude")) {
+                primaryModel = "anthropic/claude-3.5-haiku";
+                fallbackModel = "openai/gpt-4o-mini";
+            } else if (requestedModel.includes("mini")) {
+                primaryModel = "openai/gpt-4o-mini";
+                fallbackModel = "deepseek/deepseek-chat";
+            } else {
+                primaryModel = "deepseek/deepseek-chat";
+                fallbackModel = "openai/gpt-4o-mini";
+            }
         }
 
         const apiKey = process.env.OPENROUTER_API_KEY;
