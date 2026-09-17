@@ -1748,8 +1748,16 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
             } else if (data.limitReached || data.success === false) {
                 
-                // 💎 PAYWALL PREMIUM: L'utente ha finito i token, spingiamolo all'acquisto!
-                if (data.azione === "UPGRADE" || (data.tattica && data.tattica.includes("Limit"))) {
+                // 💎 PAYWALL PREMIUM: Filtro aggressivo per catturare TUTTI i limiti
+                const errorStr = String(data.verdetto || data.puntoRottura || data.message || data.tattica || "");
+                
+                // Se la stringa contiene la parola "limit", "too many" o "0/5", forziamo il Paywall
+                const isLimitReached = data.azione === "UPGRADE" 
+                                    || errorStr.toLowerCase().includes("limit") 
+                                    || errorStr.toLowerCase().includes("too many requests")
+                                    || errorStr.includes("0/5");
+
+                if (isLimitReached) {
                     container.innerHTML = `
                         <div style="background: linear-gradient(145deg, #1a1500, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 25px 20px; text-align: center; font-family: 'Segoe UI', sans-serif;">
                             <div style="font-size: 3em; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,170,0,0.4)); line-height: 1;">🔒</div>
@@ -1757,16 +1765,19 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             <div style="color: #e4e4e7; font-size: 0.85em; line-height: 1.5; margin-bottom: 20px;">
                                 You have exhausted your 5 free AI scans for today.<br>Connect a <b style="color:#00ffcc;">Pro</b> or <b style="color:#b366ff;">Premium</b> account to unlock unlimited institutional forensics.
                             </div>
-                            <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
+                            <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
                                 💎 Upgrade to Premium
                             </a>
                         </div>
                     `;
                 } else {
-                    // Errore generico (es. ban, errore di rete, ecc.)
-                    const errorMsg = data.verdetto || data.puntoRottura || "ANALYSIS FAILED";
-                    const cleanErrorHTML = typeof errorMsg === 'string' ? errorMsg.replace(/🔒|❌|⚠️|💎/g, '') : "ERROR";
-                    container.innerHTML = `<div style="color:#ff4d4d; padding:15px; text-align:center; border: 1px solid #ff4d4d; border-radius: 8px; background: rgba(255,77,77,0.1); font-weight:bold;">${cleanErrorHTML}</div>`;
+                    // Errore generico (Censuriamo la parola IP e l'indirizzo stesso)
+                    let cleanErrorHTML = errorStr.replace(/🔒|❌|⚠️|💎/g, '');
+                    cleanErrorHTML = cleanErrorHTML.replace(/from this IP/gi, 'from your network'); // Sostituisce la frase
+                    cleanErrorHTML = cleanErrorHTML.replace(/\bIP\b/gi, 'Network'); // Rimuove la parola IP
+                    cleanErrorHTML = cleanErrorHTML.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ''); // Elimina eventuali numeri (es. 192.168.1.1)
+                    
+                    container.innerHTML = `<div style="color:#ff4d4d; padding:15px; text-align:center; border: 1px solid #ff4d4d; border-radius: 8px; background: rgba(255,77,77,0.1); font-weight:bold;">${cleanErrorHTML.trim() || "ANALYSIS FAILED"}</div>`;
                 }
 
                 // Aggiorna in rosso il numerino del limite in alto a destra
