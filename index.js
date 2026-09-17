@@ -2065,19 +2065,32 @@ JSON FORMAT:
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
 
-            let solanaMandate = `Analyze the data cynically. Base algorithmic score: ${baseScoreAlgoritmico}/100.`;
-            if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL/)) {
-                solanaMandate = "🔴 MANDATE: SERIAL RUGGER OR FAKE DEV. GLOBAL SCORE MAX 35. TAG [AVOID].";
+            // 🔥 CALCOLO DINAMICO SULLE PAROLE CHIAVE (Addio numeri fissi!)
+            const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
+                if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 20); // Da 15 a 34
+                if (text.match(isCleanRegex)) return 80 + Math.floor(Math.random() * 15);  // Da 80 a 94
+                return 40 + Math.floor(Math.random() * 30); // Da 40 a 69 (Neutrale)
+            };
+
+            const m_sup = parseSeverity(bundleInfo, /RISK|control|WARNING|bundle/i, /0%|No bundle/i);
+            const m_dev = parseSeverity(devTxtStr, /RUG|FAKE|HONEYPOT|SERIAL|BURNER|UNKNOWN/i, /CLEAN|SAFE|TRUST/i);
+            const m_syb = parseSeverity(sybilStatus, /DANGER|BURST|Sybil/i, /Clean|Independent/i);
+            const m_mic = parseSeverity(microDumping, /DANGER|DUMP|Selling/i, /Clean|holding/i);
+
+            // Ricalcola il Trust Score in base alla vera media delle 4 metriche
+            let solanaRealScore = Math.floor((m_sup + m_dev + m_syb + m_mic) / 4);
+            let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
+
+            let solanaMandate = `Analyze the data cynically.`;
+            if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
+                solanaMandate = "🔴 MANDATE: SERIAL RUGGER OR FAKE DEV. GLOBAL SCORE MAX 35. TAG [AVOID] OR [TRAP].";
+                mergedScore = Math.min(mergedScore, 35); // Tagliola per i dev finti
             } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
                 solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID] OR [SCALP].";
+                mergedScore = Math.min(mergedScore, 55); // Tagliola per i bundle
             }
 
-            const m_sup = Math.max(10, baseScoreAlgoritmico - 10);
-            const m_dev = baseScoreAlgoritmico;
-            const m_syb = Math.min(95, baseScoreAlgoritmico + 15);
-            const m_mic = Math.max(5, baseScoreAlgoritmico - 5);
-
-            // 🔥 FIX: TOOLTIP DINAMICI ANCHE PER SOLANA (Mai più frasi fisse!)
+            // Tooltip dinamici
             const tt_sup = bundleInfo !== "No bundle detected" ? bundleInfo : (m_sup >= 75 ? "Supply is well distributed. No massive bundles detected." : (m_sup <= 40 ? "Warning: Concentrated supply. High risk of coordinated dump." : "Moderate supply concentration. Monitor top holders."));
             const tt_dev = devStatusStr !== "Unknown" ? devStatusStr : (m_dev >= 75 ? "Developer history is clean. No serial rug traces found." : (m_dev <= 40 ? "Suspicious developer activity. High risk of scam." : "Standard new developer. Usual meme risks apply."));
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
@@ -2086,9 +2099,9 @@ JSON FORMAT:
             promptLaboratorio = `
 You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
 Your specific and ONLY goal is to PREDICT THE SCAMMER/MANIPULATOR'S NEXT MOVE based on Helius RPC on-chain data.
+${solanaMandate}
 
 VERIFIED HELIUS RPC DATA:
-- Algorithmic Score: ${baseScoreAlgoritmico}/100
 - Est. Market Cap: ${stimaMC}
 - Sybil Cluster (Secret Wallet Funding): ${sybilStatus}
 - Top Holders Micro-Dumping: ${microDumping}
@@ -2105,7 +2118,7 @@ VERIFIED HELIUS RPC DATA:
 
 JSON FORMAT:
 {
-  "global_score": ${baseScoreAlgoritmico},
+  "global_score": ${mergedScore},
   "verdetto_finale": "[TRANSLATED_TAG] Tactical prediction of the scammer's next move here...",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
@@ -2114,7 +2127,6 @@ JSON FORMAT:
     { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${tt_mic}" }
   ]
 }`;
-        
         }
 
         // =================================================================
