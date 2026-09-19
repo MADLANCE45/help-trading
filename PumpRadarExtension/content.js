@@ -1767,13 +1767,13 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                 if (isLimitReached) {
                     container.innerHTML = `
                         <div style="background: linear-gradient(145deg, #1a1500, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 25px 20px; text-align: center; font-family: 'Segoe UI', sans-serif;">
-                            <div style="font-size: 3em; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,170,0,0.4)); line-height: 1;">🔒</div>
+                            <div style="font-size: 3em; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,170,0,0.4)); line-height: 1;"></div>
                             <div style="color: #ffaa00; font-size: 1.2em; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">Daily Limit Reached</div>
                             <div style="color: #e4e4e7; font-size: 0.85em; line-height: 1.5; margin-bottom: 20px;">
                                 You have exhausted your 5 free AI scans for today.<br>Connect a <b style="color:#00ffcc;">Pro</b> or <b style="color:#b366ff;">Premium</b> account to unlock unlimited institutional forensics.
                             </div>
-                            <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
-                                💎 Upgrade to Premium
+                            <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
+                                 Upgrade to Premium
                             </a>
                         </div>
                     `;

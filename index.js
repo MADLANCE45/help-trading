@@ -161,54 +161,59 @@ app.get('/api/wallet-audit/:address', (req, res) => {
 // ==========================================================
 // 📡 MOTORE WSS: LIVE TAPE CON SMART QUEUE (Zero Perdite)
 // ==========================================================
+// ==========================================================
+// 📡 MOTORE WSS: LIVE TAPE MULTI-UTENTE (Zero Lag)
+// ==========================================================
 const spyCache = new Map();
-let codaTransazioni = []; // La sala d'attesa per non perdere le balene
-let workerAttivo = false; // Controlla se l'estrattore sta già lavorando
-
-let autoKillTapeTimer = null; // 🔥 AGGIUNGI QUESTA RIGA FUORI DALLA FUNZIONE
+const liveTapeStates = new Map(); // 🔥 LA VERA MAGIA: Memoria separata per ogni token!
 
 function avviaAscoltoLive(tokenMint) {
     const mintPubKey = new PublicKey(tokenMint);
 
-    if (activeSubscriptionId !== null) {
-        solanaConnection.removeOnLogsListener(activeSubscriptionId);
-        console.log("🔌 Canale precedente chiuso. Pulisco la coda...");
-        codaTransazioni = []; // Svuota la coda vecchia
+    // 1. Pulizia se il token è già in ascolto (Previene leak di memoria e sdoppiamenti)
+    if (liveTapeStates.has(tokenMint)) {
+        const oldState = liveTapeStates.get(tokenMint);
+        if (oldState.subId !== null) solanaConnection.removeOnLogsListener(oldState.subId);
+        if (oldState.killTimer) clearTimeout(oldState.killTimer);
     }
+
+    // 2. Inizializza lo stato indipendente per QUESTO specifico token
+    const state = { subId: null, coda: [], workerAttivo: false, killTimer: null };
+    liveTapeStates.set(tokenMint, state);
 
     console.log(`\n📡 Apertura canale WebSocket per: ${tokenMint}`);
 
     // ==========================================================
     // 🛑 IL KILL SWITCH: Spegne Helius se l'utente chiude la pagina
     // ==========================================================
-    if (autoKillTapeTimer) clearTimeout(autoKillTapeTimer);
-    autoKillTapeTimer = setTimeout(() => {
-        if (activeSubscriptionId !== null) {
-            solanaConnection.removeOnLogsListener(activeSubscriptionId);
-            activeSubscriptionId = null;
-            workerAttivo = false;
-            codaTransazioni = [];
-            console.log(`🛑 KILL SWITCH ATTIVATO: Nessuna interazione per 4 min su ${tokenMint.substring(0,6)}. Radar spento per salvare crediti Helius.`);
+    state.killTimer = setTimeout(() => {
+        const currentState = liveTapeStates.get(tokenMint);
+        if (currentState && currentState.subId !== null) {
+            solanaConnection.removeOnLogsListener(currentState.subId);
+            liveTapeStates.delete(tokenMint);
+            console.log(`🛑 KILL SWITCH ATTIVATO: Nessuna interazione per 4 min su ${tokenMint.substring(0,6)}. Radar spento per salvare crediti.`);
         }
     }, 4 * 60 * 1000); // 4 Minuti esatti
 
     // 👷 IL WORKER: Analizza la coda senza scartare NULLA e senza far arrabbiare Helius
     async function smaltisciCoda() {
-        if (codaTransazioni.length === 0) {
-            workerAttivo = false;
+        const currentState = liveTapeStates.get(tokenMint);
+        
+        // Se lo stato non esiste più o la coda è vuota, spegniamo il worker
+        if (!currentState || currentState.coda.length === 0) {
+            if (currentState) currentState.workerAttivo = false;
             return;
         }
-        workerAttivo = true;
+        currentState.workerAttivo = true;
 
-        // Prende la transazione più vecchia in attesa
-        const { signature, logsInfo } = codaTransazioni.shift(); 
+        // Prende la transazione più vecchia in attesa in QUESTA coda
+        const { signature, logsInfo } = currentState.coda.shift(); 
 
         try {
             // 🔥 FONDAMENTALE: Qui usiamo getRPC() per ruotare le chiavi!
             const tx = await getRPC().getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
             
             if (tx && tx.meta && !tx.meta.err) {
-// ... IL RESTO DELLA TUA FUNZIONE CONTINUA QUI SENZA MODIFICHE ...
                 const feePayer = tx.transaction.message.accountKeys[0].pubkey.toString();
                 const preSol = (tx.meta.preBalances[0] || 0) / 1e9;
                 const postSol = (tx.meta.postBalances[0] || 0) / 1e9;
@@ -230,10 +235,9 @@ function avviaAscoltoLive(tokenMint) {
 
                 // IGNORIAMO SOLO IL VERO RUMORE, MA NON SCARTIAMO LE BALENE
                 if (deltaSol >= 0.05 || isBundle) {
-                    // Via i pallini colorati, il frontend penserà ad applicare i colori rosso/verde
                     const tipoAzione = preSol > postSol ? "BUY" : "SELL";
                     
-                    // 🔥 FILTRO CLASSIFICAZIONE ISTITUZIONALE (Senza Emoji)
+                    // 🔥 FILTRO CLASSIFICAZIONE ISTITUZIONALE
                     let iconaZoo = "[RTL]";
                     let tagZoo = "Retail Flow";
 
@@ -290,7 +294,7 @@ function avviaAscoltoLive(tokenMint) {
                     // ==========================================================
                     // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL
                     // ==========================================================
-                    if (tipoAzione === "🔴 SELL" && deltaSol >= 0.05) {
+                    if (tipoAzione === "SELL" && deltaSol >= 0.05) {
                         const now = Date.now();
                         if (!spyCache.has(tokenMint)) spyCache.set(tokenMint, []);
                         let sellers = spyCache.get(tokenMint);
@@ -330,22 +334,23 @@ function avviaAscoltoLive(tokenMint) {
         setTimeout(smaltisciCoda, 350); 
     }
 
-    activeSubscriptionId = solanaConnection.onLogs(
+    state.subId = solanaConnection.onLogs(
         mintPubKey,
         (logsInfo, context) => {
             if (logsInfo.err) return; 
             
-            codaTransazioni.push({ signature: logsInfo.signature, logsInfo });
+            const currentState = liveTapeStates.get(tokenMint);
+            if (!currentState) return;
+
+            currentState.coda.push({ signature: logsInfo.signature, logsInfo });
             
             // 🚀 POTENZIAMENTO 1: HFT SMART DROP (Zero Lag System)
-            // Se la moneta va virale e la coda si intasa, filtriamo il rumore per non rimanere indietro!
-            if (codaTransazioni.length > 40) {
-                console.log(`⚠️ CODA INTASATA (${codaTransazioni.length} tx). Attivo HFT Drop Mode per restare in Real-Time!`);
-                // Teniamo solo le ultime 15 transazioni più recenti per resettare il lag a ZERO
-                codaTransazioni = codaTransazioni.slice(-15);
+            if (currentState.coda.length > 40) {
+                console.log(`⚠️ CODA INTASATA per ${tokenMint.substring(0,6)} (${currentState.coda.length} tx). Attivo HFT Drop Mode!`);
+                currentState.coda = currentState.coda.slice(-15);
             }
             
-            if (!workerAttivo) {
+            if (!currentState.workerAttivo) {
                 smaltisciCoda();
             }
         },
@@ -2246,9 +2251,13 @@ JSON FORMAT:
         }
 
         // Kill Switch 2: EVM (Anti-Scalinata / Finto Pump)
+        // Kill Switch 2: EVM (Anti-Scalinata / Finto Pump)
         if (isChainEVM && aiResult.metrics && Array.isArray(aiResult.metrics)) {
             const safetyMetric = aiResult.metrics.find(m => m.name && m.name.includes("Safety"));
-            if (safetyMetric && safetyMetric.score < 40) {
+            const momentumMetric = aiResult.metrics.find(m => m.name && m.name.includes("Momentum"));
+            
+            // 🔥 SCATTA SOLO SE: Il token finge un pump (Momentum > 70) MA ha un contratto trappola (Safety < 40)
+            if (safetyMetric && safetyMetric.score < 40 && momentumMetric && momentumMetric.score > 70) {
                 globalScore = Math.min(globalScore, safetyMetric.score); 
                 verdettoTesto = testoScalinata[langKS] || testoScalinata['en'];
             }
