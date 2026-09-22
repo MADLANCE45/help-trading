@@ -421,24 +421,34 @@ let macroMarketData = {
     solPriceUsd: 150
 };
 
+// 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms latenza scansione)
+let macroMarketData = { memeChange24h: 0, memeVolM: 0, marketTrend: "NEUTRO", hudColor: "#ffaa00", marketIcon: "⚖️", solPriceUsd: 150 };
+
 async function aggiornaMacroMercato() {
     try {
-        const [wif, bonk, sol] = await Promise.all([
+        const [wif, bonk, sol, eth, bnb] = await Promise.all([
             fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=WIFUSDT").then(r => r.json()),
             fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BONKUSDT").then(r => r.json()),
-            fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT").then(r => r.json())
+            fetch("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT").then(r => r.json()),
+            fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT").then(r => r.json()),
+            fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BNBUSDT").then(r => r.json())
         ]);
 
-        const change = (((parseFloat(wif.priceChangePercent || 0) + parseFloat(bonk.priceChangePercent || 0)) / 2)).toFixed(2);
-        const vol = (((parseFloat(wif.quoteVolume || 0) + parseFloat(bonk.quoteVolume || 0)) / 1_000_000)).toFixed(1);
+        // Ponderazione Globale: 50% Memecoin (WIF+BONK), 30% Ethereum, 20% Binance Coin
+        const changeMeme = (parseFloat(wif.priceChangePercent || 0) + parseFloat(bonk.priceChangePercent || 0)) / 2;
+        const changeEth = parseFloat(eth.priceChangePercent || 0);
+        const changeBnb = parseFloat(bnb.priceChangePercent || 0);
+
+        const globalChange = (changeMeme * 0.5) + (changeEth * 0.3) + (changeBnb * 0.2);
+        const totalVol = (parseFloat(wif.quoteVolume || 0) + parseFloat(bonk.quoteVolume || 0)) / 1_000_000;
         
         let trend = "NEUTRO", color = "#ffaa00", icon = "⚖️";
-        if (change >= 3) { trend = "RISK-ON"; color = "#00e676"; icon = "🔥"; }
-        else if (change <= -3) { trend = "RISK-OFF"; color = "#ff4d4d"; icon = "🩸"; }
+        if (globalChange >= 3) { trend = "RISK-ON"; color = "#00e676"; icon = "🔥"; }
+        else if (globalChange <= -3) { trend = "RISK-OFF"; color = "#ff4d4d"; icon = "🩸"; }
 
         macroMarketData = {
-            memeChange24h: change,
-            memeVolM: vol,
+            memeChange24h: globalChange.toFixed(2),
+            memeVolM: totalVol.toFixed(1),
             marketTrend: trend,
             hudColor: color,
             marketIcon: icon,
@@ -1825,25 +1835,30 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
 
             logAnalisi.push(simulazione.testo);
 
-            let finalScore = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 20);
-            if (cabalaData) finalScore = Math.min(100, finalScore + cabalaData.scoreAggiuntivo);
-            if (microDumpData) finalScore = Math.min(100, finalScore + microDumpData.scoreAggiuntivo);
-            if (earlyBotData.supplyBundledPct >= 20) finalScore = 100;
-            if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
+            // 1. Calcoliamo prima i PUNTI DI RISCHIO (Più alto = Truffa)
+            let puntiRischio = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 15);
+            if (cabalaData) puntiRischio += cabalaData.scoreAggiuntivo;
+            if (microDumpData) puntiRischio += microDumpData.scoreAggiuntivo;
+            if (earlyBotData.supplyBundledPct >= 20) puntiRischio = 100;
+            if (fedinaDev) puntiRischio += fedinaDev.punteggioRischio;
 
-            // 🌐 INIEZIONE MACRO-SENTIMENT (Il mercato non perdona)
-            // Nota: Un finalScore ALTO significa RISCHIO ALTO.
+            puntiRischio = Math.min(100, puntiRischio); // Cap a 100
+
+            // 2. INVERSIONE IN TRUST SCORE (100 = Sicuro/Verde, 0 = Truffa/Rosso)
+            // Questo allinea Solana all'interfaccia grafica e al motore EVM!
+            let trustScoreBase = 100 - puntiRischio;
+
+            // 3. 🌐 INIEZIONE MACRO-SENTIMENT (Il volume detta legge)
             const marketTrend = parseFloat(macroMarketData.memeChange24h) || 0;
-            // Cap a +/- 15 punti massimo per evitare distorsioni assurde
             const sentimentModifier = Math.max(-15, Math.min(15, marketTrend)); 
             
-            // Se il mercato è in fiamme (+10%), togliamo 10 punti di rischio.
-            // Se il mercato sanguina (-10%), aggiungiamo 10 punti di paranoia.
-            finalScore = Math.max(5, Math.min(100, finalScore - sentimentModifier));
+            // Se il mercato spinge (+10%), aggiungiamo 10 punti di Trust. Se crolla, togliamo 10 punti.
+            let finalScore = Math.max(5, Math.min(99, trustScoreBase + sentimentModifier));
 
             const risultatoFinale = {
                 score: finalScore,
-                rischio: finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO"),
+                // Ora finalScore è un TRUST SCORE, quindi i numeri bassi sono truffe!
+                rischio: finalScore <= 35 ? "ALTISSIMO / TRAPPOLA" : (finalScore <= 65 ? "ALTO / MANIPOLATO" : "MODERATO / SAFE"),
                 dettagli: logAnalisi,
                 graficoAttivo: false,
                 datiGrafico: null,
