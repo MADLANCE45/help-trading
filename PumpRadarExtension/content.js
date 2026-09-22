@@ -586,11 +586,20 @@ if (matchEVM) {
                             if (staticBox) staticBox.innerHTML = `<div style="color:#ff4d4d; padding:15px; border:1px solid #ff4d4d; background: rgba(255, 77, 77, 0.1); border-radius:8px; text-align:center;">Error: ${err.message}</div>`;
                         });
                     }
-                });
-            });
-        });
-    }
+                }); // <-- Chiude chrome.storage (Memoria Token)
+            }); // <-- Chiude chrome.tabs.query (Lettura URL)
+        }); // <-- Chiude chrome.storage (Lettura Lingua)
+    } // <-- CHIUDE LA FUNZIONE avviaRadar()
 
+    // =========================================================
+    // START SCRIPT
+    // =========================================================
+    avviaRadar();
+    
+    // (Se hai anche la funzione startSpyLoop(), de-commenta la riga sotto)
+    // startSpyLoop(); 
+    
+}); // <-- CHIUDE L'INTERO EVENTO 'DOMContentLoaded' DEL FILE
     // =========================================================
     // 🎨 COSTRUZIONE INTERFACCIA
     // =========================================================
