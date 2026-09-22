@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const rateLimit = require('express-rate-limit'); // 🛡️
-
+const WebSocket = require('ws');
 // 🚀 CREAZIONE DELL'APP E SCUDI BASE
 const app = express(); 
 
@@ -27,7 +27,12 @@ app.use(express.json());
 app.set('trust proxy', 1);
 
 // Inserisci le tue chiavi Supabase (meglio se nel file .env)
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false },
+    realtime: {
+        transport: WebSocket // 👈 Fornisce l'implementazione del WebSocket richiesta da Node 20
+    }
+});
 
 // 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
 const originalWarn = console.warn;
