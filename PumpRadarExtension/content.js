@@ -534,15 +534,15 @@ function generaHTMLCardSpy(data) {
                 const url = tabs[0].url;
                 
 // 🔥 Cerca PRIMA un indirizzo EVM (0x + 40 caratteri esadecimali), POI cerca un indirizzo Solana (Base58)
-const matchEVM = url.match(/0x[a-fA-F0-9]{40}/);
-const matchSolana = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
+            const matchEVM = url.match(/0x[a-fA-F0-9]{40}/);
+            const matchSolana = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
 
-let tokenMint = null;
-if (matchEVM) {
-    tokenMint = matchEVM[0]; // È un token Robinhood/Base/Ethereum
-} else if (matchSolana) {
-    tokenMint = matchSolana[0]; // È un token Solana
-}
+            let tokenMint = null;
+            if (matchEVM) {
+                    tokenMint = matchEVM[0]; // È un token Robinhood/Base/Ethereum
+                } else if (matchSolana) {
+                    tokenMint = matchSolana[0]; // È un token Solana
+                }
 
                 if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
                     contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Navigate to a token to activate the Radar.</div>';
@@ -599,7 +599,7 @@ if (matchEVM) {
     // (Se hai anche la funzione startSpyLoop(), de-commenta la riga sotto)
     // startSpyLoop(); 
     
-}); // <-- CHIUDE L'INTERO EVENTO 'DOMContentLoaded' DEL FILE
+// <-- CHIUDE L'INTERO EVENTO 'DOMContentLoaded' DEL FILE
     // =========================================================
     // 🎨 COSTRUZIONE INTERFACCIA
     // =========================================================
