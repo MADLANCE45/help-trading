@@ -863,12 +863,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
         modal.style.transform = "scale(1)";
     });
 }
-    // =========================================================
-    // 🎛️ EVENTI BASE E TABS
-    // =========================================================
-    // =========================================================
-    // 🎛️ EVENTI BASE E TABS
-    // =========================================================
+
     // =========================================================
     // 🎛️ EVENTI BASE E TABS
     // =========================================================
@@ -1169,9 +1164,6 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
-        if (btnCopilot) {
-        const btnCopilot = document.getElementById('btn-copilot');
-        const copilotResult = document.getElementById('copilot-result');
         
         // 🔮 FUNZIONE OLO-GRAFICA (Iniezione Avatar sul Grafico)
         function mostraOlogrammaTattico(copilotData, staticData, avatarUrl) {
@@ -1206,27 +1198,25 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             holo.style.cssText = `
                 position: fixed;
                 top: 25%;
-                right: 360px; /* Si posiziona esattamente a sinistra dell'estensione, sopra il grafico */
+                right: 360px; /* Si posiziona a sinistra dell'estensione */
                 width: 420px;
                 display: flex;
                 gap: 15px;
                 z-index: 999999;
-                pointer-events: none; /* Fondamentale: i click passano attraverso, non blocca il grafico */
+                pointer-events: none; /* Fondamentale: non blocca il grafico */
                 animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             `;
 
             holo.innerHTML = `
-                <!-- Avatar Selezionato dall'Utente -->
+                <!-- Avatar Selezionato -->
                 <div style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}80; overflow: hidden; background: #000; position: relative;">
                     <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.2);" />
-                    <!-- Scanline FX -->
                     <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
                 </div>
                 
                 <!-- Pannello Dati Cyberpunk -->
                 <div style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); position: relative;">
                     
-                    <!-- Puntatore del fumetto -->
                     <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${mainColor};"></div>
                     <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${bgColor};"></div>
 
@@ -1237,7 +1227,6 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     
                     <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px;"></div>
                     
-                    <!-- Traiettoria Visiva del Prezzo (Grafica Vettoriale Pura, no lag) -->
                     <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
                         <div style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${mainColor} 0, ${mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
                         <div style="background: ${mainColor}; color: #000; font-weight: 900; font-family: monospace; font-size: 0.7em; padding: 2px 8px; border-radius: 2px; margin-left: 8px;">
@@ -1249,19 +1238,17 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
             document.body.appendChild(holo);
 
-            // Effetto Macchina da Scrivere
             const textElement = document.getElementById('ms-typing-text');
             let i = 0;
             function typeWriter() {
                 if (i < deepText.length) {
                     textElement.innerHTML += deepText.charAt(i);
                     i++;
-                    setTimeout(typeWriter, 15); // Velocità di digitazione
+                    setTimeout(typeWriter, 15);
                 }
             }
             typeWriter();
 
-            // Auto-distruzione dell'ologramma dopo 12 secondi (non intasa lo schermo)
             setTimeout(() => {
                 if (holo && document.body.contains(holo)) {
                     holo.style.transition = 'opacity 0.5s, transform 0.5s';
@@ -1273,115 +1260,107 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
         }
 
         if (btnCopilot) {
-        btnCopilot.addEventListener('click', async () => {
-            btnCopilot.innerText = t('copilot_analyzing');
-            btnCopilot.style.background = "#555";
-            btnCopilot.style.pointerEvents = "none";
-            copilotResult.style.display = "block";
-            copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
+            btnCopilot.addEventListener('click', async () => {
+                btnCopilot.innerText = t('copilot_analyzing');
+                btnCopilot.style.background = "#555";
+                btnCopilot.style.pointerEvents = "none";
+                copilotResult.style.display = "block";
+                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
 
-            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE, TARGA E DATI GIUDICE
-            chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan'], async (res) => {
-                const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
-                const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
-                const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
-                const storageConfig = await chrome.storage.local.get(['userConfig']);
-                const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
-                
-                // Dati statici del Giudice per fonderli con il Copilota
-                const judgeStaticData = res.ultimoRisultatoScan || null;
+                chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan'], async (res) => {
+                    const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
+                    const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
+                    const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
+                    const storageConfig = await chrome.storage.local.get(['userConfig']);
+                    const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
+                    
+                    const judgeStaticData = res.ultimoRisultatoScan || null;
 
-                try {
-                    const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
-                    
-                    // 🔥 2. FETCH AL SERVER CON HEADER DI SICUREZZA
-                    const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=${langParam}`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            "x-auth-token": authToken,
-                            "x-device-id": deviceId,
-                            "x-ai-model": currentAiModel
-                        },
-                        body: JSON.stringify(payloadDatiLive)
-                    });
-                    
-                    const dataResp = await resp.json();
-                    
-                    // 🔥 3. CONTROLLO LIMITI (Se ha finito i crediti, non mostrare l'ologramma)
-                    if (dataResp.success === false) {
-                        let actionButtonHtml = "";
-                        if (dataResp.azione === "UPGRADE") {
-                            actionButtonHtml = `
-                                <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: block; text-align: center; padding: 8px; border: 1px solid #ffaa00; color: #000; background: linear-gradient(90deg, #ffaa00, #ff8800); font-weight: 900; border-radius: 6px; text-decoration: none; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);">
-                                    💎 UPGRADE NOW
-                                </a>
+                    try {
+                        const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
+                        
+                        const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=${langParam}`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                "x-auth-token": authToken,
+                                "x-device-id": deviceId,
+                                "x-ai-model": currentAiModel
+                            },
+                            body: JSON.stringify(payloadDatiLive)
+                        });
+                        
+                        const dataResp = await resp.json();
+                        
+                        if (dataResp.success === false) {
+                            let actionButtonHtml = "";
+                            if (dataResp.azione === "UPGRADE") {
+                                actionButtonHtml = `
+                                    <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: block; text-align: center; padding: 8px; border: 1px solid #ffaa00; color: #000; background: linear-gradient(90deg, #ffaa00, #ff8800); font-weight: 900; border-radius: 6px; text-decoration: none; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);">
+                                        💎 UPGRADE NOW
+                                    </a>
+                                `;
+                            }
+
+                            copilotResult.innerHTML = `
+                                <div style="margin-bottom: 12px;">
+                                    <strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br>
+                                    <span style="color:#e0e0e0; font-size: 13px; display: inline-block; margin-top: 5px;">
+                                        ${dataResp.puntoRottura || "Limite raggiunto"}
+                                    </span>
+                                </div>
+                                ${actionButtonHtml}
                             `;
-                        }
+                            
+                            const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
+                            if (badge) {
+                                badge.innerText = "🚫 LIMIT (0/5)";
+                                badge.style.color = "#ff4d4d";
+                                badge.style.border = "1px solid #ff4d4d";
+                                badge.style.background = "rgba(255, 77, 77, 0.1)";
+                            }
+                            
+                        } else {
+                            // 🟢 SCANSIONE CONCLUSA: INNESCHIAMO L'OLOGRAMMA SUL GRAFICO!
+                            mostraOlogrammaTattico(dataResp, judgeStaticData, selectedAvatarUrl);
 
-                        copilotResult.innerHTML = `
-                            <div style="margin-bottom: 12px;">
-                                <strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br>
-                                <span style="color:#e0e0e0; font-size: 13px; display: inline-block; margin-top: 5px;">
-                                    ${dataResp.puntoRottura || "Limite raggiunto"}
-                                </span>
-                            </div>
-                            ${actionButtonHtml}
-                        `;
-                        
-                        const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
-                        if (badge) {
-                            badge.innerText = "🚫 LIMIT (0/5)";
-                            badge.style.color = "#ff4d4d";
-                            badge.style.border = "1px solid #ff4d4d";
-                            badge.style.background = "rgba(255, 77, 77, 0.1)";
-                        }
-                        
-                    } else {
-                        // 🟢 4. SCANSIONE CONCLUSA: INNESCHIAMO L'OLOGRAMMA SUL GRAFICO!
-                        
-                        // Chiama la magia grafica passando i dati live, i dati del giudice e l'avatar attuale
-                        mostraOlogrammaTattico(dataResp, judgeStaticData, selectedAvatarUrl);
+                            let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
+                            let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
+                            let azione = traduciDalBackend(dataResp.azione || "ATTESA");
+                            
+                            const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
+                            const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
+                            let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
+                            
+                            copilotResult.innerHTML = `
+                                <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
+                                <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
+                                <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
+                            `;
 
-                        // Aggiorniamo anche il box laterale standard
-                        let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
-                        let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
-                        let azione = traduciDalBackend(dataResp.azione || "ATTESA");
-                        
-                        const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
-                        const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
-                        let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
-                        
-                        copilotResult.innerHTML = `
-                            <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
-                            <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
-                            <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
-                        `;
-
-                        // Aggiorna crediti
-                        const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
-                        if (badge) {
-                            if (dataResp.plan === 'free' && dataResp.scansLeft !== undefined) {
-                                badge.innerText = `🆓 FREE (${dataResp.scansLeft}/5)`;
-                                badge.style.color = "#fff";
-                                badge.style.background = "#222";
-                                badge.style.border = "1px solid #444";
-                            } else if (dataResp.plan === 'premium' || dataResp.plan === 'pro' || dataResp.plan === 'admin') {
-                                badge.innerText = "💎 UNLIMITED";
+                            const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
+                            if (badge) {
+                                if (dataResp.plan === 'free' && dataResp.scansLeft !== undefined) {
+                                    badge.innerText = `🆓 FREE (${dataResp.scansLeft}/5)`;
+                                    badge.style.color = "#fff";
+                                    badge.style.background = "#222";
+                                    badge.style.border = "1px solid #444";
+                                } else if (dataResp.plan === 'premium' || dataResp.plan === 'pro' || dataResp.plan === 'admin') {
+                                    badge.innerText = "💎 UNLIMITED";
+                                }
                             }
                         }
-                    }
 
-                } catch(e) {
-                    copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
-                } finally {
-                    btnCopilot.innerText = t('copilot_reanalyze');
-                    btnCopilot.style.background = "#b366ff";
-                    btnCopilot.style.pointerEvents = "auto";
-                }
-            }); // Fine chrome.storage.local.get
-        });
-    }
+                    } catch(e) {
+                        copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
+                    } finally {
+                        btnCopilot.innerText = t('copilot_reanalyze');
+                        btnCopilot.style.background = "#b366ff";
+                        btnCopilot.style.pointerEvents = "auto";
+                    }
+                }); // Fine chrome.storage.local.get
+            });
+        }
         // ======================= SOCKET.IO LOGIC =======================
         if (typeof socket !== 'undefined') {
             
