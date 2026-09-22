@@ -411,15 +411,6 @@ setInterval(() => {
     if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] RAM ottimizzata. Rimossi ${puliti} vecchi dati.`);
 }, 180000); // Gira ogni 3 minuti
 
-// 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms di latenza nello scan)
-let macroMarketData = {
-    memeChange24h: 0,
-    memeVolM: 0,
-    marketTrend: "NEUTRO",
-    hudColor: "#ffaa00",
-    marketIcon: "⚖️",
-    solPriceUsd: 150
-};
 
 // 🌐 MACRO SENTIMENT ORACLE (Aggiornato in background ogni 45s: 0ms latenza scansione)
 let macroMarketData = { memeChange24h: 0, memeVolM: 0, marketTrend: "NEUTRO", hudColor: "#ffaa00", marketIcon: "⚖️", solPriceUsd: 150 };
