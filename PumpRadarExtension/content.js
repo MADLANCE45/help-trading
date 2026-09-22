@@ -1170,6 +1170,109 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
         if (btnCopilot) {
+        const btnCopilot = document.getElementById('btn-copilot');
+        const copilotResult = document.getElementById('copilot-result');
+        
+        // 🔮 FUNZIONE OLO-GRAFICA (Iniezione Avatar sul Grafico)
+        function mostraOlogrammaTattico(copilotData, staticData, avatarUrl) {
+            // Rimuove ologrammi precedenti per non intasare lo schermo
+            let oldHolo = document.getElementById('ms-hologram-overlay');
+            if (oldHolo) oldHolo.remove();
+
+            // Analisi profonda: Incrocia i dati del Giudice (Statici) con il Flusso (Live)
+            let action = (copilotData.azione || "").toUpperCase();
+            let isDanger = action.match(/AVOID|DUMP|SELL|FUGG/);
+            let isSafe = action.match(/RIDE|BUY|COMPR/);
+
+            let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
+            let bgColor = isDanger ? 'rgba(50, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 30, 10, 0.85)' : 'rgba(40, 25, 0, 0.85)');
+            
+            let staticScore = staticData && staticData.score ? staticData.score : 50;
+            let flowPressure = window.liveMetrics ? window.liveMetrics.buyPressure.toFixed(0) : 50;
+            
+            // Creazione del testo tattico (Zero Emoji, tono militare)
+            let deepText = "";
+            if (isDanger) {
+                deepText = `CRITICAL WARNING. Trust Score compromised (${staticScore}/100). Order flow buy pressure collapsing (${flowPressure}%). Pattern indicates imminent liquidity drain or scheduled distribution. Exit position immediately.`;
+            } else if (isSafe) {
+                deepText = `MOMENTUM CONFIRMED. Trust Score solid (${staticScore}/100). Order flow dominated by algorithmic buyers (${flowPressure}%). Organic accumulation detected. Ride trend, prepare trailing stop.`;
+            } else {
+                deepText = `CHOP ZONE DETECTED. Trust Score moderate (${staticScore}/100). Order flow contested (${flowPressure}%). High volatility environment. Execute rapid scalp on support levels, do not hold overnight.`;
+            }
+
+            // Iniezione nel DOM
+            const holo = document.createElement('div');
+            holo.id = 'ms-hologram-overlay';
+            holo.style.cssText = `
+                position: fixed;
+                top: 25%;
+                right: 360px; /* Si posiziona esattamente a sinistra dell'estensione, sopra il grafico */
+                width: 420px;
+                display: flex;
+                gap: 15px;
+                z-index: 999999;
+                pointer-events: none; /* Fondamentale: i click passano attraverso, non blocca il grafico */
+                animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            `;
+
+            holo.innerHTML = `
+                <!-- Avatar Selezionato dall'Utente -->
+                <div style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}80; overflow: hidden; background: #000; position: relative;">
+                    <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.2);" />
+                    <!-- Scanline FX -->
+                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
+                </div>
+                
+                <!-- Pannello Dati Cyberpunk -->
+                <div style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); position: relative;">
+                    
+                    <!-- Puntatore del fumetto -->
+                    <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${mainColor};"></div>
+                    <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${bgColor};"></div>
+
+                    <div style="font-family: monospace; font-size: 0.75em; color: ${mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between;">
+                        <span>TACTICAL OVERLAY</span>
+                        <span>[SYS.OP]</span>
+                    </div>
+                    
+                    <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px;"></div>
+                    
+                    <!-- Traiettoria Visiva del Prezzo (Grafica Vettoriale Pura, no lag) -->
+                    <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
+                        <div style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${mainColor} 0, ${mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
+                        <div style="background: ${mainColor}; color: #000; font-weight: 900; font-family: monospace; font-size: 0.7em; padding: 2px 8px; border-radius: 2px; margin-left: 8px;">
+                            ${isDanger ? 'DUMP THRESHOLD' : (isSafe ? 'TAKE PROFIT' : 'SUPPORT LEVEL')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(holo);
+
+            // Effetto Macchina da Scrivere
+            const textElement = document.getElementById('ms-typing-text');
+            let i = 0;
+            function typeWriter() {
+                if (i < deepText.length) {
+                    textElement.innerHTML += deepText.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 15); // Velocità di digitazione
+                }
+            }
+            typeWriter();
+
+            // Auto-distruzione dell'ologramma dopo 12 secondi (non intasa lo schermo)
+            setTimeout(() => {
+                if (holo && document.body.contains(holo)) {
+                    holo.style.transition = 'opacity 0.5s, transform 0.5s';
+                    holo.style.opacity = '0';
+                    holo.style.transform = 'translateX(50px)';
+                    setTimeout(() => holo.remove(), 500);
+                }
+            }, 12000);
+        }
+
+        if (btnCopilot) {
         btnCopilot.addEventListener('click', async () => {
             btnCopilot.innerText = t('copilot_analyzing');
             btnCopilot.style.background = "#555";
@@ -1177,15 +1280,17 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             copilotResult.style.display = "block";
             copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
 
-            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE E TARGA PRIMA DELLA FETCH
-            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE E TARGA PRIMA DELLA FETCH
-            chrome.storage.local.get(['userAuthToken', 'device_fingerprint'], async (res) => {
-                // FORZA STRINGA E PULISCI GLI SPAZI INVISIBILI DI CHROME
+            // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE, TARGA E DATI GIUDICE
+            chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan'], async (res) => {
                 const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
                 const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
                 const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
                 const storageConfig = await chrome.storage.local.get(['userConfig']);
-                    const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
+                const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
+                
+                // Dati statici del Giudice per fonderli con il Copilota
+                const judgeStaticData = res.ultimoRisultatoScan || null;
+
                 try {
                     const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
                     
@@ -1194,9 +1299,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json', 
-                            
-                            "x-auth-token": authToken,  // Manda la chiave al server!
-                            "x-device-id": deviceId,    // Manda la targa al server!
+                            "x-auth-token": authToken,
+                            "x-device-id": deviceId,
                             "x-ai-model": currentAiModel
                         },
                         body: JSON.stringify(payloadDatiLive)
@@ -1204,12 +1308,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     
                     const dataResp = await resp.json();
                     
-                    // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti?
-                    // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti?
-                    // 🔥 3. CONTROLLO LIMITI: Il server dice che abbiamo finito i crediti o bloccato il device?
+                    // 🔥 3. CONTROLLO LIMITI (Se ha finito i crediti, non mostrare l'ologramma)
                     if (dataResp.success === false) {
-                        
-                        // 1. Creiamo il bottone UPGRADE *SOLO* se il server ce lo chiede
                         let actionButtonHtml = "";
                         if (dataResp.azione === "UPGRADE") {
                             actionButtonHtml = `
@@ -1219,7 +1319,6 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             `;
                         }
 
-                        // 2. Stampiamo il messaggio (con o senza bottone a seconda del caso)
                         copilotResult.innerHTML = `
                             <div style="margin-bottom: 12px;">
                                 <strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br>
@@ -1230,8 +1329,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             ${actionButtonHtml}
                         `;
                         
-                        // Aggiorna il numerino in alto a destra a ZERO
-                        const badge = document.getElementById('ai-lock-badge');
+                        const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
                         if (badge) {
                             badge.innerText = "🚫 LIMIT (0/5)";
                             badge.style.color = "#ff4d4d";
@@ -1240,8 +1338,13 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                         }
                         
                     } else {
-                        // 🟢 4. SCANSIONE CONCLUSA: Il tuo codice originale per colorare l'azione
-                        let tattica = traduciDalBackend(dataResp.tattica || "⚠️ Error AI");
+                        // 🟢 4. SCANSIONE CONCLUSA: INNESCHIAMO L'OLOGRAMMA SUL GRAFICO!
+                        
+                        // Chiama la magia grafica passando i dati live, i dati del giudice e l'avatar attuale
+                        mostraOlogrammaTattico(dataResp, judgeStaticData, selectedAvatarUrl);
+
+                        // Aggiorniamo anche il box laterale standard
+                        let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
                         let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
                         let azione = traduciDalBackend(dataResp.azione || "ATTESA");
                         
@@ -1255,8 +1358,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
                         `;
 
-                        // 🔥 AGGIORNA IL NUMERINO DEI CREDITI
-                        const badge = document.getElementById('ai-lock-badge');
+                        // Aggiorna crediti
+                        const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
                         if (badge) {
                             if (dataResp.plan === 'free' && dataResp.scansLeft !== undefined) {
                                 badge.innerText = `🆓 FREE (${dataResp.scansLeft}/5)`;
@@ -1279,7 +1382,6 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
             }); // Fine chrome.storage.local.get
         });
     }
-
         // ======================= SOCKET.IO LOGIC =======================
         if (typeof socket !== 'undefined') {
             

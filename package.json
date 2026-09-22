@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@solana/spl-token": "^0.4.15",
@@ -23,7 +24,10 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "ws": "^8.21.3"
+    
+  },
+  "engines": {
+    "node": "20.x"
   }
-  
 }
 
