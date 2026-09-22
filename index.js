@@ -1831,6 +1831,16 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             if (earlyBotData.supplyBundledPct >= 20) finalScore = 100;
             if (fedinaDev) finalScore = Math.min(100, finalScore + fedinaDev.punteggioRischio);
 
+            // 🌐 INIEZIONE MACRO-SENTIMENT (Il mercato non perdona)
+            // Nota: Un finalScore ALTO significa RISCHIO ALTO.
+            const marketTrend = parseFloat(macroMarketData.memeChange24h) || 0;
+            // Cap a +/- 15 punti massimo per evitare distorsioni assurde
+            const sentimentModifier = Math.max(-15, Math.min(15, marketTrend)); 
+            
+            // Se il mercato è in fiamme (+10%), togliamo 10 punti di rischio.
+            // Se il mercato sanguina (-10%), aggiungiamo 10 punti di paranoia.
+            finalScore = Math.max(5, Math.min(100, finalScore - sentimentModifier));
+
             const risultatoFinale = {
                 score: finalScore,
                 rischio: finalScore >= 80 ? "ALTISSIMO / TRAPPOLA" : (finalScore >= 60 ? "ALTO / MANIPOLATO" : "MODERATO"),
@@ -3164,6 +3174,80 @@ app.post('/api/auth/verify', async (req, res) => {
     } catch (err) {
         console.error("❌ Errore Auth Dashboard Web:", err.message);
         res.json({ isValid: false, isPro: false });
+    }
+});
+// =====================================================================
+// 🤖 M2M RISK ORACLE: ENDPOINT PER AGENTI AUTONOMI E BOT DI TRADING
+// =====================================================================
+app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
+    try {
+        const tokenMint = req.params.tokenMint;
+        if (!isValidSolanaAddress(tokenMint)) {
+            return res.status(400).json({ error: "Invalid Solana address" });
+        }
+
+        // 1. LATENZA ZERO: Controlla la memoria RAM
+        // Se un umano ha scansionato questo token di recente, diamo il dato al bot gratis e in 0ms
+        let cachedVerdict = null;
+        for (const [key, val] of scanCache.entries()) {
+            if (key.includes(tokenMint) && (Date.now() - val.timestamp < 120000)) { // Valido 2 minuti
+                cachedVerdict = val.data; 
+                break;
+            }
+        }
+
+        if (cachedVerdict && !cachedVerdict.isEVM) {
+            // Nota: Rischio <= 45 significa che non è una truffa palese
+            const isSafeToBuy = cachedVerdict.score <= 45; 
+            return res.json({
+                mint: tokenMint,
+                safe_to_buy: isSafeToBuy,
+                risk_score: cachedVerdict.score, // 0 = Safe, 100 = Rug
+                recommended_action: cachedVerdict.azione,
+                kill_signal: cachedVerdict.motivoPanic || (cachedVerdict.score >= 80 ? "HIGH_TRAP_RISK" : "CLEAN"),
+                metrics: {
+                    jito_bundle_risk: cachedVerdict.earlyRadar?.bundleSlot0 || false,
+                    bundled_supply_pct: cachedVerdict.earlyRadar?.supplyBot || 0,
+                    sybil_network: cachedVerdict.sybil?.rilevato || false,
+                    micro_dumping: cachedVerdict.sanguisughe?.pericolo || false,
+                    fake_dev: cachedVerdict.devHistory?.status?.includes("FAKE") || false
+                },
+                latency_ms: 0,
+                source: "RAM_CACHE"
+            });
+        }
+
+        // 2. FAST ON-CHAIN AUDIT (Se non è in RAM)
+        // Niente IA, niente sentiment, solo pura matematica on-chain per essere fulminei
+        const start = Date.now();
+        const mintPubKey = new PublicKey(tokenMint);
+        const earlyBotData = await analizzaBotEarlyLaunch(mintPubKey).catch(() => ({ bundleSlot0: false, supplyBundledPct: 0 }));
+        
+        let riskScore = 20;
+        let killSignal = "CLEAN";
+
+        if (earlyBotData.bundleSlot0) { riskScore += 60; killSignal = "JITO_BUNDLE_DETECTED"; }
+        if (earlyBotData.supplyBundledPct >= 20) { riskScore += 40; killSignal = "HEAVY_SUPPLY_CONTROL"; }
+
+        return res.json({
+            mint: tokenMint,
+            safe_to_buy: riskScore <= 45,
+            risk_score: Math.min(100, riskScore),
+            recommended_action: riskScore > 45 ? "AVOID" : "SCALP",
+            kill_signal: killSignal,
+            metrics: {
+                jito_bundle_risk: earlyBotData.bundleSlot0,
+                bundled_supply_pct: earlyBotData.supplyBundledPct,
+                sybil_network: "UNCHECKED_USE_FULL_SCAN",
+                micro_dumping: "UNCHECKED_USE_FULL_SCAN",
+                fake_dev: "UNCHECKED_USE_FULL_SCAN"
+            },
+            latency_ms: Date.now() - start,
+            source: "LIVE_ONCHAIN_LITE"
+        });
+
+    } catch (e) {
+        return res.status(500).json({ safe_to_buy: false, error: "Oracle offline or rate limited." });
     }
 });
 server.listen(PORT, () => {
