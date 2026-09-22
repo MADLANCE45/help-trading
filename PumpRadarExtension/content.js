@@ -1,7 +1,4 @@
-// =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Gira sulla pagina del sito)
-// =========================================================
-function mostraOlogrammaTattico sulSito(copilotData, staticData, avatarUrl, flowPressure) {
+function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowPressure) {
     let oldHolo = document.getElementById('ms-hologram-overlay');
     if (oldHolo) oldHolo.remove();
 
@@ -16,11 +13,11 @@ function mostraOlogrammaTattico sulSito(copilotData, staticData, avatarUrl, flow
     
     let deepText = "";
     if (isDanger) {
-        deepText = `CRITICAL WARNING. Trust Score compromised (${staticScore}/100). Order flow buy pressure collapsing (${flowPressure.toFixed(0)}%). Pattern indicates imminent liquidity drain or scheduled distribution. Exit position immediately.`;
+        deepText = `CRITICAL WARNING. Trust Score compromised (${staticScore}/100). Order flow buy pressure collapsing (${parseFloat(flowPressure).toFixed(0)}%). Pattern indicates imminent liquidity drain or scheduled distribution. Exit position immediately.`;
     } else if (isSafe) {
-        deepText = `MOMENTUM CONFIRMED. Trust Score solid (${staticScore}/100). Order flow dominated by algorithmic buyers (${flowPressure.toFixed(0)}%). Organic accumulation detected. Ride trend, prepare trailing stop.`;
+        deepText = `MOMENTUM CONFIRMED. Trust Score solid (${staticScore}/100). Order flow dominated by algorithmic buyers (${parseFloat(flowPressure).toFixed(0)}%). Organic accumulation detected. Ride trend, prepare trailing stop.`;
     } else {
-        deepText = `CHOP ZONE DETECTED. Trust Score moderate (${staticScore}/100). Order flow contested (${flowPressure.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels, do not hold overnight.`;
+        deepText = `CHOP ZONE DETECTED. Trust Score moderate (${staticScore}/100). Order flow contested (${parseFloat(flowPressure).toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels, do not hold overnight.`;
     }
 
     const holo = document.createElement('div');
@@ -33,7 +30,7 @@ function mostraOlogrammaTattico sulSito(copilotData, staticData, avatarUrl, flow
         width: 380px;
         display: flex;
         gap: 15px;
-        z-index: 2147483647; /* Z-index massimo per sovrastare tutto il sito */
+        z-index: 2147483647;
         pointer-events: none;
         animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     `;
@@ -93,7 +90,7 @@ function mostraOlogrammaTattico sulSito(copilotData, staticData, avatarUrl, flow
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        mostraOlogrammaTattico(request.copilotData, request.staticData, request.avatarUrl, request.buyPressure);
+        mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.buyPressure);
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
@@ -1271,100 +1268,6 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
 
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
-        
-        // 🔮 FUNZIONE OLO-GRAFICA (Iniezione Avatar sul Grafico)
-        function mostraOlogrammaTattico(copilotData, staticData, avatarUrl) {
-            // Rimuove ologrammi precedenti per non intasare lo schermo
-            let oldHolo = document.getElementById('ms-hologram-overlay');
-            if (oldHolo) oldHolo.remove();
-
-            // Analisi profonda: Incrocia i dati del Giudice (Statici) con il Flusso (Live)
-            let action = (copilotData.azione || "").toUpperCase();
-            let isDanger = action.match(/AVOID|DUMP|SELL|FUGG/);
-            let isSafe = action.match(/RIDE|BUY|COMPR/);
-
-            let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
-            let bgColor = isDanger ? 'rgba(50, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 30, 10, 0.85)' : 'rgba(40, 25, 0, 0.85)');
-            
-            let staticScore = staticData && staticData.score ? staticData.score : 50;
-            let flowPressure = window.liveMetrics ? window.liveMetrics.buyPressure.toFixed(0) : 50;
-            
-            // Creazione del testo tattico (Zero Emoji, tono militare)
-            let deepText = "";
-            if (isDanger) {
-                deepText = `CRITICAL WARNING. Trust Score compromised (${staticScore}/100). Order flow buy pressure collapsing (${flowPressure}%). Pattern indicates imminent liquidity drain or scheduled distribution. Exit position immediately.`;
-            } else if (isSafe) {
-                deepText = `MOMENTUM CONFIRMED. Trust Score solid (${staticScore}/100). Order flow dominated by algorithmic buyers (${flowPressure}%). Organic accumulation detected. Ride trend, prepare trailing stop.`;
-            } else {
-                deepText = `CHOP ZONE DETECTED. Trust Score moderate (${staticScore}/100). Order flow contested (${flowPressure}%). High volatility environment. Execute rapid scalp on support levels, do not hold overnight.`;
-            }
-
-            // Iniezione nel DOM
-            const holo = document.createElement('div');
-            holo.id = 'ms-hologram-overlay';
-            holo.style.cssText = `
-                position: fixed;
-                top: 25%;
-                right: 360px; /* Si posiziona a sinistra dell'estensione */
-                width: 420px;
-                display: flex;
-                gap: 15px;
-                z-index: 999999;
-                pointer-events: none; /* Fondamentale: non blocca il grafico */
-                animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            `;
-
-            holo.innerHTML = `
-                <!-- Avatar Selezionato -->
-                <div style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}80; overflow: hidden; background: #000; position: relative;">
-                    <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.2);" />
-                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
-                </div>
-                
-                <!-- Pannello Dati Cyberpunk -->
-                <div style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); position: relative;">
-                    
-                    <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${mainColor};"></div>
-                    <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${bgColor};"></div>
-
-                    <div style="font-family: monospace; font-size: 0.75em; color: ${mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between;">
-                        <span>TACTICAL OVERLAY</span>
-                        <span>[SYS.OP]</span>
-                    </div>
-                    
-                    <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px;"></div>
-                    
-                    <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
-                        <div style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${mainColor} 0, ${mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
-                        <div style="background: ${mainColor}; color: #000; font-weight: 900; font-family: monospace; font-size: 0.7em; padding: 2px 8px; border-radius: 2px; margin-left: 8px;">
-                            ${isDanger ? 'DUMP THRESHOLD' : (isSafe ? 'TAKE PROFIT' : 'SUPPORT LEVEL')}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(holo);
-
-            const textElement = document.getElementById('ms-typing-text');
-            let i = 0;
-            function typeWriter() {
-                if (i < deepText.length) {
-                    textElement.innerHTML += deepText.charAt(i);
-                    i++;
-                    setTimeout(typeWriter, 15);
-                }
-            }
-            typeWriter();
-
-            setTimeout(() => {
-                if (holo && document.body.contains(holo)) {
-                    holo.style.transition = 'opacity 0.5s, transform 0.5s';
-                    holo.style.opacity = '0';
-                    holo.style.transform = 'translateX(50px)';
-                    setTimeout(() => holo.remove(), 500);
-                }
-            }, 12000);
-        }
 
         if (btnCopilot) {
             btnCopilot.addEventListener('click', async () => {
@@ -1374,6 +1277,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                 copilotResult.style.display = "block";
                 copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
 
+                // 🔥 1. LEGGIAMO LA MEMORIA PER CHIAVE, TARGA E DATI GIUDICE
                 chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan'], async (res) => {
                     const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
                     const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
@@ -1381,11 +1285,13 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     const storageConfig = await chrome.storage.local.get(['userConfig']);
                     const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
                     
+                    // Dati statici del Giudice per fonderli con il Copilota
                     const judgeStaticData = res.ultimoRisultatoScan || null;
 
                     try {
                         const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
                         
+                        // 🔥 2. FETCH AL SERVER CON HEADER DI SICUREZZA
                         const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=${langParam}`, {
                             method: 'POST',
                             headers: { 
@@ -1399,6 +1305,7 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                         
                         const dataResp = await resp.json();
                         
+                        // 🔥 3. CONTROLLO LIMITI
                         if (dataResp.success === false) {
                             let actionButtonHtml = "";
                             if (dataResp.azione === "UPGRADE") {
@@ -1428,8 +1335,20 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                             }
                             
                         } else {
-                            // 🟢 SCANSIONE CONCLUSA: INNESCHIAMO L'OLOGRAMMA SUL GRAFICO!
-                            mostraOlogrammaTattico(dataResp, judgeStaticData, selectedAvatarUrl);
+                            // 🟢 4. SCANSIONE CONCLUSA: PONTE RADIO VERSO IL SITO
+                            
+                            // 🚀 Invia l'ordine al sito per disegnare l'Ologramma!
+                            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                                if (tabs && tabs[0]) {
+                                    chrome.tabs.sendMessage(tabs[0].id, {
+                                        action: "INJECT_HOLOGRAM",
+                                        copilotData: dataResp,
+                                        staticData: judgeStaticData,
+                                        avatarUrl: selectedAvatarUrl,
+                                        buyPressure: window.liveMetrics ? window.liveMetrics.buyPressure : 50
+                                    });
+                                }
+                            });
 
                             let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
                             let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
