@@ -1,5 +1,5 @@
 // =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Smart Drag, Re-Scan Button, 30/70 Hybrid Brain)
+// 🔮 HOLOGRAM INJECTION ENGINE (Veto del Giudice, No X, Zero Lag)
 // =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initialFlowPressure) {
     
@@ -7,7 +7,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
     chrome.storage.local.get(['userConfig'], (res) => {
         if (res.userConfig && res.userConfig.holoEnabled === false) return; 
         
-        // 1. MEMORIA POSIZIONALE: Nasce a sinistra, ma se c'era già lo rimettiamo dov'era!
+        // 1. MEMORIA POSIZIONALE
         let posCss = `left: 30px; top: 100px;`; 
         let oldHolo = document.getElementById('ms-hologram-wrapper');
         if (oldHolo) {
@@ -16,29 +16,37 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             oldHolo.remove();
         }
 
-        // 2. IL CERVELLO MATEMATICO (30% Giudice / 70% Order Flow)
+        // 2. IL CERVELLO MATEMATICO (Con "Veto Assoluto" del Giudice)
         const baseStaticScore = staticData && staticData.score ? staticData.score : 50;
         const baseAction = (copilotData.azione || "").toUpperCase();
 
         function elaboraVerdetto(flowPressure) {
             let currentFlow = parseFloat(flowPressure) || 50;
-            let tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
+            let tacticalScore;
+
+            // 🧠 LOGICA INTELLIGENTE: Se il Giudice dice che è un RUG (<=40), il volume non può salvarlo!
+            if (baseStaticScore <= 40) {
+                tacticalScore = baseStaticScore; // Il Veto del Giudice vince.
+            } else {
+                // Se è sano, fondiamo 60% Giudice e 40% Order Flow Live
+                tacticalScore = (baseStaticScore * 0.6) + (currentFlow * 0.4);
+            }
 
             let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
             let isSafe = tacticalScore >= 65 || baseAction.match(/RIDE|BUY|COMPR/);
 
             let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
-            let bgColor = isDanger ? 'rgba(30, 0, 0, 0.9)' : (isSafe ? 'rgba(0, 20, 10, 0.9)' : 'rgba(30, 20, 0, 0.9)');
+            let bgColor = isDanger ? 'rgba(30, 0, 0, 0.95)' : (isSafe ? 'rgba(0, 20, 10, 0.95)' : 'rgba(30, 20, 0, 0.95)');
             
             let text = "";
             if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
                 text = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
             } else if (isDanger) {
-                text = `CRITICAL WARNING. Hybrid Score compromised (${tacticalScore.toFixed(0)}/100). Order flow collapsing (${currentFlow.toFixed(0)}%). The Judge identified historical risks. Exit position immediately.`;
+                text = `CRITICAL WARNING. The Judge identified historical risks (Score: ${baseStaticScore}). Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
             } else if (isSafe) {
-                text = `MOMENTUM CONFIRMED. Hybrid Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by algorithmic buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
+                text = `MOMENTUM CONFIRMED. Trust Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
             } else {
-                text = `CHOP ZONE DETECTED. Hybrid Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels.`;
+                text = `CHOP ZONE DETECTED. Trust Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility. Execute rapid scalp on support levels.`;
             }
 
             return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
@@ -61,7 +69,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             document.head.appendChild(style);
         }
 
-        // 3. WRAPPER ESTERNO
         const wrapper = document.createElement('div');
         wrapper.id = 'ms-hologram-wrapper';
         wrapper.style.cssText = `
@@ -91,19 +98,15 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
                     <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.mainColor};" id="ms-holo-arrow-out"></div>
                     <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.bgColor};" id="ms-holo-arrow-in"></div>
 
-                    <!-- HEADER CON SCORE E TASTO X -->
+                    <!-- HEADER CON SCORE E TASTO REFRESH (Senza la X) -->
                     <div style="font-family: monospace; font-size: 0.75em; color: ${currentState.mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${currentState.mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; align-items: center; margin-top: 5px;" id="ms-holo-header">
                         <span>[SYS.OP] SCORE: <span id="ms-holo-score">${currentState.tacticalScore.toFixed(0)}</span></span>
                         
-                        <div style="display:flex; gap: 8px;">
-                            <button id="ms-btn-refresh-holo" class="holo-btn-interactive" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 2px 6px;" title="Refresh Data">🔄</button>
-                            <button id="ms-btn-close-x" class="holo-btn-interactive" style="background: transparent; border: none; color: #ff4d4d; font-size: 1.2em; line-height: 1; padding: 0 4px;" title="Close">✕</button>
-                        </div>
-                    </div>
+<button id="ms-btn-refresh-holo" class="holo-btn-interactive" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: monospace; font-size: 0.85em; box-shadow: inset 0 0 5px ${currentState.mainColor}40;" title="Refresh Data">RE-SCAN</button>                    </div>
                     
                     <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${currentState.mainColor}40;"></div>
                     
-                    <!-- BOTTONE AZIONE IN BASSO -->
+                    <!-- BOTTONE AZIONE IN BASSO (Funziona anche da chiusura) -->
                     <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
                         <div id="ms-holo-line" style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
                         <button id="ms-btn-action-holo" class="holo-btn-interactive" style="background: ${currentState.mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 2px; margin-left: 8px; box-shadow: 0 0 10px ${currentState.mainColor}80;">
@@ -123,7 +126,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         const dragHandles = wrapper.querySelectorAll('.holo-drag-handle');
         dragHandles.forEach(handle => {
             handle.addEventListener('mousedown', (e) => {
-                // SE IL CLICK È SU UN BOTTONE, IGNORA IL DRAG!
                 if (e.target.closest('.holo-btn-interactive')) return; 
                 
                 isDragging = true;
@@ -148,7 +150,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             let newLeft = initialLeft + (e.clientX - startX);
             let newTop = initialTop + (e.clientY - startY);
             
-            // Limiti schermo
             const maxX = window.innerWidth - wrapper.offsetWidth;
             const maxY = window.innerHeight - wrapper.offsetHeight;
             if (newLeft < 0) newLeft = 0;
@@ -191,7 +192,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         
         startTypeWriter(currentState.text);
 
-        // 6. GESTIONE DEI 3 BOTTONI (X, Aggiorna, Azione in basso)
+        // 6. GESTIONE BOTTONI
         let autoDestructTimer;
         function chiudiOlogramma(e) {
             if(e) e.stopPropagation();
@@ -203,8 +204,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             }
         }
 
-        // Assegnazione eventi click ai bottoni
-        wrapper.querySelector('#ms-btn-close-x').addEventListener('click', chiudiOlogramma);
         wrapper.querySelector('#ms-btn-action-holo').addEventListener('click', chiudiOlogramma);
         
         wrapper.querySelector('#ms-btn-refresh-holo').addEventListener('click', (e) => {
@@ -226,7 +225,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             btnAction.style.boxShadow = `0 0 10px ${currentState.mainColor}80`;
             btnAction.innerText = currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP');
 
-            textElement.innerHTML = `<span style="color:#00ffcc">🔄 Recalculating Matrix...</span>`;
+            textElement.innerHTML = `<span style="color:#00ffcc; text-transform: uppercase;">[ SYSTEM_RECALCULATING_MATRIX... ]</span>`;
             setTimeout(() => { startTypeWriter(currentState.text); }, 600);
 
             clearTimeout(autoDestructTimer);
@@ -234,7 +233,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         });
 
         autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
-    }); // Fine chrome.storage
+    }); 
 }
 
 // =========================================================
@@ -864,48 +863,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p id="ai-upgrade-text" style="color: #666; font-size: 0.65em; margin-top: 8px; margin-bottom: 0; line-height: 1.3;"><b>PREMIUM</b> plan exclusive. Unlock institutional models.</p>
                         </div>
 
-                        <!-- TRADING ROUTE & RISK MANAGEMENT -->
-                        <div style="margin-bottom: 15px; border: 1px dashed #a855f7; border-radius: 8px; padding: 12px; background: rgba(168, 85, 247, 0.05);">
-                            <div style="display: flex; justify-content: center; margin-bottom: 12px;">
-                                <span style="background: linear-gradient(90deg, #ff007f, #a855f7); color: #fff; font-size: 0.65em; font-weight: 900; padding: 4px 12px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,0,127,0.4);">
-                                    🚧 V2: Auto-Trading Coming Soon
-                                </span>
-                            </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; opacity: 0.4; pointer-events: none; filter: grayscale(30%);">
-                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
-                                    <select disabled id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
-                                        <option value="standard">Standard (Public)</option>
-                                        <option value="mev_protect">MEV Shield</option>
-                                        <option value="turbo">Turbo Node</option>
-                                    </select>
-                                </div>
-                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
-                                    <select disabled id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
-                                        <option value="safe">Safe (Scalp +20%)</option>
-                                        <option value="degen">Degen (Aim for 2x)</option>
-                                        <option value="moon">Moonshot (Hold)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SCAN HISTORY -->
-                        <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
-                            <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px;">📚 Scan History</strong>
-                            <div style="font-size: 0.75em; color: #666; font-family: monospace; line-height: 1.5;">
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>FUKg...9xK</span> <span style="color: #ff4d4d;">[AVOID]</span></div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>8mvf...Xwv</span> <span style="color: #00e676;">[RIDE]</span></div>
-                                <div style="display: flex; justify-content: space-between;"><span>3Bkx...1oP</span> <span style="color: #ffaa00;">[SCALP]</span></div>
-                            </div>
-                        </div>
-
-                        <!-- AVATAR SELECTION & HOLOGRAM TOGGLE -->
+                        <!-- AVATAR SELECTION & HOLOGRAM TOGGLE (SPOSTATO QUI SOPRA!) -->
                         <div style="background: #11121a; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #2d3142; padding-bottom: 8px;">
-                                <strong style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase;">👾 Tactical Hologram</strong>
+                                <strong style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase;">Tactical Hologram</strong>
                                 <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
                                     <input type="checkbox" id="user-holo-toggle" checked style="opacity: 0; width: 0; height: 0;">
                                     <span id="holo-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #00e676; transition: .4s; border-radius: 20px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></span>
@@ -918,6 +879,50 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
                                 <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
                                 <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
+                            </div>
+                        </div>
+
+                        <!-- TRADING ROUTE & RISK MANAGEMENT (COMING SOON) -->
+                        <div style="margin-bottom: 15px; border: 1px dashed #a855f7; border-radius: 8px; padding: 12px; background: rgba(168, 85, 247, 0.05);">
+                            
+                            <!-- 🔥 BADGE HYPE "COMING SOON" CENTRATO -->
+                            <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+                                <span style="background: linear-gradient(90deg, #ff007f, #a855f7); color: #fff; font-size: 0.65em; font-weight: 900; padding: 4px 12px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,0,127,0.4);">
+                                    🚧 V2: Auto-Trading Coming Soon
+                                </span>
+                            </div>
+                            
+                            <!-- Contenitore Opacizzato e Bloccato -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; opacity: 0.4; pointer-events: none; filter: grayscale(30%);">
+                                
+                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 6px; padding: 10px;">
+                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase;">🚀 Trading Route</strong>
+                                    <select disabled id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
+                                        <option value="standard">Standard (Public)</option>
+                                        <option value="mev_protect">MEV Shield</option>
+                                        <option value="turbo">Turbo Node</option>
+                                    </select>
+                                </div>
+
+                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 6px; padding: 10px;">
+                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase;">⚖️ Auto-Trade Risk</strong>
+                                    <select disabled id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
+                                        <option value="safe">Safe (Scalp +20%)</option>
+                                        <option value="degen">Degen (Aim for 2x)</option>
+                                        <option value="moon">Moonshot (Hold)</option>
+                                    </select>
+                                </div>
+                                
+                            </div>
+                        </div>
+
+                        <!-- SCAN HISTORY -->
+                        <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                            <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px;">📚 Scan History</strong>
+                            <div style="font-size: 0.75em; color: #666; font-family: monospace; line-height: 1.5;">
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>FUKg...9xK</span> <span style="color: #ff4d4d;">[AVOID]</span></div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>8mvf...Xwv</span> <span style="color: #00e676;">[RIDE]</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>3Bkx...1oP</span> <span style="color: #ffaa00;">[SCALP]</span></div>
                             </div>
                         </div>
 
