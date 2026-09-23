@@ -237,7 +237,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
 }
 
 // =========================================================
-// 🧛 VAMPIRE WATCHER (Auto-Scan Silenzioso e Riavvio Ologramma)
+// 🧛 VAMPIRE WATCHER (Scout Ibrido Intelligente)
 // =========================================================
 if (typeof window.vampireWatcher === 'undefined') {
     window.vampireWatcher = true;
@@ -250,14 +250,83 @@ if (typeof window.vampireWatcher === 'undefined') {
         const currentPressure = window.liveMetrics.buyPressure;
         const delta = window.lastKnownPressure - currentPressure;
         
-        // Se la pressione CROLLA e l'ologramma non spamma da 60 secondi
+        // Se la pressione CROLLA (Vampire Dump) e non abbiamo spammato nell'ultimo minuto
         if (delta >= 25 && (Date.now() - window.holoCooldown > 60000)) {
-            const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
             
             chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (res) => {
-                if (res.userConfig && res.userConfig.holoEnabled === false) return; // Non disturba se disattivato
-                const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
-                mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatar, currentPressure);
+                if (res.userConfig && res.userConfig.holoEnabled === false) return; // Rispetta le impostazioni!
+                const avatarUrl = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
+                
+                // Assicuriamoci che lo stile animato esista
+                if (!document.getElementById('ms-holo-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'ms-holo-styles';
+                    style.innerHTML = `
+                        @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+                        @keyframes slideInRightHolo { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                // Rimuove eventuali "scout" precedenti per evitare cloni
+                let oldScout = document.getElementById('ms-mini-scout');
+                if (oldScout) oldScout.remove();
+
+                // 🤖 CREA IL MINI-AVATAR (Lo Scout)
+                const scout = document.createElement('div');
+                scout.id = 'ms-mini-scout';
+                scout.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    z-index: 2147483646;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    cursor: pointer;
+                    animation: slideInRightHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), holoFloat 4s ease-in-out infinite;
+                    transition: transform 0.2s, filter 0.2s;
+                `;
+
+                // Grafica stile HUD Militare per lo Scout
+                scout.innerHTML = `
+                    <div style="background: rgba(20, 0, 0, 0.85); border: 1px solid #ff4d4d; padding: 10px 15px; border-radius: 4px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.3); backdrop-filter: blur(8px); position: relative; border-right: 4px solid #ff4d4d;">
+                        <div style="position: absolute; right: -7px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 6px solid #ff4d4d;"></div>
+                        <strong style="display:block; font-size:1.1em; margin-bottom:4px; color:#ff4d4d; font-family:monospace; text-transform:uppercase; letter-spacing:1px;">[ VOLATILITY_SPIKE ]</strong>
+                        <span style="color:#e4e4e7; font-size:0.85em; font-family:monospace;">Buy pressure dropped by ${delta.toFixed(0)}%.<br><span style="color:#ffaa00;">> CLICK TO SCAN</span></span>
+                    </div>
+                    
+                    <div style="width: 55px; height: 55px; border-radius: 50%; border: 2px solid #ff4d4d; box-shadow: 0 0 15px #ff4d4d80; overflow: hidden; background: #000; position: relative; flex-shrink:0;">
+                        <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
+                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
+                    </div>
+                `;
+
+                // ⚡ AL CLICK: Distrugge lo scout e innesca l'ologramma gigante!
+                scout.addEventListener('click', () => {
+                    scout.style.opacity = '0';
+                    setTimeout(() => scout.remove(), 200);
+                    
+                    const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
+                    // Richiama la funzione principale dell'Ologramma
+                    mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatarUrl, currentPressure);
+                });
+
+                // Effetto Hover
+                scout.addEventListener('mouseenter', () => { scout.style.transform = 'scale(1.05)'; scout.style.filter = 'brightness(1.2)'; });
+                scout.addEventListener('mouseleave', () => { scout.style.transform = 'scale(1)'; scout.style.filter = 'brightness(1)'; });
+
+                document.body.appendChild(scout);
+                
+                // 🕒 AUTO-DISTRUZIONE: Se l'utente lo ignora, scompare silenziosamente dopo 15 secondi
+                setTimeout(() => {
+                    if (scout && document.body.contains(scout)) {
+                        scout.style.opacity = '0';
+                        scout.style.transform = 'translateX(50px)';
+                        scout.style.transition = '0.4s ease';
+                        setTimeout(() => scout.remove(), 400);
+                    }
+                }, 15000);
             });
             
             window.holoCooldown = Date.now();
@@ -270,7 +339,7 @@ if (typeof window.vampireWatcher === 'undefined') {
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        window.holoCooldown = Date.now(); // Resetta il cooldown se clicchiamo noi
+        window.holoCooldown = Date.now(); // Resetta il cooldown se attiviamo manualmente
         mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.buyPressure);
     }
 });
