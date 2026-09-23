@@ -24,14 +24,23 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
             let isOverboughtAnomaly = (recentBuyVol >= 8 && currentFlow >= 80);
 
             let tacticalScore;
-            if (baseStaticScore <= 40) {
+            
+            // 🧠 FIXED LOGIC: Strict alignment with the Judge
+            if (baseStaticScore <= 45) {
+                // If the Judge says it's bad (<= 45), the Hologram MUST show the EXACT same score. No math.
                 tacticalScore = baseStaticScore; 
             } else if (isOverboughtAnomaly) {
-                tacticalScore = (baseStaticScore * 0.4) + 20; 
+                // Anti-FOMO: Force the score down to 40 to trigger the Arancione/Rosso warning
+                tacticalScore = 40; 
             } else {
-                tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
+                // Only if it's generally safe (> 45) we blend the historical score with the live flow
+                tacticalScore = (baseStaticScore * 0.4) + (currentFlow * 0.6);
             }
 
+            // Ensure the score never exceeds 100 or drops below 0
+            tacticalScore = Math.min(100, Math.max(0, tacticalScore));
+
+            // Define statuses based on the FINAL tactical score
             let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
             let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly && baseAction.match(/RIDE|BUY|COMPR/);
 
@@ -46,7 +55,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                 mainColor = '#ffaa00'; 
                 bgColor = 'rgba(30, 20, 0, 0.95)';
             } else if (isDanger) {
-                text = `[CRITICAL_WARNING] Judge identified historical risks (Score: ${baseStaticScore}). Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
+                text = `[CRITICAL_WARNING] Judge identified historical risks. Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
             } else if (isSafe) {
                 text = `[MOMENTUM_CONFIRMED] Trust Score solid (${tacticalScore.toFixed(0)}/100). Organic accumulation (${currentFlow.toFixed(0)}%). Judge verified contract. Ride trend.`;
             } else {
