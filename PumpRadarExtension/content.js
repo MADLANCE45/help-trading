@@ -1,3 +1,6 @@
+// =========================================================
+// 🔮 HOLOGRAM INJECTION ENGINE (Trascinabile, Veloce, a Sinistra)
+// =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowPressure) {
     let oldHolo = document.getElementById('ms-hologram-overlay');
     if (oldHolo) oldHolo.remove();
@@ -7,7 +10,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowP
     let isSafe = action.match(/RIDE|BUY|COMPR/);
 
     let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
-    let bgColor = isDanger ? 'rgba(50, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 30, 10, 0.85)' : 'rgba(40, 25, 0, 0.85)');
+    let bgColor = isDanger ? 'rgba(30, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 20, 10, 0.85)' : 'rgba(30, 20, 0, 0.85)');
     
     let staticScore = staticData && staticData.score ? staticData.score : 50;
     
@@ -20,73 +23,141 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowP
         deepText = `CHOP ZONE DETECTED. Trust Score moderate (${staticScore}/100). Order flow contested (${parseFloat(flowPressure).toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels, do not hold overnight.`;
     }
 
+    // 1. CREAZIONE STILI OLOGRAFICI (Fluttuazione e Glitch)
+    if (!document.getElementById('ms-holo-styles')) {
+        const style = document.createElement('style');
+        style.id = 'ms-holo-styles';
+        style.innerHTML = `
+            @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
+            @keyframes holoGlitch { 0% { opacity: 0.9; } 5% { opacity: 0.5; } 10% { opacity: 1; } 100% { opacity: 1; } }
+            @keyframes slideInLeftHolo { 0% { transform: translateX(-100%) scale(0.8); opacity: 0; } 100% { transform: translateX(0) scale(1); opacity: 1; } }
+            #ms-hologram-overlay {
+                animation: slideInLeftHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), holoFloat 4s ease-in-out infinite, holoGlitch 5s infinite;
+            }
+            .holo-drag-handle { cursor: grab; }
+            .holo-drag-handle:active { cursor: grabbing; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 2. CREAZIONE DEL CONTENITORE TRASCINABILE
     const holo = document.createElement('div');
     holo.id = 'ms-hologram-overlay';
-    // 🔥 POSIZIONATO SUL SITO: In alto a destra, sopra il grafico!
+    // 🔥 SPOSTATO A SINISTRA (left: 20px) E GESTIONE PUNTATORE
     holo.style.cssText = `
         position: fixed;
-        top: 80px;
-        right: 20px;
-        width: 380px;
+        top: 120px;
+        left: 20px;
+        width: 400px;
         display: flex;
+        flex-direction: row-reverse; /* Inverte l'ordine per farlo apparire bene a sinistra */
         gap: 15px;
         z-index: 2147483647;
-        pointer-events: none;
-        animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        pointer-events: auto; /* Permette il trascinamento */
+        user-select: none;
     `;
 
     holo.innerHTML = `
-        <style>
-            @keyframes slideInRight { 0% { transform: translateX(100%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-        </style>
-        <div style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}80; overflow: hidden; background: #000; position: relative;">
-            <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.2);" />
-            <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
-        </div>
-        
-        <div style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 15px rgba(0,0,0,0.5); backdrop-filter: blur(8px); position: relative;">
-            <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${mainColor};"></div>
-            <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${bgColor};"></div>
+        <!-- Pannello Dati Cyberpunk (Ora a sinistra dell'avatar) -->
+        <div class="holo-drag-handle" style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-left: 4px solid ${mainColor};">
+            
+            <!-- Barra Superiore per trascinamento -->
+            <div style="position: absolute; top:0; left:0; width:100%; height:12px; background: rgba(255,255,255,0.05); cursor: grab; border-bottom: 1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;">
+                <div style="width:30px; height:2px; background: #555; border-radius:2px;"></div>
+            </div>
 
-            <div style="font-family: monospace; font-size: 0.75em; color: ${mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between;">
+            <!-- Puntatore del fumetto (Invertito verso destra) -->
+            <div style="position: absolute; right: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid ${mainColor};"></div>
+            <div style="position: absolute; right: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 10px solid ${bgColor};"></div>
+
+            <div style="font-family: monospace; font-size: 0.75em; color: ${mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; margin-top: 5px;">
                 <span>TACTICAL OVERLAY</span>
-                <span>[SYS.OP]</span>
+                <span>[DRAG ME]</span>
             </div>
             
-            <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px;"></div>
+            <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${mainColor}40;"></div>
             
-            <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
+            <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center; flex-direction: row-reverse;">
                 <div style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${mainColor} 0, ${mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
-                <div style="background: ${mainColor}; color: #000; font-weight: 900; font-family: monospace; font-size: 0.7em; padding: 2px 8px; border-radius: 2px; margin-left: 8px;">
+                <div style="background: ${mainColor}; color: #000; font-weight: 900; font-family: monospace; font-size: 0.7em; padding: 2px 8px; border-radius: 2px; margin-right: 8px;">
                     ${isDanger ? 'DUMP THRESHOLD' : (isSafe ? 'TAKE PROFIT' : 'SUPPORT LEVEL')}
                 </div>
             </div>
+        </div>
+
+        <!-- Avatar Selezionato -->
+        <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}; overflow: hidden; background: #000; position: relative; cursor: grab;">
+            <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
+            <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
         </div>
     `;
 
     document.body.appendChild(holo);
 
+    // 3. LOGICA DRAG & DROP (Trascinamento Fluido)
+    let isDragging = false;
+    let currentX; let currentY; let initialX; let initialY; let xOffset = 0; let yOffset = 0;
+
+    const dragHandles = holo.querySelectorAll('.holo-drag-handle');
+    dragHandles.forEach(handle => {
+        handle.addEventListener('mousedown', dragStart);
+    });
+
+    function dragStart(e) {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+        if (e.target.tagName !== 'IMG') { // Ignora i click sulle immagini per evitare bug di ghost-drag del browser
+            isDragging = true;
+            holo.style.transition = 'none'; // Rimuove animazioni durante il drag
+            holo.style.animation = 'none'; // Ferma l'effetto hover temporaneamente
+        }
+    }
+
+    document.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            e.preventDefault();
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+            xOffset = currentX;
+            yOffset = currentY;
+            // Sposta l'elemento usando la trasformazione hardware 3D per non laggare
+            holo.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+            // Ripristina l'effetto fluttuante mantenendo la posizione
+            holo.style.animation = 'holoFloat 4s ease-in-out infinite, holoGlitch 5s infinite';
+        }
+    });
+
+    // 4. EFFETTO MACCHINA DA SCRIVERE ULTRA-VELOCE
     const textElement = document.getElementById('ms-typing-text');
     let i = 0;
     function typeWriter() {
         if (i < deepText.length) {
-            textElement.innerHTML += deepText.charAt(i);
-            i++;
-            setTimeout(typeWriter, 15);
+            // Aggiunge 2-3 lettere alla volta per farlo schizzare via velocissimo
+            textElement.innerHTML += deepText.substring(i, i + 3);
+            i += 3;
+            setTimeout(typeWriter, 5); // Solo 5ms!
         }
     }
     typeWriter();
 
+    // 5. AUTO-DISTRUZIONE (Aumentata a 20 secondi)
     setTimeout(() => {
         if (holo && document.body.contains(holo)) {
             holo.style.transition = 'opacity 0.5s, transform 0.5s';
             holo.style.opacity = '0';
-            holo.style.transform = 'translateX(50px)';
+            holo.style.transform = `translate3d(${xOffset - 50}px, ${yOffset}px, 0)`; // Scivola via a sinistra
             setTimeout(() => holo.remove(), 500);
         }
-    }, 12000);
+    }, 20000); // Rimane per 20 secondi prima di sparire
 }
-
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
