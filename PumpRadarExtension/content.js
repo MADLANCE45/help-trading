@@ -1095,17 +1095,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById('user-route-mode')) document.getElementById('user-route-mode').value = res.userConfig.routeMode || "standard";
                 if (document.getElementById('user-risk-profile')) document.getElementById('user-risk-profile').value = res.userConfig.riskProfile || "safe";
                 
-                const holoToggle = document.getElementById('user-holo-toggle');
-                const holoSlider = document.getElementById('holo-toggle-slider');
-                const holoKnob = document.getElementById('holo-toggle-knob');
-                
-                let isHoloEnabled = res.userConfig.holoEnabled !== false; 
-                // Carica stato Ologramma
+                // Carica stato Ologramma (Senza doppioni)
                 const holoToggle = document.getElementById('user-holo-toggle');
                 const holoSlider = document.getElementById('holo-toggle-slider');
                 const holoKnob = document.getElementById('holo-toggle-knob');
                 
                 let isHoloEnabled = res.userConfig.holoEnabled !== false; // Default true
+                
                 if (holoToggle) {
                     holoToggle.checked = isHoloEnabled;
                     if (!isHoloEnabled) {
