@@ -1,91 +1,109 @@
 // =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Zero-Lag, Cosciente al 30%, Pulsante Fixato)
+// 🔮 HOLOGRAM INJECTION ENGINE (Smart Drag, Re-Scan Button, 30/70 Hybrid Brain)
 // =========================================================
-function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowPressure) {
+function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initialFlowPressure) {
+    
+    // 1. MEMORIA POSIZIONALE: Se c'è già un ologramma, salviamo dove l'ha messo l'utente!
+    let posCss = `right: 20px; top: 120px;`; // Posizione di default
     let oldHolo = document.getElementById('ms-hologram-wrapper');
-    if (oldHolo) oldHolo.remove();
-
-    let action = (copilotData.azione || "").toUpperCase();
-    
-    // 🧠 IL CERVELLO IBRIDO: 30% Giudice (Analisi Storica) + 70% Order Flow (Analisi Live)
-    let staticScore = staticData && staticData.score ? staticData.score : 50;
-    let currentFlow = parseFloat(flowPressure) || 50;
-    let tacticalScore = (staticScore * 0.3) + (currentFlow * 0.7);
-
-    // Ridefiniamo l'azione fondendo l'IA testuale e la matematica pura
-    let isDanger = tacticalScore <= 45 || action.match(/AVOID|DUMP|SELL|FUGG/);
-    let isSafe = tacticalScore >= 65 || action.match(/RIDE|BUY|COMPR/);
-
-    let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
-    let bgColor = isDanger ? 'rgba(30, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 20, 10, 0.85)' : 'rgba(30, 20, 0, 0.85)');
-    
-    let deepText = "";
-    if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
-        deepText = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
-    } else if (isDanger) {
-        deepText = `CRITICAL WARNING. Hybrid Score compromised (${tacticalScore.toFixed(0)}/100). Order flow collapsing (${currentFlow.toFixed(0)}%). The Judge identified historical risks. Exit position immediately.`;
-    } else if (isSafe) {
-        deepText = `MOMENTUM CONFIRMED. Hybrid Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by algorithmic buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend, prepare trailing stop.`;
-    } else {
-        deepText = `CHOP ZONE DETECTED. Hybrid Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels, do not hold.`;
+    if (oldHolo) {
+        const rect = oldHolo.getBoundingClientRect();
+        posCss = `left: ${rect.left}px; top: ${rect.top}px;`; // Congela la posizione esatta
+        oldHolo.remove();
     }
+
+    // 2. IL CERVELLO MATEMATICO (Funzione isolata per poter essere richiamata dal tasto Aggiorna)
+    const baseStaticScore = staticData && staticData.score ? staticData.score : 50;
+    const baseAction = (copilotData.azione || "").toUpperCase();
+
+    function elaboraVerdetto(flowPressure) {
+        let currentFlow = parseFloat(flowPressure) || 50;
+        
+        // 🧠 IL CERVELLO IBRIDO: 30% Giudice (Analisi Storica) + 70% Order Flow (Analisi Live)
+        let tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
+
+        let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
+        let isSafe = tacticalScore >= 65 || baseAction.match(/RIDE|BUY|COMPR/);
+
+        let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
+        let bgColor = isDanger ? 'rgba(30, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 20, 10, 0.85)' : 'rgba(30, 20, 0, 0.85)');
+        
+        let text = "";
+        if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
+            text = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
+        } else if (isDanger) {
+            text = `CRITICAL WARNING. Hybrid Score compromised (${tacticalScore.toFixed(0)}/100). Order flow collapsing (${currentFlow.toFixed(0)}%). The Judge identified historical risks. Exit position immediately.`;
+        } else if (isSafe) {
+            text = `MOMENTUM CONFIRMED. Hybrid Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by algorithmic buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
+        } else {
+            text = `CHOP ZONE DETECTED. Hybrid Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels.`;
+        }
+
+        return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
+    }
+
+    // Calcoliamo lo stato iniziale
+    let currentState = elaboraVerdetto(initialFlowPressure);
 
     if (!document.getElementById('ms-holo-styles')) {
         const style = document.createElement('style');
         style.id = 'ms-holo-styles';
         style.innerHTML = `
             @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
-            @keyframes slideInLeftHolo { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+            @keyframes slideInRightHolo { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
             .holo-inner-animated { animation: holoFloat 4s ease-in-out infinite; }
             .holo-drag-handle { cursor: grab; }
             .holo-drag-handle:active { cursor: grabbing; }
             .holo-btn-dismiss:hover { filter: brightness(1.3); transform: scale(1.05); }
+            .holo-btn-refresh:hover { transform: rotate(180deg); color: #fff !important; }
         `;
         document.head.appendChild(style);
     }
 
-    // 1. WRAPPER ESTERNO (Posizione assoluta per zero lag sul mouse)
+    // 3. WRAPPER ESTERNO (Posizione assoluta per zero lag sul mouse)
     const wrapper = document.createElement('div');
     wrapper.id = 'ms-hologram-wrapper';
     wrapper.style.cssText = `
         position: fixed;
-        top: 120px;
-        right: 360px; /* Posizione iniziale */
+        ${posCss}
         z-index: 2147483647;
         pointer-events: none; 
-        animation: slideInLeftHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: slideInRightHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     `;
 
-    // 2. CONTENITORE INTERNO (Grafica e Testo)
     wrapper.innerHTML = `
         <div class="holo-inner-animated" style="display: flex; gap: 15px; width: 400px; pointer-events: auto; user-select: none;">
             
-            <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${mainColor}; box-shadow: 0 0 25px ${mainColor}; overflow: hidden; background: #000; position: relative;">
+            <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${currentState.mainColor}; box-shadow: 0 0 25px ${currentState.mainColor}; overflow: hidden; background: #000; position: relative;">
                 <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
                 <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
             </div>
 
-            <div class="holo-drag-handle" style="flex-grow: 1; background: ${bgColor}; border: 1px solid ${mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-right: 4px solid ${mainColor};">
+            <div id="ms-holo-panel" class="holo-drag-handle" style="flex-grow: 1; background: ${currentState.bgColor}; border: 1px solid ${currentState.mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-right: 4px solid ${currentState.mainColor}; transition: border 0.3s, background 0.3s;">
+                
                 <div style="position: absolute; top:0; left:0; width:100%; height:14px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;">
                     <div style="width:30px; height:2px; background: #555; border-radius:2px;"></div>
                 </div>
 
-                <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${mainColor};"></div>
-                <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${bgColor};"></div>
+                <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.mainColor};" id="ms-holo-arrow-out"></div>
+                <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.bgColor};" id="ms-holo-arrow-in"></div>
 
-                <div style="font-family: monospace; font-size: 0.75em; color: ${mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; margin-top: 5px;">
-                    <span>[SYS.OP]</span>
-                    <span style="color:#888;">[DRAG]</span>
+                <div style="font-family: monospace; font-size: 0.75em; color: ${currentState.mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${currentState.mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; align-items: center; margin-top: 5px;" id="ms-holo-header">
+                    <span>[SYS.OP] - SCORE: <span id="ms-holo-score">${currentState.tacticalScore.toFixed(0)}</span></span>
+                    
+                    <!-- 🔥 BOTTONE DI RE-SCAN (Aggiornamento Veloce) -->
+                    <button id="ms-btn-refresh-holo" class="holo-btn-refresh" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-weight: bold; transition: 0.3s;" title="Refresh Data">
+                        🔄
+                    </button>
                 </div>
                 
-                <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${mainColor}40;"></div>
+                <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${currentState.mainColor}40;"></div>
                 
                 <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
-                    <!-- IL BOTTONE FIXATO (pointer-events-auto forza il click) -->
-                    <button id="ms-btn-dismiss-holo" class="holo-btn-dismiss" style="background: ${mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 4px; margin-right: 8px; cursor: pointer; box-shadow: 0 0 10px ${mainColor}80; transition: 0.2s; pointer-events: auto;">
-                        ${isDanger ? 'ACKNOWLEDGE DUMP' : (isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP')}
+                    <button id="ms-btn-dismiss-holo" class="holo-btn-dismiss" style="background: ${currentState.mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 4px; margin-right: 8px; cursor: pointer; box-shadow: 0 0 10px ${currentState.mainColor}80; transition: 0.2s; pointer-events: auto;">
+                        ${currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP')}
                     </button>
-                    <div style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${mainColor} 0, ${mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
+                    <div id="ms-holo-line" style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
                 </div>
             </div>
         </div>
@@ -93,52 +111,123 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowP
 
     document.body.appendChild(wrapper);
 
-    // 3. LOGICA DRAG & DROP ZERO-LAG
+    // 4. LOGICA DRAG & DROP INTELLIGENTE (Confini e Zero Lag)
     let isDragging = false;
-    let offsetX, offsetY;
+    let startX, startY, initialLeft, initialTop;
 
     const dragHandles = wrapper.querySelectorAll('.holo-drag-handle');
     dragHandles.forEach(handle => {
         handle.addEventListener('mousedown', (e) => {
-            if (e.target.closest('button')) return; // Ignora se clicca il bottone!
+            if (e.target.closest('button')) return; // Non trascinare se clicco un bottone
             isDragging = true;
+            
             const rect = wrapper.getBoundingClientRect();
-            offsetX = e.clientX - rect.left;
-            offsetY = e.clientY - rect.top;
-
-            // Rimuove 'right' per usare solo 'left' e 'top' e prevenire glitch
+            startX = e.clientX;
+            startY = e.clientY;
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            // Fissa le coordinate assolute e spegne le animazioni CSS per il drag
             wrapper.style.right = 'auto';
             wrapper.style.bottom = 'auto';
+            wrapper.style.left = initialLeft + 'px';
+            wrapper.style.top = initialTop + 'px';
+            wrapper.style.transition = 'none';
         });
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         e.preventDefault();
+        
+        let newLeft = initialLeft + (e.clientX - startX);
+        let newTop = initialTop + (e.clientY - startY);
+        
+        // 🛡️ LIMITI DELLO SCHERMO: Non far uscire l'ologramma dal monitor!
+        const maxX = window.innerWidth - wrapper.offsetWidth;
+        const maxY = window.innerHeight - wrapper.offsetHeight;
+        
+        if (newLeft < 0) newLeft = 0;
+        if (newTop < 0) newTop = 0;
+        if (newLeft > maxX) newLeft = maxX;
+        if (newTop > maxY) newTop = maxY;
+
         requestAnimationFrame(() => {
-            wrapper.style.left = `${e.clientX - offsetX}px`;
-            wrapper.style.top = `${e.clientY - offsetY}px`;
+            wrapper.style.left = `${newLeft}px`;
+            wrapper.style.top = `${newTop}px`;
         });
     });
 
-    document.addEventListener('mouseup', () => { isDragging = false; });
+    document.addEventListener('mouseup', () => { 
+        if (isDragging) {
+            isDragging = false; 
+            wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease'; // Riattiva la chiusura morbida
+        }
+    });
 
-    // 4. EFFETTO MACCHINA DA SCRIVERE
+    // 5. EFFETTO MACCHINA DA SCRIVERE
     const textElement = document.getElementById('ms-typing-text');
     let i = 0;
-    function typeWriter() {
-        if (i < deepText.length) {
-            textElement.innerHTML += deepText.substring(i, i + 3);
-            i += 3;
-            setTimeout(typeWriter, 5);
-        }
-    }
-    typeWriter();
+    let activeTypewriter = null;
 
-    // 5. CHIUSURA MANUALE E AUTODISTRUZIONE
+    function startTypeWriter(testoDaScrivere) {
+        textElement.innerHTML = "";
+        i = 0;
+        if (activeTypewriter) clearTimeout(activeTypewriter);
+        
+        function typeWriter() {
+            if (i < testoDaScrivere.length) {
+                textElement.innerHTML += testoDaScrivere.substring(i, i + 3);
+                i += 3;
+                activeTypewriter = setTimeout(typeWriter, 5);
+            }
+        }
+        typeWriter();
+    }
+    
+    startTypeWriter(currentState.text);
+
+    // 6. LOGICA BOTTONE AGGIORNA (Recalcolo Ibrido)
+    document.getElementById('ms-btn-refresh-holo').addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // 🔄 Prende l'ultimo dato live dal websocket (Order Flow)
+        let freshPressure = window.liveMetrics ? window.liveMetrics.buyPressure : 50;
+        
+        // Ricalcola il verdetto e i colori!
+        currentState = elaboraVerdetto(freshPressure);
+        
+        // Aggiorna l'estetica del pannello dinamicamente
+        document.getElementById('ms-holo-panel').style.background = currentState.bgColor;
+        document.getElementById('ms-holo-panel').style.borderColor = currentState.mainColor;
+        document.getElementById('ms-holo-arrow-out').style.borderRightColor = currentState.mainColor;
+        document.getElementById('ms-holo-arrow-in').style.borderRightColor = currentState.bgColor;
+        document.getElementById('ms-holo-header').style.color = currentState.mainColor;
+        document.getElementById('ms-holo-header').style.borderBottomColor = currentState.mainColor;
+        document.getElementById('ms-holo-score').innerText = currentState.tacticalScore.toFixed(0);
+        document.getElementById('ms-holo-line').style.background = `repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px)`;
+        
+        const btnDismiss = document.getElementById('ms-btn-dismiss-holo');
+        btnDismiss.style.background = currentState.mainColor;
+        btnDismiss.style.boxShadow = `0 0 10px ${currentState.mainColor}80`;
+        btnDismiss.innerText = currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP');
+
+        textElement.innerHTML = `<span style="color:#00ffcc">🔄 Recalculating Matrix...</span>`;
+        
+        setTimeout(() => {
+            startTypeWriter(currentState.text);
+        }, 600);
+
+        // Allunga la vita dell'ologramma
+        clearTimeout(autoDestructTimer);
+        autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
+    });
+
+
+    // 7. CHIUSURA MANUALE E AUTODISTRUZIONE
     let autoDestructTimer;
     function chiudiOlogramma(e) {
-        if(e) e.stopPropagation(); // Previene conflitti con il drag
+        if(e) e.stopPropagation();
         if (wrapper && document.body.contains(wrapper)) {
             clearTimeout(autoDestructTimer);
             wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
@@ -148,40 +237,34 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, flowP
         }
     }
 
-    // Associa il click al bottone
     wrapper.querySelector('#ms-btn-dismiss-holo').addEventListener('click', chiudiOlogramma);
     autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
 }
 
 // =========================================================
-// 🧛 VAMPIRE WATCHER (Auto-Scan Silenzioso)
+// 🧛 VAMPIRE WATCHER (Auto-Scan Silenzioso e Riavvio Ologramma)
 // =========================================================
 if (typeof window.vampireWatcher === 'undefined') {
     window.vampireWatcher = true;
     window.lastKnownPressure = 50;
     window.holoCooldown = 0;
 
-    // Controlla il grafico ogni 10 secondi
     setInterval(() => {
         if (!window.liveMetrics) return;
         
         const currentPressure = window.liveMetrics.buyPressure;
         const delta = window.lastKnownPressure - currentPressure;
         
-        // Se la pressione d'acquisto CROLLA di oltre il 25% all'improvviso (Il vampiro sta scaricando)
-        // E non abbiamo mostrato ologrammi nell'ultimo minuto (60000 ms)
+        // Se la pressione CROLLA e l'ologramma non spamma da 60 secondi
         if (delta >= 25 && (Date.now() - window.holoCooldown > 60000)) {
-            
-            // Crea un allarme artificiale
             const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
             
-            // Apre l'ologramma in automatico!
             chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (res) => {
                 const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatar, currentPressure);
             });
             
-            window.holoCooldown = Date.now(); // Resetta il timer di spam
+            window.holoCooldown = Date.now();
         }
         
         window.lastKnownPressure = currentPressure;
