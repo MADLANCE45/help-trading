@@ -775,10 +775,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div>
                             <div style="font-size: 0.6em; color: #888; text-transform: uppercase; letter-spacing: 1px;">Meme Saver</div>
-                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc; font-family: monospace;">[ TRADING_TERMINAL ]</div>
+                            <div style="font-size: 0.95em; font-weight: 900; color: #00ffcc; font-family: monospace;">Trading Terminal</div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">SYS.CFG</span>
+                            <span style="font-size: 0.65em; color: #aaa; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">Settings</span>
                             <div id="btn-user-profile" title="Settings" style="background: #1a1c29; border: 1px solid #2d3142; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(0,255,204,0.2); overflow: hidden;">
                                 <img id="current-user-avatar" src="${av1}" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
@@ -794,7 +794,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
                             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulseGlow 3s infinite;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                             <div>
-                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px; font-family: monospace;">[ CONTROL_ROOM ]</h3>
+                                <h3 style="margin: 0; color: #fff; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Control Room</h3>
                                 <div style="color: #888; font-size: 0.65em; margin-top: 2px; text-transform: uppercase;">Algorithm Settings</div>
                             </div>
                         </div>
@@ -803,10 +803,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="background: #161821; border: 1px solid #2d3142; border-radius: 8px; padding: 8px 12px; margin-bottom: 15px;">
                             <div style="font-size: 0.65em; color: #888; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; text-align: center;">Interface Language</div>
                             <div style="display: flex; justify-content: space-between; gap: 6px;">
-                                <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'};">[ EN ]</button>
-                                <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'};">[ IT ]</button>
-                                <button class="lang-btn" data-lang="zh" style="background: ${currentLang === 'zh' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'zh' ? '#000' : '#fff'};">[ ZH ]</button>
-                                <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">[ FR ]</button>
+                                <button class="lang-btn" data-lang="en" style="background: ${currentLang === 'en' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'en' ? '#000' : '#fff'};">EN</button>
+                                <button class="lang-btn" data-lang="it" style="background: ${currentLang === 'it' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'it' ? '#000' : '#fff'};">IT</button>
+                                <button class="lang-btn" data-lang="zh" style="background: ${currentLang === 'zh' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'zh' ? '#000' : '#fff'};">ZH</button>
+                                <button class="lang-btn" data-lang="fr" style="background: ${currentLang === 'fr' ? '#00ffcc' : '#0a0c10'}; color: ${currentLang === 'fr' ? '#000' : '#fff'};">FR</button>
                             </div>
                         </div>
 
@@ -818,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                                     <span>Account Status:</span> 
-                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">[ SYNCING... ]</span>
+                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">Syncing...</span>
                                 </div>
                             </div>
                             
@@ -834,17 +834,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             
                             <div style="display: flex; gap: 8px;">
-                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">[ SYNC ]</button>
-                                <button id="btn-logout-sync" style="display: none; flex: 1; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">[ LOG_OUT ]</button>
-                                <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">[ UPGRADE ]</a>
+                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sync</button>
+                                <button id="btn-logout-sync" style="display: none; flex: 1; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Log Out</button>
+                                <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
                             </div>
                         </div>
 
                         <!-- AI SELECTOR -->
                         <div style="background: #11121a; border: 1px solid #2d3142; border-left: 3px solid #a855f7; border-radius: 8px; padding: 12px; margin-bottom: 15px; position: relative;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900; font-family: monospace;">[SYS] AI Engine</strong>
-                                <span id="ai-premium-badge" style="font-size: 0.65em; background: rgba(168, 85, 247, 0.1); padding: 3px 6px; border-radius: 4px; color: #c084fc; font-weight: bold; border: 1px solid #a855f7; font-family: monospace;">[LOCKED]</span>
+                                <strong style="color: #a855f7; font-size: 0.8em; text-transform: uppercase; font-weight: 900; font-family: monospace;">AI Engine</strong>
+                                <span id="ai-premium-badge" style="font-size: 0.65em; background: rgba(168, 85, 247, 0.1); padding: 3px 6px; border-radius: 4px; color: #c084fc; font-weight: bold; border: 1px solid #a855f7; font-family: monospace;">LOCKED</span>
                             </div>
                             <select id="user-ai-model" disabled class="select-modern" style="cursor: not-allowed; transition: all 0.3s;">
                                 <option value="deepseek/deepseek-chat">DeepSeek V3 (Fast - Default)</option>
@@ -857,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <!-- AVATAR SELECTION & HOLOGRAM TOGGLE -->
                         <div style="background: #11121a; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #2d3142; padding-bottom: 8px;">
-                                <strong style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">[HUD] Hologram</strong>
+                                <strong style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">Tactical Hologram</strong>
                                 <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
                                     <input type="checkbox" id="user-holo-toggle" checked style="opacity: 0; width: 0; height: 0;">
                                     <span id="holo-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #00e676; transition: .4s; border-radius: 20px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></span>
@@ -878,19 +878,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             <div style="display: flex; justify-content: center; margin-bottom: 12px;">
                                 <span style="background: linear-gradient(90deg, #ff007f, #a855f7); color: #fff; font-size: 0.65em; font-weight: 900; padding: 4px 12px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,0,127,0.4); font-family: monospace;">
-                                    [ SYSTEM V2: AUTO-TRADING PENDING ]
+                                    V2: AUTO-TRADING PENDING
                                 </span>
                             </div>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; opacity: 0.4; pointer-events: none; filter: grayscale(30%);">
                                 <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">[ROUTE] Mode</strong>
+                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">Route Mode</strong>
                                     <select disabled id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
                                         <option value="standard">Standard</option>
                                     </select>
                                 </div>
                                 <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">[RISK] Profile</strong>
+                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">Risk Profile</strong>
                                     <select disabled id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
                                         <option value="safe">Safe</option>
                                     </select>
@@ -900,22 +900,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <!-- SCAN HISTORY -->
                         <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
-                            <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px; font-family: monospace;">[LOG] Scan History</strong>
+                            <strong style="color: #aaa; font-size: 0.7em; text-transform: uppercase; display: block; margin-bottom: 8px; font-family: monospace;">Scan History</strong>
                             <div style="font-size: 0.75em; color: #666; font-family: monospace; line-height: 1.5;">
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>FUKg...9xK</span> <span style="color: #ff4d4d;">[AVOID]</span></div>
-                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>8mvf...Xwv</span> <span style="color: #00e676;">[RIDE]</span></div>
-                                <div style="display: flex; justify-content: space-between;"><span>3Bkx...1oP</span> <span style="color: #ffaa00;">[SCALP]</span></div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>FUKg...9xK</span> <span style="color: #ff4d4d;">AVOID</span></div>
+                                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding-bottom: 4px; margin-bottom: 4px;"><span>8mvf...Xwv</span> <span style="color: #00e676;">RIDE</span></div>
+                                <div style="display: flex; justify-content: space-between;"><span>3Bkx...1oP</span> <span style="color: #ffaa00;">SCALP</span></div>
                             </div>
                         </div>
 
                         <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 0.85em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; margin-bottom: 10px; font-family: monospace;">
-                            [ SAVE_CONFIG ]
+                            Save Settings
                         </button>
 
                         <!-- DISCORD UNDERGROUND -->
                         <a id="btn-discord" href="https://discord.gg/F3uWgE5ys" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: 0.2s; font-family: monospace;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-                            <span id="discord-text">[ JOIN_NETWORK ]</span>
+                            <span id="discord-text">Join the Resistance</span>
                         </a>
                     </div>
 
@@ -925,9 +925,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; height: 32px; box-sizing: border-box;">
                                 <span style="display: flex; align-items: center;"> ${tokenMint.substring(0,12)}...</span>
                                 <span style="color:#2d3142;">|</span>
-                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.95em; font-weight: bold; display: flex; align-items: center; animation: pulseGlow 1.5s infinite;">[ SCANNING... ]</span>
+                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.95em; font-weight: bold; display: flex; align-items: center; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
                             </div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">[ RELOAD ]</button>
+                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">Reload</button>
                         </div>
                         ${copilotHTML}
                         ${orderFlowHTML}
@@ -937,12 +937,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- TAB 2: TRACKER -->
                     <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px; font-family: monospace;">[ WALLET_TRACKER ]</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Wallet Tracker</h3></div>
                         
                         <div style="display: flex; gap: 6px; margin-bottom: 15px; align-items: stretch;">
                             <input type="text" id="new-wallet-name" placeholder="Alias" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em; font-family: monospace;">
                             <input type="text" id="new-wallet-input" placeholder="Paste Wallet..." style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em; font-family: monospace;">[ ADD ]</button>
+                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em; font-family: monospace;">Add</button>
                         </div>
                         
                         <div id="tracked-wallets-list" style="font-size: 11px;"></div>
@@ -950,7 +950,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; font-family: monospace;">[ SPY_RADAR ]</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Spy Radar</h3></div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
                             <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em; font-family: monospace;">Waiting for target transactions...</div>
                         </div>
@@ -960,13 +960,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- BOTTOM TABS -->
                 <div id="bottom-tabs-nav" style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
                     <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">[ RADAR ]</span>
+                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Radar</span>
                     </div>
                     <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">[ TRACKER ]</span>
+                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Tracker</span>
                     </div>
                     <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">[ SPY ]</span>
+                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Spy</span>
                     </div>
                 </div>
             </div>
