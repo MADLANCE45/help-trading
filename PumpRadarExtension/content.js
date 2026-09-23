@@ -1,13 +1,11 @@
 // =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Veto del Giudice, No X, Zero Lag)
+// 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
 // =========================================================
-function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initialFlowPressure) {
+function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData) {
     
-    // Controlla se l'utente ha disabilitato gli ologrammi dalla rotellina (Control Room)
     chrome.storage.local.get(['userConfig'], (res) => {
         if (res.userConfig && res.userConfig.holoEnabled === false) return; 
         
-        // 1. MEMORIA POSIZIONALE
         let posCss = `left: 30px; top: 100px;`; 
         let oldHolo = document.getElementById('ms-hologram-wrapper');
         if (oldHolo) {
@@ -16,43 +14,49 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             oldHolo.remove();
         }
 
-        // 2. IL CERVELLO MATEMATICO (Con "Veto Assoluto" del Giudice)
         const baseStaticScore = staticData && staticData.score ? staticData.score : 50;
         const baseAction = (copilotData.azione || "").toUpperCase();
 
-        function elaboraVerdetto(flowPressure) {
-            let currentFlow = parseFloat(flowPressure) || 50;
-            let tacticalScore;
+        function elaboraVerdetto(metrics) {
+            let currentFlow = metrics ? (parseFloat(metrics.buyPressure) || 50) : 50;
+            let recentBuyVol = metrics ? (parseFloat(metrics.buyVol) || 0) : 0;
+            
+            let isOverboughtAnomaly = (recentBuyVol >= 8 && currentFlow >= 80);
 
-            // 🧠 LOGICA INTELLIGENTE: Se il Giudice dice che è un RUG (<=40), il volume non può salvarlo!
+            let tacticalScore;
             if (baseStaticScore <= 40) {
-                tacticalScore = baseStaticScore; // Il Veto del Giudice vince.
+                tacticalScore = baseStaticScore; 
+            } else if (isOverboughtAnomaly) {
+                tacticalScore = (baseStaticScore * 0.4) + 20; 
             } else {
-                // Se è sano, fondiamo 60% Giudice e 40% Order Flow Live
-                tacticalScore = (baseStaticScore * 0.6) + (currentFlow * 0.4);
+                tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
             }
 
             let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
-            let isSafe = tacticalScore >= 65 || baseAction.match(/RIDE|BUY|COMPR/);
+            let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly && baseAction.match(/RIDE|BUY|COMPR/);
 
             let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
             let bgColor = isDanger ? 'rgba(30, 0, 0, 0.95)' : (isSafe ? 'rgba(0, 20, 10, 0.95)' : 'rgba(30, 20, 0, 0.95)');
             
             let text = "";
             if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
-                text = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
+                text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
+            } else if (isOverboughtAnomaly) {
+                text = `[OVERBOUGHT_ANOMALY] Massive bundle pump detected (${recentBuyVol.toFixed(1)} SOL in 10s). Artificial pressure at ${currentFlow.toFixed(0)}%. High probability of imminent dev dump. DO NOT FOMO.`;
+                mainColor = '#ffaa00'; 
+                bgColor = 'rgba(30, 20, 0, 0.95)';
             } else if (isDanger) {
-                text = `CRITICAL WARNING. The Judge identified historical risks (Score: ${baseStaticScore}). Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
+                text = `[CRITICAL_WARNING] Judge identified historical risks (Score: ${baseStaticScore}). Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
             } else if (isSafe) {
-                text = `MOMENTUM CONFIRMED. Trust Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
+                text = `[MOMENTUM_CONFIRMED] Trust Score solid (${tacticalScore.toFixed(0)}/100). Organic accumulation (${currentFlow.toFixed(0)}%). Judge verified contract. Ride trend.`;
             } else {
-                text = `CHOP ZONE DETECTED. Trust Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility. Execute rapid scalp on support levels.`;
+                text = `[CHOP_ZONE_DETECTED] Trust Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility. Execute rapid scalp on support levels.`;
             }
 
             return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
         }
 
-        let currentState = elaboraVerdetto(initialFlowPressure);
+        let currentState = elaboraVerdetto(liveMetricsData);
 
         if (!document.getElementById('ms-holo-styles')) {
             const style = document.createElement('style');
@@ -82,13 +86,11 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         wrapper.innerHTML = `
             <div class="holo-inner-animated" style="display: flex; gap: 15px; width: 420px; pointer-events: auto; user-select: none;">
                 
-                <!-- AVATAR -->
                 <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${currentState.mainColor}; box-shadow: 0 0 25px ${currentState.mainColor}; overflow: hidden; background: #000; position: relative;">
                     <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
                     <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
                 </div>
 
-                <!-- PANNELLO CENTRALE -->
                 <div id="ms-holo-panel" class="holo-drag-handle" style="flex-grow: 1; background: ${currentState.bgColor}; border: 1px solid ${currentState.mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-left: 4px solid ${currentState.mainColor}; transition: border 0.3s, background 0.3s;">
                     
                     <div style="position: absolute; top:0; left:0; width:100%; height:14px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;">
@@ -98,15 +100,14 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
                     <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.mainColor};" id="ms-holo-arrow-out"></div>
                     <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.bgColor};" id="ms-holo-arrow-in"></div>
 
-                    <!-- HEADER CON SCORE E TASTO REFRESH (Senza la X) -->
                     <div style="font-family: monospace; font-size: 0.75em; color: ${currentState.mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${currentState.mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; align-items: center; margin-top: 5px;" id="ms-holo-header">
                         <span>[SYS.OP] SCORE: <span id="ms-holo-score">${currentState.tacticalScore.toFixed(0)}</span></span>
                         
-<button id="ms-btn-refresh-holo" class="holo-btn-interactive" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: monospace; font-size: 0.85em; box-shadow: inset 0 0 5px ${currentState.mainColor}40;" title="Refresh Data">RE-SCAN</button>                    </div>
+                        <button id="ms-btn-refresh-holo" class="holo-btn-interactive" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: monospace; font-size: 0.85em; box-shadow: inset 0 0 5px ${currentState.mainColor}40;" title="Refresh Data">RE-SCAN</button>
+                    </div>
                     
                     <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${currentState.mainColor}40;"></div>
                     
-                    <!-- BOTTONE AZIONE IN BASSO (Funziona anche da chiusura) -->
                     <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
                         <div id="ms-holo-line" style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
                         <button id="ms-btn-action-holo" class="holo-btn-interactive" style="background: ${currentState.mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 2px; margin-left: 8px; box-shadow: 0 0 10px ${currentState.mainColor}80;">
@@ -119,7 +120,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
 
         document.body.appendChild(wrapper);
 
-        // 4. LOGICA DRAG & DROP
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
 
@@ -170,7 +170,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
             }
         });
 
-        // 5. EFFETTO MACCHINA DA SCRIVERE
         const textElement = document.getElementById('ms-typing-text');
         let i = 0;
         let activeTypewriter = null;
@@ -192,7 +191,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         
         startTypeWriter(currentState.text);
 
-        // 6. GESTIONE BOTTONI
         let autoDestructTimer;
         function chiudiOlogramma(e) {
             if(e) e.stopPropagation();
@@ -208,8 +206,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         
         wrapper.querySelector('#ms-btn-refresh-holo').addEventListener('click', (e) => {
             e.stopPropagation();
-            let freshPressure = window.liveMetrics ? window.liveMetrics.buyPressure : 50;
-            currentState = elaboraVerdetto(freshPressure);
+            currentState = elaboraVerdetto(window.liveMetrics); // Usa tutti i dati Live
             
             document.getElementById('ms-holo-panel').style.background = currentState.bgColor;
             document.getElementById('ms-holo-panel').style.borderColor = currentState.mainColor;
@@ -235,9 +232,8 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initi
         autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
     }); 
 }
-
 // =========================================================
-// 🧛 VAMPIRE WATCHER (Scout Ibrido Intelligente)
+// 🧛 VAMPIRE WATCHER (Auto-Scan Silenzioso e Riavvio Ologramma)
 // =========================================================
 if (typeof window.vampireWatcher === 'undefined') {
     window.vampireWatcher = true;
@@ -250,83 +246,16 @@ if (typeof window.vampireWatcher === 'undefined') {
         const currentPressure = window.liveMetrics.buyPressure;
         const delta = window.lastKnownPressure - currentPressure;
         
-        // Se la pressione CROLLA (Vampire Dump) e non abbiamo spammato nell'ultimo minuto
+        // Se la pressione CROLLA e l'ologramma non spamma da 60 secondi
         if (delta >= 25 && (Date.now() - window.holoCooldown > 60000)) {
+            const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
             
             chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (res) => {
-                if (res.userConfig && res.userConfig.holoEnabled === false) return; // Rispetta le impostazioni!
-                const avatarUrl = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
+                if (res.userConfig && res.userConfig.holoEnabled === false) return; // Non disturba se disattivato
+                const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 
-                // Assicuriamoci che lo stile animato esista
-                if (!document.getElementById('ms-holo-styles')) {
-                    const style = document.createElement('style');
-                    style.id = 'ms-holo-styles';
-                    style.innerHTML = `
-                        @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
-                        @keyframes slideInRightHolo { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-                    `;
-                    document.head.appendChild(style);
-                }
-
-                // Rimuove eventuali "scout" precedenti per evitare cloni
-                let oldScout = document.getElementById('ms-mini-scout');
-                if (oldScout) oldScout.remove();
-
-                // 🤖 CREA IL MINI-AVATAR (Lo Scout)
-                const scout = document.createElement('div');
-                scout.id = 'ms-mini-scout';
-                scout.style.cssText = `
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    z-index: 2147483646;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    cursor: pointer;
-                    animation: slideInRightHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), holoFloat 4s ease-in-out infinite;
-                    transition: transform 0.2s, filter 0.2s;
-                `;
-
-                // Grafica stile HUD Militare per lo Scout
-                scout.innerHTML = `
-                    <div style="background: rgba(20, 0, 0, 0.85); border: 1px solid #ff4d4d; padding: 10px 15px; border-radius: 4px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.3); backdrop-filter: blur(8px); position: relative; border-right: 4px solid #ff4d4d;">
-                        <div style="position: absolute; right: -7px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 6px solid #ff4d4d;"></div>
-                        <strong style="display:block; font-size:1.1em; margin-bottom:4px; color:#ff4d4d; font-family:monospace; text-transform:uppercase; letter-spacing:1px;">[ VOLATILITY_SPIKE ]</strong>
-                        <span style="color:#e4e4e7; font-size:0.85em; font-family:monospace;">Buy pressure dropped by ${delta.toFixed(0)}%.<br><span style="color:#ffaa00;">> CLICK TO SCAN</span></span>
-                    </div>
-                    
-                    <div style="width: 55px; height: 55px; border-radius: 50%; border: 2px solid #ff4d4d; box-shadow: 0 0 15px #ff4d4d80; overflow: hidden; background: #000; position: relative; flex-shrink:0;">
-                        <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
-                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
-                    </div>
-                `;
-
-                // ⚡ AL CLICK: Distrugge lo scout e innesca l'ologramma gigante!
-                scout.addEventListener('click', () => {
-                    scout.style.opacity = '0';
-                    setTimeout(() => scout.remove(), 200);
-                    
-                    const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
-                    // Richiama la funzione principale dell'Ologramma
-                    mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatarUrl, currentPressure);
-                });
-
-                // Effetto Hover
-                scout.addEventListener('mouseenter', () => { scout.style.transform = 'scale(1.05)'; scout.style.filter = 'brightness(1.2)'; });
-                scout.addEventListener('mouseleave', () => { scout.style.transform = 'scale(1)'; scout.style.filter = 'brightness(1)'; });
-
-                document.body.appendChild(scout);
-                
-                // 🕒 AUTO-DISTRUZIONE: Se l'utente lo ignora, scompare silenziosamente dopo 15 secondi
-                setTimeout(() => {
-                    if (scout && document.body.contains(scout)) {
-                        scout.style.opacity = '0';
-                        scout.style.transform = 'translateX(50px)';
-                        scout.style.transition = '0.4s ease';
-                        setTimeout(() => scout.remove(), 400);
-                    }
-                }, 15000);
+                // Passiamo l'intero oggetto window.liveMetrics
+                mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
             });
             
             window.holoCooldown = Date.now();
@@ -339,8 +268,9 @@ if (typeof window.vampireWatcher === 'undefined') {
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        window.holoCooldown = Date.now(); // Resetta il cooldown se attiviamo manualmente
-        mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.buyPressure);
+        window.holoCooldown = Date.now(); // Resetta il cooldown
+        // Assicurati che riceva request.liveMetrics
+        mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.liveMetrics);
     }
 });
 
@@ -1465,6 +1395,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                         } else {
                             // 🟢 INIEZIONE OLOGRAMMA VIA CONTENT SCRIPT
+                            // 🟢 INIEZIONE OLOGRAMMA VIA CONTENT SCRIPT
                             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                                 if (tabs && tabs[0]) {
                                     chrome.tabs.sendMessage(tabs[0].id, {
@@ -1472,11 +1403,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         copilotData: dataResp,
                                         staticData: judgeStaticData,
                                         avatarUrl: selectedAvatarUrl,
-                                        buyPressure: window.liveMetrics ? window.liveMetrics.buyPressure : 50
+                                        liveMetrics: window.liveMetrics // <--- SOSTITUISCI QUESTA RIGA! (prima c'era buyPressure)
                                     });
                                 }
                             });
-
                             let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
                             let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
                             let azione = traduciDalBackend(dataResp.azione || "ATTESA");
