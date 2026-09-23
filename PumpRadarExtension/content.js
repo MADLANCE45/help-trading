@@ -1,244 +1,236 @@
 // =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Smart Drag, Re-Scan Button, 30/70 Hybrid Brain)
+// 🔮 HOLOGRAM INJECTION ENGINE (Tasti Fixati + Chiusura [X] + Sinistra)
 // =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, initialFlowPressure) {
     
-    // 1. MEMORIA POSIZIONALE: Se c'è già un ologramma, salviamo dove l'ha messo l'utente!
-    let posCss = `right: 20px; top: 120px;`; // Posizione di default
-    let oldHolo = document.getElementById('ms-hologram-wrapper');
-    if (oldHolo) {
-        const rect = oldHolo.getBoundingClientRect();
-        posCss = `left: ${rect.left}px; top: ${rect.top}px;`; // Congela la posizione esatta
-        oldHolo.remove();
-    }
-
-    // 2. IL CERVELLO MATEMATICO (Funzione isolata per poter essere richiamata dal tasto Aggiorna)
-    const baseStaticScore = staticData && staticData.score ? staticData.score : 50;
-    const baseAction = (copilotData.azione || "").toUpperCase();
-
-    function elaboraVerdetto(flowPressure) {
-        let currentFlow = parseFloat(flowPressure) || 50;
+    // Controlla se l'utente ha disabilitato gli ologrammi!
+    chrome.storage.local.get(['userConfig'], (res) => {
+        if (res.userConfig && res.userConfig.holoEnabled === false) return; // Bloccato dalle impostazioni
         
-        // 🧠 IL CERVELLO IBRIDO: 30% Giudice (Analisi Storica) + 70% Order Flow (Analisi Live)
-        let tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
-
-        let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
-        let isSafe = tacticalScore >= 65 || baseAction.match(/RIDE|BUY|COMPR/);
-
-        let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
-        let bgColor = isDanger ? 'rgba(30, 0, 0, 0.85)' : (isSafe ? 'rgba(0, 20, 10, 0.85)' : 'rgba(30, 20, 0, 0.85)');
-        
-        let text = "";
-        if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
-            text = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
-        } else if (isDanger) {
-            text = `CRITICAL WARNING. Hybrid Score compromised (${tacticalScore.toFixed(0)}/100). Order flow collapsing (${currentFlow.toFixed(0)}%). The Judge identified historical risks. Exit position immediately.`;
-        } else if (isSafe) {
-            text = `MOMENTUM CONFIRMED. Hybrid Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by algorithmic buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
-        } else {
-            text = `CHOP ZONE DETECTED. Hybrid Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels.`;
+        // 1. MEMORIA POSIZIONALE E SPAWN A SINISTRA!
+        let posCss = `left: 30px; top: 100px;`; // Nasce in alto a sinistra (lontano dall'estensione)
+        let oldHolo = document.getElementById('ms-hologram-wrapper');
+        if (oldHolo) {
+            const rect = oldHolo.getBoundingClientRect();
+            posCss = `left: ${rect.left}px; top: ${rect.top}px;`; // Congela la posizione esatta se già esiste
+            oldHolo.remove();
         }
 
-        return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
-    }
+        const baseStaticScore = staticData && staticData.score ? staticData.score : 50;
+        const baseAction = (copilotData.azione || "").toUpperCase();
 
-    // Calcoliamo lo stato iniziale
-    let currentState = elaboraVerdetto(initialFlowPressure);
+        function elaboraVerdetto(flowPressure) {
+            let currentFlow = parseFloat(flowPressure) || 50;
+            let tacticalScore = (baseStaticScore * 0.3) + (currentFlow * 0.7);
 
-    if (!document.getElementById('ms-holo-styles')) {
-        const style = document.createElement('style');
-        style.id = 'ms-holo-styles';
-        style.innerHTML = `
-            @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
-            @keyframes slideInRightHolo { 0% { transform: translateX(50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-            .holo-inner-animated { animation: holoFloat 4s ease-in-out infinite; }
-            .holo-drag-handle { cursor: grab; }
-            .holo-drag-handle:active { cursor: grabbing; }
-            .holo-btn-dismiss:hover { filter: brightness(1.3); transform: scale(1.05); }
-            .holo-btn-refresh:hover { transform: rotate(180deg); color: #fff !important; }
+            let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
+            let isSafe = tacticalScore >= 65 || baseAction.match(/RIDE|BUY|COMPR/);
+
+            let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
+            let bgColor = isDanger ? 'rgba(30, 0, 0, 0.9)' : (isSafe ? 'rgba(0, 20, 10, 0.9)' : 'rgba(30, 20, 0, 0.9)');
+            
+            let text = "";
+            if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
+                text = `🚨 VAMPIRE ALERT. Sudden drop in buy pressure detected. The manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
+            } else if (isDanger) {
+                text = `CRITICAL WARNING. Hybrid Score compromised (${tacticalScore.toFixed(0)}/100). Order flow collapsing (${currentFlow.toFixed(0)}%). The Judge identified historical risks. Exit position immediately.`;
+            } else if (isSafe) {
+                text = `MOMENTUM CONFIRMED. Hybrid Score solid (${tacticalScore.toFixed(0)}/100). Order flow dominated by algorithmic buyers (${currentFlow.toFixed(0)}%). The Judge verified the contract. Ride trend.`;
+            } else {
+                text = `CHOP ZONE DETECTED. Hybrid Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility environment. Execute rapid scalp on support levels.`;
+            }
+
+            return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
+        }
+
+        let currentState = elaboraVerdetto(initialFlowPressure);
+
+        if (!document.getElementById('ms-holo-styles')) {
+            const style = document.createElement('style');
+            style.id = 'ms-holo-styles';
+            style.innerHTML = `
+                @keyframes holoFloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+                @keyframes slideInLeftHolo { 0% { transform: translateX(-50px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+                .holo-inner-animated { animation: holoFloat 4s ease-in-out infinite; }
+                .holo-drag-handle { cursor: grab; }
+                .holo-drag-handle:active { cursor: grabbing; }
+                .holo-btn-interactive { pointer-events: auto !important; cursor: pointer; transition: 0.2s; position: relative; z-index: 100; }
+                .holo-btn-interactive:hover { filter: brightness(1.3); transform: scale(1.05); }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.id = 'ms-hologram-wrapper';
+        wrapper.style.cssText = `
+            position: fixed;
+            ${posCss}
+            z-index: 2147483647;
+            pointer-events: none; 
+            animation: slideInLeftHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         `;
-        document.head.appendChild(style);
-    }
 
-    // 3. WRAPPER ESTERNO (Posizione assoluta per zero lag sul mouse)
-    const wrapper = document.createElement('div');
-    wrapper.id = 'ms-hologram-wrapper';
-    wrapper.style.cssText = `
-        position: fixed;
-        ${posCss}
-        z-index: 2147483647;
-        pointer-events: none; 
-        animation: slideInRightHolo 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    `;
-
-    wrapper.innerHTML = `
-        <div class="holo-inner-animated" style="display: flex; gap: 15px; width: 400px; pointer-events: auto; user-select: none;">
-            
-            <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${currentState.mainColor}; box-shadow: 0 0 25px ${currentState.mainColor}; overflow: hidden; background: #000; position: relative;">
-                <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
-                <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
-            </div>
-
-            <div id="ms-holo-panel" class="holo-drag-handle" style="flex-grow: 1; background: ${currentState.bgColor}; border: 1px solid ${currentState.mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-right: 4px solid ${currentState.mainColor}; transition: border 0.3s, background 0.3s;">
+        wrapper.innerHTML = `
+            <div class="holo-inner-animated" style="display: flex; gap: 15px; width: 420px; pointer-events: auto; user-select: none;">
                 
-                <div style="position: absolute; top:0; left:0; width:100%; height:14px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;">
-                    <div style="width:30px; height:2px; background: #555; border-radius:2px;"></div>
+                <!-- AVATAR -->
+                <div class="holo-drag-handle" style="flex-shrink: 0; width: 85px; height: 85px; border-radius: 50%; border: 2px solid ${currentState.mainColor}; box-shadow: 0 0 25px ${currentState.mainColor}; overflow: hidden; background: #000; position: relative;">
+                    <img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; filter: contrast(1.2) grayscale(0.1);" draggable="false"/>
+                    <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 3px, rgba(0,0,0,0.3) 3px);"></div>
                 </div>
 
-                <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.mainColor};" id="ms-holo-arrow-out"></div>
-                <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.bgColor};" id="ms-holo-arrow-in"></div>
-
-                <div style="font-family: monospace; font-size: 0.75em; color: ${currentState.mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${currentState.mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; align-items: center; margin-top: 5px;" id="ms-holo-header">
-                    <span>[SYS.OP] - SCORE: <span id="ms-holo-score">${currentState.tacticalScore.toFixed(0)}</span></span>
+                <!-- PANNELLO CENTRALE -->
+                <div id="ms-holo-panel" class="holo-drag-handle" style="flex-grow: 1; background: ${currentState.bgColor}; border: 1px solid ${currentState.mainColor}; border-radius: 4px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6); backdrop-filter: blur(10px); position: relative; border-left: 4px solid ${currentState.mainColor}; transition: border 0.3s, background 0.3s;">
                     
-                    <!-- 🔥 BOTTONE DI RE-SCAN (Aggiornamento Veloce) -->
-                    <button id="ms-btn-refresh-holo" class="holo-btn-refresh" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-weight: bold; transition: 0.3s;" title="Refresh Data">
-                        🔄
-                    </button>
-                </div>
-                
-                <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${currentState.mainColor}40;"></div>
-                
-                <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
-                    <button id="ms-btn-dismiss-holo" class="holo-btn-dismiss" style="background: ${currentState.mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 4px; margin-right: 8px; cursor: pointer; box-shadow: 0 0 10px ${currentState.mainColor}80; transition: 0.2s; pointer-events: auto;">
-                        ${currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP')}
-                    </button>
-                    <div id="ms-holo-line" style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
+                    <div style="position: absolute; top:0; left:0; width:100%; height:14px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;">
+                        <div style="width:30px; height:2px; background: #555; border-radius:2px;"></div>
+                    </div>
+
+                    <div style="position: absolute; left: -11px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.mainColor};" id="ms-holo-arrow-out"></div>
+                    <div style="position: absolute; left: -9px; top: 32px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid ${currentState.bgColor};" id="ms-holo-arrow-in"></div>
+
+                    <!-- HEADER CON SCORE E TASTO X -->
+                    <div style="font-family: monospace; font-size: 0.75em; color: ${currentState.mainColor}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px dashed ${currentState.mainColor}; padding-bottom: 4px; display:flex; justify-content:space-between; align-items: center; margin-top: 5px;" id="ms-holo-header">
+                        <span>[SYS.OP] SCORE: <span id="ms-holo-score">${currentState.tacticalScore.toFixed(0)}</span></span>
+                        
+                        <div style="display:flex; gap: 8px;">
+                            <button id="ms-btn-refresh-holo" class="holo-btn-interactive" style="background: transparent; border: 1px solid ${currentState.mainColor}; color: ${currentState.mainColor}; border-radius: 4px; padding: 2px 6px;" title="Refresh Data">🔄</button>
+                            <button id="ms-btn-close-x" class="holo-btn-interactive" style="background: transparent; border: none; color: #ff4d4d; font-size: 1.2em; line-height: 1; padding: 0 4px;" title="Close">✕</button>
+                        </div>
+                    </div>
+                    
+                    <div id="ms-typing-text" style="font-family: 'Courier New', Courier, monospace; font-size: 0.85em; color: #e4e4e7; line-height: 1.5; min-height: 70px; text-shadow: 0 0 5px ${currentState.mainColor}40;"></div>
+                    
+                    <!-- BOTTONE AZIONE IN BASSO -->
+                    <div style="margin-top: 15px; height: 16px; position: relative; display: flex; align-items: center;">
+                        <div id="ms-holo-line" style="flex-grow: 1; height: 1px; background: repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px); opacity: 0.7;"></div>
+                        <button id="ms-btn-action-holo" class="holo-btn-interactive" style="background: ${currentState.mainColor}; color: #000; border: none; font-weight: 900; font-family: monospace; font-size: 0.75em; padding: 4px 10px; border-radius: 2px; margin-left: 8px; box-shadow: 0 0 10px ${currentState.mainColor}80;">
+                            ${currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP')}
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-    document.body.appendChild(wrapper);
+        document.body.appendChild(wrapper);
 
-    // 4. LOGICA DRAG & DROP INTELLIGENTE (Confini e Zero Lag)
-    let isDragging = false;
-    let startX, startY, initialLeft, initialTop;
+        // 4. LOGICA DRAG & DROP (Esclude i bottoni!)
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
 
-    const dragHandles = wrapper.querySelectorAll('.holo-drag-handle');
-    dragHandles.forEach(handle => {
-        handle.addEventListener('mousedown', (e) => {
-            if (e.target.closest('button')) return; // Non trascinare se clicco un bottone
-            isDragging = true;
-            
-            const rect = wrapper.getBoundingClientRect();
-            startX = e.clientX;
-            startY = e.clientY;
-            initialLeft = rect.left;
-            initialTop = rect.top;
-            
-            // Fissa le coordinate assolute e spegne le animazioni CSS per il drag
-            wrapper.style.right = 'auto';
-            wrapper.style.bottom = 'auto';
-            wrapper.style.left = initialLeft + 'px';
-            wrapper.style.top = initialTop + 'px';
-            wrapper.style.transition = 'none';
+        const dragHandles = wrapper.querySelectorAll('.holo-drag-handle');
+        dragHandles.forEach(handle => {
+            handle.addEventListener('mousedown', (e) => {
+                // SE IL CLICK È SU UN BOTTONE, IGNORA IL DRAG!
+                if (e.target.closest('.holo-btn-interactive')) return; 
+                
+                isDragging = true;
+                const rect = wrapper.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = rect.left;
+                initialTop = rect.top;
+                
+                wrapper.style.right = 'auto';
+                wrapper.style.bottom = 'auto';
+                wrapper.style.left = initialLeft + 'px';
+                wrapper.style.top = initialTop + 'px';
+                wrapper.style.transition = 'none';
+            });
         });
-    });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        
-        let newLeft = initialLeft + (e.clientX - startX);
-        let newTop = initialTop + (e.clientY - startY);
-        
-        // 🛡️ LIMITI DELLO SCHERMO: Non far uscire l'ologramma dal monitor!
-        const maxX = window.innerWidth - wrapper.offsetWidth;
-        const maxY = window.innerHeight - wrapper.offsetHeight;
-        
-        if (newLeft < 0) newLeft = 0;
-        if (newTop < 0) newTop = 0;
-        if (newLeft > maxX) newLeft = maxX;
-        if (newTop > maxY) newTop = maxY;
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            let newLeft = initialLeft + (e.clientX - startX);
+            let newTop = initialTop + (e.clientY - startY);
+            
+            // Limiti schermo
+            const maxX = window.innerWidth - wrapper.offsetWidth;
+            const maxY = window.innerHeight - wrapper.offsetHeight;
+            if (newLeft < 0) newLeft = 0;
+            if (newTop < 0) newTop = 0;
+            if (newLeft > maxX) newLeft = maxX;
+            if (newTop > maxY) newTop = maxY;
 
-        requestAnimationFrame(() => {
-            wrapper.style.left = `${newLeft}px`;
-            wrapper.style.top = `${newTop}px`;
+            requestAnimationFrame(() => {
+                wrapper.style.left = `${newLeft}px`;
+                wrapper.style.top = `${newTop}px`;
+            });
         });
-    });
 
-    document.addEventListener('mouseup', () => { 
-        if (isDragging) {
-            isDragging = false; 
-            wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease'; // Riattiva la chiusura morbida
+        document.addEventListener('mouseup', () => { 
+            if (isDragging) {
+                isDragging = false; 
+                wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            }
+        });
+
+        // 5. EFFETTO MACCHINA DA SCRIVERE
+        const textElement = document.getElementById('ms-typing-text');
+        let i = 0;
+        let activeTypewriter = null;
+
+        function startTypeWriter(testoDaScrivere) {
+            textElement.innerHTML = "";
+            i = 0;
+            if (activeTypewriter) clearTimeout(activeTypewriter);
+            
+            function typeWriter() {
+                if (i < testoDaScrivere.length) {
+                    textElement.innerHTML += testoDaScrivere.substring(i, i + 3);
+                    i += 3;
+                    activeTypewriter = setTimeout(typeWriter, 5);
+                }
+            }
+            typeWriter();
         }
-    });
-
-    // 5. EFFETTO MACCHINA DA SCRIVERE
-    const textElement = document.getElementById('ms-typing-text');
-    let i = 0;
-    let activeTypewriter = null;
-
-    function startTypeWriter(testoDaScrivere) {
-        textElement.innerHTML = "";
-        i = 0;
-        if (activeTypewriter) clearTimeout(activeTypewriter);
         
-        function typeWriter() {
-            if (i < testoDaScrivere.length) {
-                textElement.innerHTML += testoDaScrivere.substring(i, i + 3);
-                i += 3;
-                activeTypewriter = setTimeout(typeWriter, 5);
+        startTypeWriter(currentState.text);
+
+        // 6. GESTIONE DEI 3 BOTTONI (X, Aggiorna, Azione in basso)
+        let autoDestructTimer;
+        function chiudiOlogramma() {
+            if (wrapper && document.body.contains(wrapper)) {
+                clearTimeout(autoDestructTimer);
+                wrapper.style.opacity = '0';
+                wrapper.style.transform = `translateY(-20px)`; 
+                setTimeout(() => wrapper.remove(), 300);
             }
         }
-        typeWriter();
-    }
-    
-    startTypeWriter(currentState.text);
 
-    // 6. LOGICA BOTTONE AGGIORNA (Recalcolo Ibrido)
-    document.getElementById('ms-btn-refresh-holo').addEventListener('click', (e) => {
-        e.stopPropagation();
+        // Assegnazione eventi click ai bottoni (isolati dal drag)
+        wrapper.querySelector('#ms-btn-close-x').addEventListener('click', chiudiOlogramma);
+        wrapper.querySelector('#ms-btn-action-holo').addEventListener('click', chiudiOlogramma);
         
-        // 🔄 Prende l'ultimo dato live dal websocket (Order Flow)
-        let freshPressure = window.liveMetrics ? window.liveMetrics.buyPressure : 50;
-        
-        // Ricalcola il verdetto e i colori!
-        currentState = elaboraVerdetto(freshPressure);
-        
-        // Aggiorna l'estetica del pannello dinamicamente
-        document.getElementById('ms-holo-panel').style.background = currentState.bgColor;
-        document.getElementById('ms-holo-panel').style.borderColor = currentState.mainColor;
-        document.getElementById('ms-holo-arrow-out').style.borderRightColor = currentState.mainColor;
-        document.getElementById('ms-holo-arrow-in').style.borderRightColor = currentState.bgColor;
-        document.getElementById('ms-holo-header').style.color = currentState.mainColor;
-        document.getElementById('ms-holo-header').style.borderBottomColor = currentState.mainColor;
-        document.getElementById('ms-holo-score').innerText = currentState.tacticalScore.toFixed(0);
-        document.getElementById('ms-holo-line').style.background = `repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px)`;
-        
-        const btnDismiss = document.getElementById('ms-btn-dismiss-holo');
-        btnDismiss.style.background = currentState.mainColor;
-        btnDismiss.style.boxShadow = `0 0 10px ${currentState.mainColor}80`;
-        btnDismiss.innerText = currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP');
+        wrapper.querySelector('#ms-btn-refresh-holo').addEventListener('click', () => {
+            let freshPressure = window.liveMetrics ? window.liveMetrics.buyPressure : 50;
+            currentState = elaboraVerdetto(freshPressure);
+            
+            document.getElementById('ms-holo-panel').style.background = currentState.bgColor;
+            document.getElementById('ms-holo-panel').style.borderColor = currentState.mainColor;
+            document.getElementById('ms-holo-arrow-out').style.borderRightColor = currentState.mainColor;
+            document.getElementById('ms-holo-arrow-in').style.borderRightColor = currentState.bgColor;
+            document.getElementById('ms-holo-header').style.color = currentState.mainColor;
+            document.getElementById('ms-holo-header').style.borderBottomColor = currentState.mainColor;
+            document.getElementById('ms-holo-score').innerText = currentState.tacticalScore.toFixed(0);
+            document.getElementById('ms-holo-line').style.background = `repeating-linear-gradient(90deg, ${currentState.mainColor} 0, ${currentState.mainColor} 6px, transparent 6px, transparent 12px)`;
+            
+            const btnAction = document.getElementById('ms-btn-action-holo');
+            btnAction.style.background = currentState.mainColor;
+            btnAction.style.boxShadow = `0 0 10px ${currentState.mainColor}80`;
+            btnAction.innerText = currentState.isDanger ? 'ACKNOWLEDGE DUMP' : (currentState.isSafe ? 'EXECUTE RIDE' : 'ACKNOWLEDGE SCALP');
 
-        textElement.innerHTML = `<span style="color:#00ffcc">🔄 Recalculating Matrix...</span>`;
-        
-        setTimeout(() => {
-            startTypeWriter(currentState.text);
-        }, 600);
+            textElement.innerHTML = `<span style="color:#00ffcc">🔄 Recalculating Matrix...</span>`;
+            setTimeout(() => { startTypeWriter(currentState.text); }, 600);
 
-        // Allunga la vita dell'ologramma
-        clearTimeout(autoDestructTimer);
-        autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
-    });
-
-
-    // 7. CHIUSURA MANUALE E AUTODISTRUZIONE
-    let autoDestructTimer;
-    function chiudiOlogramma(e) {
-        if(e) e.stopPropagation();
-        if (wrapper && document.body.contains(wrapper)) {
             clearTimeout(autoDestructTimer);
-            wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            wrapper.style.opacity = '0';
-            wrapper.style.transform = `translateY(-20px)`; 
-            setTimeout(() => wrapper.remove(), 300);
-        }
-    }
+            autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
+        });
 
-    wrapper.querySelector('#ms-btn-dismiss-holo').addEventListener('click', chiudiOlogramma);
-    autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
+        autoDestructTimer = setTimeout(chiudiOlogramma, 20000);
+    }); // Fine chrome.storage
 }
 
 // =========================================================
@@ -1019,12 +1011,23 @@ function generaHTMLCardSpy(data) {
                             </div>
                         </div>
 
-                        <!-- AVATAR SELECTION -->
-                        <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #2d3142;">
-                            <img class="avatar-option" data-src="${av1}" src="${av1}" title="Avatar 1">
-                            <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
-                            <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
-                            <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
+                        <!-- AVATAR SELECTION & HOLOGRAM TOGGLE -->
+                        <div style="background: #11121a; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px dashed #2d3142; padding-bottom: 8px;">
+                                <strong style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase;">👾 Tactical Hologram</strong>
+                                <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
+                                    <input type="checkbox" id="user-holo-toggle" checked style="opacity: 0; width: 0; height: 0;">
+                                    <span id="holo-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #00e676; transition: .4s; border-radius: 20px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></span>
+                                    <span id="holo-toggle-knob" style="position: absolute; content: ''; height: 16px; width: 16px; left: 22px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></span>
+                                </label>
+                            </div>
+
+                            <div style="display: flex; justify-content: center; gap: 12px; padding-bottom: 5px;">
+                                <img class="avatar-option" data-src="${av1}" src="${av1}" title="Avatar 1">
+                                <img class="avatar-option" data-src="${av2}" src="${av2}" title="Avatar 2">
+                                <img class="avatar-option" data-src="${av3}" src="${av3}" title="Avatar 3">
+                                <img class="avatar-option" data-src="${av4}" src="${av4}" title="Avatar 4">
+                            </div>
                         </div>
 
                         <button id="btn-save-config" style="width: 100%; background: linear-gradient(90deg, #00ffcc, #00b38f); color: #000; border: none; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 0.85em; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; margin-bottom: 10px;">
@@ -1229,7 +1232,30 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                 // Carica i menù a tendina 
                 if (document.getElementById('user-route-mode')) document.getElementById('user-route-mode').value = res.userConfig.routeMode || "standard";
                 if (document.getElementById('user-risk-profile')) document.getElementById('user-risk-profile').value = res.userConfig.riskProfile || "safe";
+                // Carica stato Ologramma
+                const holoToggle = document.getElementById('user-holo-toggle');
+                const holoSlider = document.getElementById('holo-toggle-slider');
+                const holoKnob = document.getElementById('holo-toggle-knob');
                 
+                let isHoloEnabled = res.userConfig.holoEnabled !== false; // Default true
+                if (holoToggle) {
+                    holoToggle.checked = isHoloEnabled;
+                    if (!isHoloEnabled) {
+                        holoSlider.style.backgroundColor = '#444';
+                        holoKnob.style.left = '2px';
+                    }
+                    
+                    // Animazione visiva interruttore
+                    holoToggle.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            holoSlider.style.backgroundColor = '#00e676';
+                            holoKnob.style.left = '22px';
+                        } else {
+                            holoSlider.style.backgroundColor = '#444';
+                            holoKnob.style.left = '2px';
+                        }
+                    });
+                }
                 if (res.userConfig.avatarUrl) {
                     selectedAvatarUrl = res.userConfig.avatarUrl;
                     document.getElementById('current-user-avatar').src = selectedAvatarUrl;
@@ -1303,7 +1329,8 @@ function showPremiumModal(title, message, isConfirm, onConfirm) {
                     avatarUrl: selectedAvatarUrl,
                     aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
                     routeMode: document.getElementById('user-route-mode') ? document.getElementById('user-route-mode').value : "standard",
-                    riskProfile: document.getElementById('user-risk-profile') ? document.getElementById('user-risk-profile').value : "safe"
+                    riskProfile: document.getElementById('user-risk-profile') ? document.getElementById('user-risk-profile').value : "safe",
+                    holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
