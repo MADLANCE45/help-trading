@@ -618,21 +618,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let timerNoiaExtension;
     function resettaTimerNoia() {
+        // 🔥 FUNZIONE DISABILITATA: Nessun allarme "Dead Token" se mancano i volumi.
+        // Manteniamo solo il clearTimeout per pulizia della RAM, ma non inneschiamo nessun allarme.
         if (timerNoiaExtension) clearTimeout(timerNoiaExtension);
-        timerNoiaExtension = setTimeout(() => {
-            const hudHeader = document.getElementById('hud-header');
-            if (hudHeader) {
-                hudHeader.style.background = '#4a0000'; 
-                hudHeader.style.borderBottom = '3px solid #ff4d4d';
-                hudHeader.style.animation = 'pulseRed 2.5s infinite';
-                hudHeader.innerHTML = `
-                    <div style="width: 100%; text-align: center;">
-                        <div style="font-size: 1.2em; font-weight: 900; color: #ff4d4d; letter-spacing: 2px;">${t('dead_token')}</div>
-                        <div style="font-size: 0.75em; color: #fff; margin-top: 4px;">${t('dead_desc')}</div>
-                    </div>
-                `;
-            }
-        }, 25000); 
     }
 
     function avviaRadar() {
