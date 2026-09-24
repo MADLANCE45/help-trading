@@ -2,7 +2,10 @@
 // 🚀 ROUTER INTELLIGENTE (Previene l'ologramma nel popup)
 // =========================================================
 function lanciaOlogrammaIntelligente(copilotData, staticData, avatarUrl, liveMetricsData) {
-    if (window.location.protocol === 'chrome-extension:') {
+    // 🛡️ SCUDO BULLETPROOF: Controlla l'ID univoco dell'estensione
+    const isPopup = window.location.href.includes(chrome.runtime.id) || window.location.protocol.includes('extension');
+    
+    if (isPopup) {
         if (chrome.tabs && chrome.tabs.query) {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs && tabs[0]) {
@@ -20,19 +23,24 @@ function lanciaOlogrammaIntelligente(copilotData, staticData, avatarUrl, liveMet
         mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData);
     }
 }
+
 // =========================================================
 // 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
 // =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData) {
     
-    // 🛡️ SCUDO ASSOLUTO ANTI-POPUP: Se siamo dentro l'estensione, BLOCCA TUTTO.
-    if (window.location.protocol === 'chrome-extension:') return;
+    // 🛡️ SCUDO ASSOLUTO ANTI-POPUP
+    const isPopup = window.location.href.includes(chrome.runtime.id) || window.location.protocol.includes('extension');
+    if (isPopup) {
+        console.log("🛡️ Ologramma bloccato: non può spawnare dentro l'estensione.");
+        return;
+    }
     
     chrome.storage.local.get(['userConfig'], (res) => {
         if (res.userConfig && res.userConfig.holoEnabled === false) return; 
         
-        // 📍 POSIZIONE AGGIORNATA: Spostato in basso di ~5cm (da 100px a 320px)
-        let posCss = `left: 30px; top: 320px;`; 
+        // 📍 POSIZIONE AGGIORNATA: Spostato in basso di circa 5 cm
+        let posCss = `left: 30px; top: 350px;`; 
         
         let oldHolo = document.getElementById('ms-hologram-wrapper');
         if (oldHolo) {
@@ -45,7 +53,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
         const baseAction = (copilotData.azione || "").toUpperCase();
 
         function elaboraVerdetto(metrics) {
-            // Se c'è volume usiamo la pressione reale, altrimenti la impostiamo a -1 (Morto)
             let hasVolume = metrics && (parseFloat(metrics.buyVol) > 0 || parseFloat(metrics.sellVol) > 0);
             let currentFlow = hasVolume ? parseFloat(metrics.buyPressure) : -1; 
             
@@ -54,31 +61,25 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
 
             let tacticalScore = baseStaticScore;
 
-            // 🧠 MATEMATICA IPER-REATTIVA (Niente più piattume a 57/100)
             if (currentFlow !== -1) {
-                // Amplificatore aggressivo: ogni deviazione dal 50% vale quasi il doppio
                 let flowDiff = currentFlow - 50; 
                 let amplifiedFlow = 50 + (flowDiff * 1.8); 
                 amplifiedFlow = Math.min(99, Math.max(1, amplifiedFlow));
 
                 if (baseStaticScore <= 40) {
-                    tacticalScore = baseStaticScore; // Se è un rug matematico, resta un rug.
+                    tacticalScore = baseStaticScore; 
                 } else {
-                    // Diamo l'85% di peso al LIVE TAPE! Il passato conta solo il 15%.
                     tacticalScore = (baseStaticScore * 0.15) + (amplifiedFlow * 0.85);
                 }
             } else {
-                // Se non ci sono volumi, il punteggio degrada lentamente verso il basso
                 tacticalScore = baseStaticScore * 0.8; 
             }
 
             tacticalScore = Math.floor(Math.min(100, Math.max(0, tacticalScore)));
 
-            // Svincoliamo l'Ologramma dall'IA lenta. La matematica comanda.
             let isDanger = tacticalScore <= 45;
             let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly;
 
-            // Se l'IA ha parlato E conferma il pericolo, sovrascriviamo in rosso.
             if (baseAction.match(/AVOID|DUMP|SELL|FUGG/)) isDanger = true;
             if (baseAction.match(/RIDE|BUY/) && !isDanger) isSafe = true;
 
@@ -87,7 +88,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
             
             let text = "";
             
-            // 📝 GENERATORE DINAMICO DI INTELLIGENCE (Addio messaggi noiosi)
             if (copilotData.messaggioCustom) {
                 text = copilotData.messaggioCustom;
                 mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
@@ -98,7 +98,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                 mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
                 isSafe = false; isDanger = false;
             } else if (currentFlow === -1) {
-                // IL TOKEN È FERMO
                 text = `[DEAD_TAPE] Volume flatlined. No transactions in the last 10s. Market makers withdrew liquidity. Awaiting pulse...`;
                 mainColor = '#888'; bgColor = 'rgba(20, 20, 20, 0.95)';
                 isSafe = false; isDanger = false;
@@ -115,7 +114,6 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                     text = `[STEADY_ACCUMULATION] Organic buying sustained. Trust Score: ${tacticalScore}/100. Smart money is quietly accumulating.`;
                 }
             } else {
-                // ZONA GRIGIA (Molto più specifica di prima)
                 if (currentFlow >= 50) {
                     text = `[NEUTRAL_CHOP] Market undecided (${currentFlow.toFixed(0)}% Buy). Slight bullish lean, but volume lacks institutional conviction. Monitor for breakout.`;
                 } else {
@@ -276,7 +274,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
         
         wrapper.querySelector('#ms-btn-refresh-holo').addEventListener('click', (e) => {
             e.stopPropagation();
-            currentState = elaboraVerdetto(window.liveMetrics); // Usa tutti i dati Live
+            currentState = elaboraVerdetto(window.liveMetrics); 
             
             document.getElementById('ms-holo-panel').style.background = currentState.bgColor;
             document.getElementById('ms-holo-panel').style.borderColor = currentState.mainColor;
@@ -337,8 +335,9 @@ if (typeof window.vampireWatcher === 'undefined') {
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        // 🛡️ DOPPIA SICUREZZA: Ignora il comando se ricevuto dal popup
-        if (window.location.protocol === 'chrome-extension:') return;
+        // 🛡️ DOPPIA SICUREZZA: Ignora i messaggi se ci troviamo nel popup
+        const isPopup = window.location.href.includes(chrome.runtime.id) || window.location.protocol.includes('extension');
+        if (isPopup) return;
         
         window.holoCooldown = Date.now(); 
         mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.liveMetrics);
