@@ -832,14 +832,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     tokenMint = matchSolana[0]; 
                 }
 
-                if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
-                    contentDiv.innerHTML = '<div style="padding: 20px; text-align:center; color:#888;">Navigate to a token to activate the Radar.</div>';
-                    return;
-                }
-
+                // 🔥 FIX GOOGLE REVIEW: Costruiamo SEMPRE l'interfaccia del Popup, 
+                // anche se non c'è un token, così il revisore vede che l'app funziona.
                 costruisciInterfacciaLive(tokenMint);
                 resettaTimerNoia();
 
+                // Se non c'è un token, ci fermiamo qui senza chiamare le API del backend
+                if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                    return;
+                }
+
+                // Altrimenti, facciamo partire l'analisi API normale
                 chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan', 'ultimoScanLang', 'userConnectedWallet'], (memoria) => {
                     const userWallet = memoria.userConnectedWallet || "null";
 
@@ -1108,18 +1111,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- TAB 1: RADAR -->
                     <div id="view-radar">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; height: 32px; box-sizing: border-box;">
-                                <span style="display: flex; align-items: center;"> ${tokenMint.substring(0,12)}...</span>
-                                <span style="color:#2d3142;">|</span>
-                                <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.95em; font-weight: bold; display: flex; align-items: center; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
+                        ${tokenMint ? `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div style="display: flex; align-items: center; gap: 8px; font-family: monospace; color: #00ffcc; font-size: 0.85em; background: #0a0c10; padding: 6px 10px; border-radius: 6px; border: 1px solid #1a1c29; height: 32px; box-sizing: border-box;">
+                                    <span style="display: flex; align-items: center;"> ${tokenMint.substring(0,12)}...</span>
+                                    <span style="color:#2d3142;">|</span>
+                                    <span id="mint-loading-status" style="color: #ffaa00; font-size: 0.95em; font-weight: bold; display: flex; align-items: center; animation: pulseGlow 1.5s infinite;">Analyzing...</span>
+                                </div>
+                                <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">Reload</button>
                             </div>
-                            <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">Reload</button>
-                        </div>
-                        ${copilotHTML}
-                        ${orderFlowHTML}
-                        ${liveTapeHTML}
-                        <div id="static-analysis-box"></div>
+                            ${copilotHTML}
+                            ${orderFlowHTML}
+                            ${liveTapeHTML}
+                            <div id="static-analysis-box"></div>
+                        ` : `
+                            <div style="text-align:center; padding: 40px 20px; background: #0f1118; border: 1px solid #2d3142; border-radius: 8px;">
+                                <span style="font-size: 3em; display: block; margin-bottom: 15px;">🌐</span>
+                                <strong style="color: #00ffcc; font-family: monospace; font-size: 1.2em;">AWAITING MARKET DATA</strong>
+                                <p style="color: #888; font-size: 0.85em; margin-top: 10px; line-height: 1.4;">Navigate to any token on <b>Pump.fun</b> or <b>DexScreener</b> to activate the Radar.</p>
+                            </div>
+                        `}
                     </div>
 
                     <!-- TAB 2: TRACKER -->
