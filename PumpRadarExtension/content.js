@@ -18,50 +18,82 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
         const baseAction = (copilotData.azione || "").toUpperCase();
 
         function elaboraVerdetto(metrics) {
-            let currentFlow = metrics ? (parseFloat(metrics.buyPressure) || 50) : 50;
-            let recentBuyVol = metrics ? (parseFloat(metrics.buyVol) || 0) : 0;
+            // Se c'è volume usiamo la pressione reale, altrimenti la impostiamo a -1 (Morto)
+            let hasVolume = metrics && (parseFloat(metrics.buyVol) > 0 || parseFloat(metrics.sellVol) > 0);
+            let currentFlow = hasVolume ? parseFloat(metrics.buyPressure) : -1; 
             
+            let recentBuyVol = metrics ? parseFloat(metrics.buyVol) || 0 : 0;
             let isOverboughtAnomaly = (recentBuyVol >= 8 && currentFlow >= 80);
-            let tacticalScore;
-            
-            // 🧠 NUOVA MATEMATICA REATTIVA (Zero piattume a 64)
-            if (baseStaticScore <= 45) {
-                tacticalScore = baseStaticScore; // Se è un rug, resta un rug.
-            } else if (isOverboughtAnomaly) {
-                tacticalScore = 40; // Trappola bundle
-            } else {
-                // Amplifichiamo la volatilità! Se il flusso si sposta dal 50%, lo moltiplichiamo.
-                let flowDiff = currentFlow - 50; 
-                let amplifiedFlow = 50 + (flowDiff * 1.5); // Amplificatore FOMO 1.5x
-                amplifiedFlow = Math.min(99, Math.max(5, amplifiedFlow));
 
-                // Diamo l'80% di peso a quello che succede ADESSO, e solo 20% alla storia.
-                tacticalScore = (baseStaticScore * 0.2) + (amplifiedFlow * 0.8);
+            let tacticalScore = baseStaticScore;
+
+            // 🧠 MATEMATICA IPER-REATTIVA (Niente più piattume a 57/100)
+            if (currentFlow !== -1) {
+                // Amplificatore aggressivo: ogni deviazione dal 50% vale quasi il doppio
+                let flowDiff = currentFlow - 50; 
+                let amplifiedFlow = 50 + (flowDiff * 1.8); 
+                amplifiedFlow = Math.min(99, Math.max(1, amplifiedFlow));
+
+                if (baseStaticScore <= 40) {
+                    tacticalScore = baseStaticScore; // Se è un rug matematico, resta un rug.
+                } else {
+                    // Diamo l'85% di peso al LIVE TAPE! Il passato conta solo il 15%.
+                    tacticalScore = (baseStaticScore * 0.15) + (amplifiedFlow * 0.85);
+                }
+            } else {
+                // Se non ci sono volumi, il punteggio degrada lentamente verso il basso
+                tacticalScore = baseStaticScore * 0.8; 
             }
 
-            tacticalScore = Math.min(100, Math.max(0, tacticalScore));
+            tacticalScore = Math.floor(Math.min(100, Math.max(0, tacticalScore)));
 
-            let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
-            let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly && baseAction.match(/RIDE|BUY|COMPR/);
+            // Svincoliamo l'Ologramma dall'IA lenta. La matematica comanda.
+            let isDanger = tacticalScore <= 45;
+            let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly;
 
-            // ... (il resto della funzione con mainColor, bgColor e test continua intatto sotto)
+            // Se l'IA ha parlato E conferma il pericolo, sovrascriviamo in rosso.
+            if (baseAction.match(/AVOID|DUMP|SELL|FUGG/)) isDanger = true;
+            if (baseAction.match(/RIDE|BUY/) && !isDanger) isSafe = true;
 
             let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
             let bgColor = isDanger ? 'rgba(30, 0, 0, 0.95)' : (isSafe ? 'rgba(0, 20, 10, 0.95)' : 'rgba(30, 20, 0, 0.95)');
             
             let text = "";
-            if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
-                text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Manipulator is distributing bags. Trust Score dropping to ${tacticalScore.toFixed(0)}/100. Brace for impact.`;
+            
+            // 📝 GENERATORE DINAMICO DI INTELLIGENCE (Addio messaggi noiosi)
+            if (copilotData.messaggioCustom) {
+                text = copilotData.messaggioCustom;
+                mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
+            } else if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
+                text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Manipulator is distributing bags. Trust Score dropping to ${tacticalScore}/100. Brace for impact.`;
             } else if (isOverboughtAnomaly) {
-                text = `[OVERBOUGHT_ANOMALY] Massive bundle pump detected (${recentBuyVol.toFixed(1)} SOL in 10s). Artificial pressure at ${currentFlow.toFixed(0)}%. High probability of imminent dev dump. DO NOT FOMO.`;
-                mainColor = '#ffaa00'; 
-                bgColor = 'rgba(30, 20, 0, 0.95)';
+                text = `[OVERBOUGHT_ANOMALY] Massive bundle pump detected (${recentBuyVol.toFixed(1)} SOL in 10s). Artificial pressure at ${currentFlow.toFixed(0)}%. Imminent dump probable. DO NOT FOMO.`;
+                mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
+                isSafe = false; isDanger = false;
+            } else if (currentFlow === -1) {
+                // IL TOKEN È FERMO
+                text = `[DEAD_TAPE] Volume flatlined. No transactions in the last 10s. Market makers withdrew liquidity. Awaiting pulse...`;
+                mainColor = '#888'; bgColor = 'rgba(20, 20, 20, 0.95)';
+                isSafe = false; isDanger = false;
             } else if (isDanger) {
-                text = `[CRITICAL_WARNING] Judge identified historical risks. Order flow is at ${currentFlow.toFixed(0)}%. Do not be exit liquidity. Exit position immediately.`;
+                if (currentFlow < 30) {
+                    text = `[SEVERE_BLEED] Order flow collapsing (${currentFlow.toFixed(0)}% Buy). Sellers dominating the tape. Exit immediately to avoid becoming exit liquidity.`;
+                } else {
+                    text = `[HISTORICAL_RISK] Judge flags contract as unsafe (Base Score: ${baseStaticScore}). Reject entry despite temporary volume.`;
+                }
             } else if (isSafe) {
-                text = `[MOMENTUM_CONFIRMED] Trust Score solid (${tacticalScore.toFixed(0)}/100). Organic accumulation (${currentFlow.toFixed(0)}%). Judge verified contract. Ride trend.`;
+                if (currentFlow > 80) {
+                    text = `[PARABOLIC_MOMENTUM] Tape is hyper-bullish (${currentFlow.toFixed(0)}% Buy). Aggressive accumulation. Ride the trend but trail stop-loss tightly.`;
+                } else {
+                    text = `[STEADY_ACCUMULATION] Organic buying sustained. Trust Score: ${tacticalScore}/100. Smart money is quietly accumulating.`;
+                }
             } else {
-                text = `[CHOP_ZONE_DETECTED] Trust Score moderate (${tacticalScore.toFixed(0)}/100). Order flow contested (${currentFlow.toFixed(0)}%). High volatility. Execute rapid scalp on support levels.`;
+                // ZONA GRIGIA (Molto più specifica di prima)
+                if (currentFlow >= 50) {
+                    text = `[NEUTRAL_CHOP] Market undecided (${currentFlow.toFixed(0)}% Buy). Slight bullish lean, but volume lacks institutional conviction. Monitor for breakout.`;
+                } else {
+                    text = `[DISTRIBUTION_PHASE] Flow leaning bearish (${currentFlow.toFixed(0)}% Buy). Whales might be laddering sells. Execute scalp only on confirmed support.`;
+                }
             }
 
             return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
@@ -425,7 +457,137 @@ document.addEventListener('DOMContentLoaded', () => {
     let orderFlowWindow = [];
     window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };
+    // =========================================================
+    // 📡 RICEZIONE TRADE IN DIRETTA E ORDER FLOW (IL RADAR)
+    // =========================================================
+    if (typeof window.tapePulito === 'undefined') window.tapePulito = false;
 
+    socket.off('nuovo_trade_live');
+    socket.on('nuovo_trade_live', (trade) => {
+        if (typeof resettaTimerNoia === 'function') resettaTimerNoia();
+        
+        // 🩸 INNESCO HIVE MIND (Se lo hai attivato)
+        if (window.HiveMind) window.HiveMind.sniffTransaction(trade);
+
+        const solAmount = parseFloat(trade.sol) || 0;
+        
+        // 1. ORDER FLOW (Matematica in background)
+        if (typeof orderFlowWindow !== 'undefined') {
+            orderFlowWindow.push(trade);
+            const tenSecondsAgo = Date.now() - 10000;
+            orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
+
+            let buyVol = 0; let sellVol = 0;
+            orderFlowWindow.forEach(t => { 
+                if (t.tipo.includes("BUY")) buyVol += parseFloat(t.sol) || 0; 
+                else sellVol += parseFloat(t.sol) || 0; 
+            });
+
+            const totalVol = buyVol + sellVol;
+            let buyPressure = 50;
+            if (totalVol > 0) buyPressure = (buyVol / totalVol) * 100;
+
+            if (window.liveMetrics) {
+                window.liveMetrics = { history: window.liveMetrics.history, buyVol, sellVol, buyPressure };
+            }
+
+            const barGreen = document.getElementById('flow-bar-green');
+            const pctText = document.getElementById('flow-percentage');
+            if (barGreen && pctText) {
+                barGreen.style.width = `${buyPressure}%`;
+                pctText.innerText = `${buyPressure.toFixed(1)}% BUY`;
+                pctText.style.color = buyPressure >= 50 ? "#00e676" : "#ff4d4d";
+                document.getElementById('flow-vol-buy').innerText = `${buyVol.toFixed(1)} SOL`;
+                document.getElementById('flow-vol-sell').innerText = `${sellVol.toFixed(1)} SOL`;
+            }
+        }
+
+        // 2. ALLARME TRACKER WALLET
+        if (window.activeTrackedWallets && window.activeTrackedWallets.length > 0) {
+            const walletTrovato = window.activeTrackedWallets.find(w => w.address === trade.wallet);
+            if (walletTrovato && walletTrovato.notify !== false) {
+                const isAcquisto = trade.tipo.includes("BUY");
+                const azioneColor = isAcquisto ? "#00e676" : "#ff4d4d";
+                const azioneTesto = isAcquisto ? (typeof t === 'function' ? t('tracker_action_buy') : 'BOUGHT') : (typeof t === 'function' ? t('tracker_action_sell') : 'SOLD'); 
+                
+                let notificaTracker = document.createElement('div');
+                notificaTracker.style.cssText = `
+                    position: fixed; bottom: 20px; left: 20px;
+                    width: 280px; background: #0a0c10; border-left: 4px solid ${azioneColor};
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.8); padding: 12px; border-radius: 6px;
+                    z-index: 9999999; color: white; font-family: monospace;
+                    animation: slideInLeft 0.5s ease-out;
+                `;
+                notificaTracker.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <strong style="color:${azioneColor};"> TRACKER: ${walletTrovato.name}</strong>
+                        <span class="btn-chiudi-tracker" style="cursor:pointer; color:#888; font-size:1.2em; font-weight:bold;">✕</span>
+                    </div>
+                    <div style="font-size:0.9em; margin-bottom: 4px;"><b>${azioneTesto}</b></div>
+                    <div style="color:#00ffcc; font-weight:bold;">Importo: ${solAmount.toFixed(2)} SOL</div>
+                `;
+                document.body.appendChild(notificaTracker);
+                notificaTracker.querySelector('.btn-chiudi-tracker').addEventListener('click', () => notificaTracker.remove());
+                setTimeout(() => { if (document.body.contains(notificaTracker)) notificaTracker.remove(); }, 7000);
+            }
+        }
+
+        // 3. LIVE TAPE VISIVO
+        const tapeList = document.getElementById('live-tape-list');
+        if (tapeList) {
+            if (!window.tapePulito) { 
+                tapeList.innerHTML = ''; 
+                window.tapePulito = true; 
+            }
+
+            // 🔥 FILTRO ABBASSATO A 0.005 SOL
+            if (solAmount > 0.005) {
+                let cleanTipo = trade.tipo.replace(/🟢|🔴|📦/g, '').trim(); 
+                let isBuy = cleanTipo.includes("BUY");
+                let color = isBuy ? "#00e676" : "#ff4d4d";
+
+                let svgIcon = ""; let tagColor = "#888"; let tooltipText = "Retail Flow";
+                
+                if (trade.zooIcon && (trade.zooIcon.includes("📦") || trade.tipo.includes("BUNDLE"))) { 
+                    tagColor = "#c084fc"; tooltipText = "Jito Bundle / Multi-Tx";
+                    svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+                } else if (trade.zooIcon && trade.zooIcon.includes("🐋")) { 
+                    tagColor = "#00ffcc"; tooltipText = "Whale Size";
+                    svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><path d="M6 3h12l4 7-10 11L2 10z"/></svg>`;
+                } else if (trade.zooIcon && trade.zooIcon.includes("🐬")) { 
+                    tagColor = "#ffaa00"; tooltipText = "Smart Money / Dolphin";
+                    svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+                } else if (trade.zooIcon && trade.zooIcon.includes("🤖")) { 
+                    tagColor = "#ff4d4d"; tooltipText = "MEV Bot / Algo";
+                    svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>`;
+                } else {
+                    svgIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${tagColor}" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
+                }
+
+                const el = document.createElement('div');
+                el.style.cssText = `font-family: monospace; font-size: 0.8em; display: flex; justify-content: space-between; align-items:center; background: #161821; padding: 6px 8px; border-radius: 4px; margin-bottom: 3px; border-left: 3px solid ${color}; box-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
+                
+                el.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px; width: 100%;">
+                        <div title="${tooltipText}" style="width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; background: ${tagColor}15; border: 1px solid ${tagColor}40; border-radius: 6px; box-shadow: inset 0 0 8px ${tagColor}20;">
+                            ${svgIcon}
+                        </div>
+                        <div style="display: flex; flex-direction: column; flex-grow: 1;">
+                            <strong style="color: ${color}; line-height: 1.1; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px;">${cleanTipo}</strong>
+                            <span style="color: #fff; font-weight: bold; font-size: 1.1em; line-height: 1.2;">${solAmount.toFixed(2)} <span style="font-size:0.65em; color:#888;">SOL</span></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                            <span style="color:#aaa; font-weight:bold; font-size: 0.8em; font-family: 'Courier New', Courier, monospace;">${trade.wallet.substring(0,4)}..${trade.wallet.slice(-4)}</span>
+                            <a href="${trade.solscan || '#'}" target="_blank" style="color: #4da6ff; text-decoration: none; font-size: 0.7em; margin-top:3px; background: rgba(77,166,255,0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(77,166,255,0.3); transition: 0.2s;">TX ↗</a>
+                        </div>
+                    </div>
+                `;
+                
+                tapeList.prepend(el);
+                while (tapeList.children.length > 20) { tapeList.removeChild(tapeList.lastChild); }
+            }
+        }
+    });
     // =========================================================
     // 🌍 MOTORE MULTILINGUA (i18n Engine)
     // =========================================================
