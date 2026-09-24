@@ -23,12 +23,21 @@ function lanciaOlogrammaIntelligente(copilotData, staticData, avatarUrl, liveMet
 // =========================================================
 // 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
 // =========================================================
+// =========================================================
+// 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
+// =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData) {
+    
+    // 🛡️ SCUDO ASSOLUTO ANTI-POPUP: Se siamo dentro l'estensione, BLOCCA TUTTO.
+    // L'ologramma non potrà MAI PIÙ comparire nella finestrella.
+    if (window.location.protocol === 'chrome-extension:') return;
     
     chrome.storage.local.get(['userConfig'], (res) => {
         if (res.userConfig && res.userConfig.holoEnabled === false) return; 
         
-        let posCss = `left: 30px; top: 100px;`; 
+        // 📍 POSIZIONE AGGIORNATA: Spostato in basso di circa 5cm (da top: 100px a top: 320px)
+        let posCss = `left: 30px; top: 320px;`; 
+        
         let oldHolo = document.getElementById('ms-hologram-wrapper');
         if (oldHolo) {
             const rect = oldHolo.getBoundingClientRect();
@@ -333,12 +342,13 @@ if (typeof window.vampireWatcher === 'undefined') {
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
+        // 🛡️ DOPPIA SICUREZZA: Ignora il comando se viene ricevuto per sbaglio dal popup
+        if (window.location.protocol === 'chrome-extension:') return;
+        
         window.holoCooldown = Date.now(); 
-        // 🔥 QUI USIAMO mostraOlogramma DIRETTO (perché se riceve il messaggio, è già sul sito)
         mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.liveMetrics);
     }
 });
-
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
     const masterApp = document.getElementById('master-app');
