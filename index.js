@@ -2102,16 +2102,25 @@ JSON FORMAT:
             const m_syb = parseSeverity(sybilStatus, /DANGER|BURST|Sybil/i, /Clean|Independent/i);
             const m_mic = parseSeverity(microDumping, /DANGER|DUMP|Selling/i, /Clean|holding/i);
 
-            // 🔥 FIX 62/100 SCALP: Usiamo il VERO score algoritmico del backend senza inquinarlo con la media casuale!
-            let mergedScore = baseScoreAlgoritmico;
+            // 🔥 LA TEORIA DELL'ANELLO DEBOLE (Fix Incoerenza)
+            // Invece di fare una media che "salva" i token truffa, se una metrica CRITICA (Dev o Supply)
+            // fa schifo (sotto 45), il punteggio dell'intero token VIENE TRASCINATO GIÙ a quel livello.
+            let solanaRealScore = Math.floor((m_sup + m_dev + m_syb + m_mic) / 4);
+            
+            if (m_dev <= 45 || m_sup <= 45) {
+                solanaRealScore = Math.min(m_dev, m_sup); // Il token vale quanto la sua metrica peggiore
+            }
 
-            let solanaMandate = `Analyze the data cynically.`;
+            let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
+
+            let solanaMandate = `Analyze the data cynically. YOUR VERDICT MUST MATCH THE SCORE (${mergedScore}/100). If score < 50, write a BEARISH [AVOID] trap warning. If score > 65, write a BULLISH [RIDE] prediction.`;
+            
             if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
-                solanaMandate = "🔴 MANDATE: SERIAL RUGGER OR FAKE DEV. GLOBAL SCORE MAX 35. TAG [AVOID] OR [TRAP].";
-                mergedScore = Math.min(mergedScore, 35); // Tagliola per i dev finti
+                solanaMandate = "🔴 MANDATE: SERIAL RUGGER OR FAKE DEV. TAG [AVOID] OR [TRAP]. Warn the user to exit.";
+                mergedScore = Math.min(mergedScore, 35); // Tagliola definitiva
             } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
-                solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID] OR [SCALP].";
-                mergedScore = Math.min(mergedScore, 55); // Tagliola per i bundle
+                solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID].";
+                mergedScore = Math.min(mergedScore, 48); // Tagliola definitiva
             }
 
             // Tooltip dinamici

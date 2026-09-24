@@ -22,27 +22,29 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
             let recentBuyVol = metrics ? (parseFloat(metrics.buyVol) || 0) : 0;
             
             let isOverboughtAnomaly = (recentBuyVol >= 8 && currentFlow >= 80);
-
             let tacticalScore;
             
-            // 🧠 FIXED LOGIC: Strict alignment with the Judge
+            // 🧠 NUOVA MATEMATICA REATTIVA (Zero piattume a 64)
             if (baseStaticScore <= 45) {
-                // If the Judge says it's bad (<= 45), the Hologram MUST show the EXACT same score. No math.
-                tacticalScore = baseStaticScore; 
+                tacticalScore = baseStaticScore; // Se è un rug, resta un rug.
             } else if (isOverboughtAnomaly) {
-                // Anti-FOMO: Force the score down to 40 to trigger the Arancione/Rosso warning
-                tacticalScore = 40; 
+                tacticalScore = 40; // Trappola bundle
             } else {
-                // Only if it's generally safe (> 45) we blend the historical score with the live flow
-                tacticalScore = (baseStaticScore * 0.4) + (currentFlow * 0.6);
+                // Amplifichiamo la volatilità! Se il flusso si sposta dal 50%, lo moltiplichiamo.
+                let flowDiff = currentFlow - 50; 
+                let amplifiedFlow = 50 + (flowDiff * 1.5); // Amplificatore FOMO 1.5x
+                amplifiedFlow = Math.min(99, Math.max(5, amplifiedFlow));
+
+                // Diamo l'80% di peso a quello che succede ADESSO, e solo 20% alla storia.
+                tacticalScore = (baseStaticScore * 0.2) + (amplifiedFlow * 0.8);
             }
 
-            // Ensure the score never exceeds 100 or drops below 0
             tacticalScore = Math.min(100, Math.max(0, tacticalScore));
 
-            // Define statuses based on the FINAL tactical score
             let isDanger = tacticalScore <= 45 || baseAction.match(/AVOID|DUMP|SELL|FUGG/);
             let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly && baseAction.match(/RIDE|BUY|COMPR/);
+
+            // ... (il resto della funzione con mainColor, bgColor e test continua intatto sotto)
 
             let mainColor = isDanger ? '#ff4d4d' : (isSafe ? '#00e676' : '#ffaa00');
             let bgColor = isDanger ? 'rgba(30, 0, 0, 0.95)' : (isSafe ? 'rgba(0, 20, 10, 0.95)' : 'rgba(30, 20, 0, 0.95)');
@@ -441,16 +443,16 @@ document.addEventListener('DOMContentLoaded', () => {
             risk_title: "⚖️ Risk Management", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
             btn_save: "💾 Save & Activate", btn_saved: "✅ SAVED SUCCESSFULLY!", nav_radar: "Radar",
             nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RELOAD", copilot_title: " Copilot AI",
-            copilot_btn: "Request Analysis", copilot_analyzing: "⏳ Analyzing...", copilot_reanalyze: "🔄 Re-analyze",
+            copilot_btn: "Request Analysis", copilot_analyzing: " Analyzing...", copilot_reanalyze: " Re-analyze",
             orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "WAITING...", live_tape_title: " Live Tape",
-            live_tape_listening: "Listening to blockchain...", loading_analysis: "⏳ Analyzing...",
+            live_tape_listening: "Listening to blockchain...", loading_analysis: " Analyzing...",
             loading_base: " Base Data", loading_complete: " Full Report", tracker_title: "💼 SMART MONEY",
             tracker_placeholder: "Address...", tracker_name: "Name (opt)", tracker_btn: "Track", spy_title: "🚨 LIVE SPY FEED",
             spy_waiting: "Waiting for signals...", judge_title: "Judge Verdict", done_in: "Done in",
             dev_history: "Developer History", supply_analysis: "Supply Analysis", high_risk_rug: "⚠️ HIGH RUG RISK.",
             risk_bundle: "⚠️ BUNDLE RISK: Dev might have sniped secretly!", bought: "BOUGHT", sold: "SOLD", investment: "Investment", normal_trade: "NORMAL",
             human_trader: "Human Trader", algo_trader: "Algo Trader", exit_pos: "📉 Exiting position",
-            dead_token: "💀 DEAD TOKEN 💀", dead_desc: "Zero volume for 25s. Change coin!", algo_judgment: "Algorithmic Judgment",
+            dead_token: " DEAD TOKEN ", dead_desc: "Zero volume for 25s. Change coin!", algo_judgment: "Algorithmic Judgment",
             tactics: "1. Tactics:", prediction: "2. Prediction:", action: "Action:",
             sybil_title: "🚨 SYBIL DUMP", sybil_msg1: "SYBIL BURST:", sybil_msg2: "wallets dumping", sybil_msg3: "SOL in 2s!",
             whale_title: "WHALE MATCH!", whale_buy: "WHALE BUYING", whale_new: "⚠️ Newborn Token",
@@ -472,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
             risk_title: "⚖️ Gestione Rischio", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
             btn_save: "💾 Salva e Attiva", btn_saved: "✅ SALVATO CON SUCCESSO!", nav_radar: "Radar",
             nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RICARICA", copilot_title: " Copilota AI",
-            copilot_btn: "Richiedi Analisi", copilot_analyzing: "⏳ Analisi in corso...", copilot_reanalyze: "🔄 Ri-analizza",
+            copilot_btn: "Richiedi Analisi", copilot_analyzing: " Analisi in corso...", copilot_reanalyze: "🔄 Ri-analizza",
             orderflow_title: "⏱️ 10s Order Flow", orderflow_waiting: "IN ATTESA...", live_tape_title: " Live Tape",
             live_tape_listening: "In ascolto della blockchain...", loading_analysis: "⏳ Analisi...",
             loading_base: " Dati Base", loading_complete: " Report Completo", tracker_title: "💼 SMART MONEY",
@@ -506,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             take_profit: "止盈目标 (%)", stop_loss: "止损限制 (%)", btn_save: "💾 保存并激活",
             btn_saved: "✅ 保存成功！", nav_radar: "雷达", nav_tracker: "追踪", nav_spy: "预警",
             btn_reload: "刷新", copilot_title: " AI 助手", copilot_btn: "请求分析",
-            copilot_analyzing: "⏳ 分析中...", copilot_reanalyze: "🔄 重新分析", orderflow_title: "⏱️ 10秒订单流",
+            copilot_analyzing: " 分析中...", copilot_reanalyze: " 重新分析", orderflow_title: "⏱️ 10秒订单流",
             orderflow_waiting: "等待中...", live_tape_title: " 实时流水", live_tape_listening: "正在监听区块链...",
             loading_analysis: "⏳ 分析中...", loading_base: " 基础数据", loading_complete: " 完整报告",
             tracker_title: "💼 聪明钱追踪", tracker_placeholder: "钱包地址...", tracker_name: "名称(可选)", tracker_btn: "追踪",
@@ -536,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
             risk_title: "⚖️ Gestion du Risque", take_profit: "Take Profit (%)", stop_loss: "Stop Loss (%)",
             btn_save: "💾 Enregistrer", btn_saved: "✅ ENREGISTRÉ !", nav_radar: "Radar",
             nav_tracker: "Tracker", nav_spy: "Spy", btn_reload: "RECHARGER", copilot_title: " Copilote IA",
-            copilot_btn: "Demander Analyse", copilot_analyzing: "⏳ Analyse...", copilot_reanalyze: "🔄 Ré-analyser",
+            copilot_btn: "Demander Analyse", copilot_analyzing: " Analyse...", copilot_reanalyze: "🔄 Ré-analyser",
             orderflow_title: "⏱️ Flux 10s", orderflow_waiting: "ATTENTE...", live_tape_title: " Live Tape",
             live_tape_listening: "Écoute de la blockchain...", loading_analysis: "⏳ Analyse...",
             loading_base: " Données de Base", loading_complete: " Rapport Complet", tracker_title: "💼 SMART MONEY",
