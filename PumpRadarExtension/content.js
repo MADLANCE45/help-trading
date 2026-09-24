@@ -1447,18 +1447,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.isEVM) {
             if (typeof timerNoiaExtension !== 'undefined') clearTimeout(timerNoiaExtension);
             
+            // 🔥 FIX UI EVM: Non nascondiamo più i box! Li lasciamo visibili con un avviso hacker premium.
             const orderFlowBox = document.getElementById('flow-percentage');
-            if (orderFlowBox && orderFlowBox.closest('div').parentElement) {
-                orderFlowBox.closest('div').parentElement.style.display = 'none';
+            if (orderFlowBox) {
+                orderFlowBox.innerHTML = "[ NO_WSS_SYNC ]";
+                orderFlowBox.style.color = "#ffaa00";
+                orderFlowBox.style.background = "rgba(255, 170, 0, 0.1)";
+                
+                const barGreen = document.getElementById('flow-bar-green');
+                if(barGreen) barGreen.style.width = "50%";
+                
+                const flowBuy = document.getElementById('flow-vol-buy');
+                const flowSell = document.getElementById('flow-vol-sell');
+                if(flowBuy) flowBuy.innerHTML = `<span style="color:#ffaa00;">EVM CHAIN</span>`;
+                if(flowSell) flowSell.innerHTML = `<span style="color:#ffaa00;">NOT_SUPPORTED</span>`;
             }
             
             const liveTapeBox = document.getElementById('live-tape-list');
-            if (liveTapeBox && liveTapeBox.parentElement) {
-                liveTapeBox.parentElement.style.display = 'none';
+            if (liveTapeBox) {
+                liveTapeBox.innerHTML = `
+                    <div style="text-align:center; padding: 25px 10px; margin-top: 10px; border: 1px dashed #ffaa00; background: rgba(255, 170, 0, 0.05); border-radius: 6px;">
+                        <span style="font-size: 1.5em; display: block; margin-bottom: 8px;">⚠️</span>
+                        <strong style="color:#ffaa00; font-family: monospace; font-size: 1.1em;">EVM CHAIN DETECTED</strong><br><br>
+                        <span style="color:#888; font-size: 0.85em; font-family: monospace;">Live Blockchain Tape & HFT Order Flow are optimized exclusively for Solana (Helius RPC).<br><br>Awaiting EVM Node integration.</span>
+                    </div>
+                `;
+                liveTapeBox.style.overflowY = "hidden";
             }
         }
 
         const hudStats = document.getElementById('hud-stats-container');
+        // ... (il resto della funzione continua uguale da qui in poi)
         if (hudStats && data.hud) {
             document.getElementById('hud-header').style.borderBottom = `2px solid ${data.hud.color}`;
             hudStats.style.display = 'flex'; 

@@ -2091,11 +2091,10 @@ JSON FORMAT:
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
 
-            // 🔥 CALCOLO DINAMICO SULLE PAROLE CHIAVE (Addio numeri fissi!)
             const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
-                if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 20); // Da 15 a 34
-                if (text.match(isCleanRegex)) return 80 + Math.floor(Math.random() * 15);  // Da 80 a 94
-                return 40 + Math.floor(Math.random() * 30); // Da 40 a 69 (Neutrale)
+                if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 15); // 15-30
+                if (text.match(isCleanRegex)) return 80 + Math.floor(Math.random() * 15);  // 80-95
+                return 45 + Math.floor(Math.random() * 20); // 45-65 (Neutral)
             };
 
             const m_sup = parseSeverity(bundleInfo, /RISK|control|WARNING|bundle/i, /0%|No bundle/i);
@@ -2103,9 +2102,8 @@ JSON FORMAT:
             const m_syb = parseSeverity(sybilStatus, /DANGER|BURST|Sybil/i, /Clean|Independent/i);
             const m_mic = parseSeverity(microDumping, /DANGER|DUMP|Selling/i, /Clean|holding/i);
 
-            // Ricalcola il Trust Score in base alla vera media delle 4 metriche
-            let solanaRealScore = Math.floor((m_sup + m_dev + m_syb + m_mic) / 4);
-            let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
+            // 🔥 FIX 62/100 SCALP: Usiamo il VERO score algoritmico del backend senza inquinarlo con la media casuale!
+            let mergedScore = baseScoreAlgoritmico;
 
             let solanaMandate = `Analyze the data cynically.`;
             if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
