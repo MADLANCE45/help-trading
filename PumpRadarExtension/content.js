@@ -1,4 +1,26 @@
 // =========================================================
+// 🚀 ROUTER INTELLIGENTE (Previene l'ologramma nel popup)
+// =========================================================
+function lanciaOlogrammaIntelligente(copilotData, staticData, avatarUrl, liveMetricsData) {
+    if (window.location.protocol === 'chrome-extension:') {
+        if (chrome.tabs && chrome.tabs.query) {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs && tabs[0]) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "INJECT_HOLOGRAM",
+                        copilotData: copilotData,
+                        staticData: staticData,
+                        avatarUrl: avatarUrl,
+                        liveMetrics: liveMetricsData
+                    });
+                }
+            });
+        }
+    } else {
+        mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData);
+    }
+}
+// =========================================================
 // 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
 // =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData) {
@@ -294,11 +316,11 @@ if (typeof window.vampireWatcher === 'undefined') {
             const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
             
             chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (res) => {
-                if (res.userConfig && res.userConfig.holoEnabled === false) return; // Non disturba se disattivato
+                if (res.userConfig && res.userConfig.holoEnabled === false) return; 
                 const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 
-                // Passiamo l'intero oggetto window.liveMetrics
-                mostraOlogrammaTatticoSulSito(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
+                // 🔥 USIAMO IL ROUTER QUI
+                lanciaOlogrammaIntelligente(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
             });
             
             window.holoCooldown = Date.now();
@@ -311,8 +333,8 @@ if (typeof window.vampireWatcher === 'undefined') {
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        window.holoCooldown = Date.now(); // Resetta il cooldown
-        // Assicurati che riceva request.liveMetrics
+        window.holoCooldown = Date.now(); 
+        // 🔥 QUI USIAMO mostraOlogramma DIRETTO (perché se riceve il messaggio, è già sul sito)
         mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.liveMetrics);
     }
 });
