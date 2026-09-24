@@ -23,19 +23,15 @@ function lanciaOlogrammaIntelligente(copilotData, staticData, avatarUrl, liveMet
 // =========================================================
 // 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
 // =========================================================
-// =========================================================
-// 🔮 HOLOGRAM INJECTION ENGINE (Veto + Anti-FOMO + Zero Lag)
-// =========================================================
 function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveMetricsData) {
     
     // 🛡️ SCUDO ASSOLUTO ANTI-POPUP: Se siamo dentro l'estensione, BLOCCA TUTTO.
-    // L'ologramma non potrà MAI PIÙ comparire nella finestrella.
     if (window.location.protocol === 'chrome-extension:') return;
     
     chrome.storage.local.get(['userConfig'], (res) => {
         if (res.userConfig && res.userConfig.holoEnabled === false) return; 
         
-        // 📍 POSIZIONE AGGIORNATA: Spostato in basso di circa 5cm (da top: 100px a top: 320px)
+        // 📍 POSIZIONE AGGIORNATA: Spostato in basso di ~5cm (da 100px a 320px)
         let posCss = `left: 30px; top: 320px;`; 
         
         let oldHolo = document.getElementById('ms-hologram-wrapper');
@@ -328,7 +324,7 @@ if (typeof window.vampireWatcher === 'undefined') {
                 if (res.userConfig && res.userConfig.holoEnabled === false) return; 
                 const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 
-                // 🔥 USIAMO IL ROUTER QUI
+                // 🔥 USIAMO IL ROUTER QUI INVECE DELLA CHIAMATA DIRETTA
                 lanciaOlogrammaIntelligente(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
             });
             
@@ -338,11 +334,10 @@ if (typeof window.vampireWatcher === 'undefined') {
         window.lastKnownPressure = currentPressure;
     }, 10000); 
 }
-
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "INJECT_HOLOGRAM") {
-        // 🛡️ DOPPIA SICUREZZA: Ignora il comando se viene ricevuto per sbaglio dal popup
+        // 🛡️ DOPPIA SICUREZZA: Ignora il comando se ricevuto dal popup
         if (window.location.protocol === 'chrome-extension:') return;
         
         window.holoCooldown = Date.now(); 
