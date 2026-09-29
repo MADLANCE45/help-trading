@@ -1522,12 +1522,20 @@ async function analizzaTokenEVM(tokenAddress) {
         const volume24h = mainPair.volume?.h24 || 0;
         const ageMinutes = mainPair.pairCreatedAt ? Math.max(1, (Date.now() - mainPair.pairCreatedAt) / 60000) : 1;
         
-        const txBuys = (mainPair.txns?.h1?.buys || 0) + (mainPair.txns?.m5?.buys || 0);
-        const txSells = (mainPair.txns?.h1?.sells || 0) + (mainPair.txns?.m5?.sells || 0);
-        const txTotali = txBuys + txSells;
+        let txBuys = (mainPair.txns?.h1?.buys || 0) + (mainPair.txns?.m5?.buys || 0);
+        let txSells = (mainPair.txns?.h1?.sells || 0) + (mainPair.txns?.m5?.sells || 0);
+        let txTotali = txBuys + txSells;
+
+        // 🔥 FIX BUG "GHOST TOWN": Se DexScreener non passa le transazioni ma c'è volume,
+        // calcoliamo noi una stima per evitare che l'IA pensi che il token sia morto.
+        if (txTotali === 0 && volume24h > 1500) {
+            txTotali = Math.floor(volume24h / 150); // Stima 1 tx ogni 150$ di volume
+            txBuys = Math.floor(txTotali * 0.55);
+            txSells = Math.floor(txTotali * 0.45);
+        }
 
         // Metriche Fisiche del Token
-        const txVelocity = txTotali / ageMinutes; 
+        const txVelocity = txTotali / ageMinutes;
         const volToLiqRatio = liqUsd > 0 ? (volume24h / liqUsd) : 0;
         const buySellRatio = txSells > 0 ? (txBuys / txSells) : (txBuys > 0 ? 99 : 1);
         const priceChangeM5 = mainPair.priceChange?.m5 || 0;
