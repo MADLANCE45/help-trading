@@ -999,20 +999,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
 
-                        <!-- PRO PORTAL -->
-                        <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
-                            <div style="width: 40px; height: 40px; margin: 0 auto 8px; background: rgba(0, 255, 204, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1em; border: 1px solid rgba(0, 255, 204, 0.3); color: #00ffcc; font-family: monospace;">SEC</div>
-                            <strong style="color: #00ffcc; font-size: 1.05em; text-transform: uppercase; letter-spacing: 1px;">Pro Account Hub</strong>
+                        <!-- PRO PORTAL (LICENSE & AUTHENTICATION) -->
+                        <div style="background: linear-gradient(145deg, #0a0c10, #161821); border: 1px solid #2d3142; border-left: 3px solid #00ffcc; border-radius: 8px; padding: 15px; margin-bottom: 15px; text-align: left; box-shadow: 0 4px 15px rgba(0, 255, 204, 0.05);">
                             
-                            <div style="background: #050608; border: 1px dashed #2d3142; border-radius: 6px; padding: 8px; margin: 10px 0; font-family: monospace; font-size: 0.8em; color: #aaa; text-align: left;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span>Account Status:</span> 
-                                    <span id="account-status-badge" style="color: #ffaa00; font-weight: bold;">Syncing...</span>
-                                </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <strong style="color: #00ffcc; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; font-family: monospace;">License & Auth</strong>
+                                <span id="account-status-badge" style="background: rgba(170, 170, 170, 0.1); color: #aaa; border: 1px solid #444; padding: 3px 8px; border-radius: 4px; font-size: 0.65em; font-weight: bold; font-family: monospace; letter-spacing: 1px; text-transform: uppercase;">UNVERIFIED</span>
+                            </div>
+                            
+                            <div style="color: #888; font-size: 0.75em; line-height: 1.4; margin-bottom: 12px; font-family: 'Segoe UI', Tahoma, sans-serif;">
+                                Enter your <span style="color:#e4e4e7; font-weight:bold;">Sync Key</span> to unlock real-time WebSockets, EVM forensics, and unlimited AI Scans.
                             </div>
                             
                             <div style="position: relative; margin-bottom: 12px;">
-                                <input type="password" id="user-sync-key" placeholder="Paste Sync Key..." style="width: 100%; box-sizing: border-box; background: #0a0c10; border: 1px solid #444; color: #00ffcc; padding: 8px 35px 8px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; outline: none; transition: 0.2s;">
+                                <input type="password" id="user-sync-key" placeholder="Paste key here (e.g. ms-pro-...)" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #00ffcc; padding: 10px 35px 10px 10px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none; transition: 0.2s;">
                                 
                                 <div id="toggle-key-visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center; transition: 0.2s;" title="Show/Hide">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1023,9 +1023,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             
                             <div style="display: flex; gap: 8px;">
-                                <button id="btn-save-sync" style="flex: 1; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Sync</button>
-                                <button id="btn-logout-sync" style="display: none; flex: 1; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s;">Log Out</button>
-                                <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center;">Upgrade</a>
+                                <button id="btn-save-sync" style="flex: 1.5; background: #1a1c29; color: #00ffcc; border: 1px solid #00ffcc; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s; font-family: monospace;">Authenticate</button>
+                                <button id="btn-logout-sync" style="display: none; flex: 1.5; background: #1a1c29; color: #ff4d4d; border: 1px solid #ff4d4d; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; transition: 0.2s; font-family: monospace;">Disconnect</button>
+                                <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="flex: 1; background: #00ffcc; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.75em; text-transform: uppercase; text-decoration: none; display: flex; align-items: center; justify-content: center; font-family: monospace;">Upgrade</a>
                             </div>
                         </div>
 
@@ -1102,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </button>
 
                         <!-- DISCORD UNDERGROUND -->
-                        <a id="btn-discord" href="https://discord.gg/F3uWgE5ys" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: 0.2s; font-family: monospace;">
+                        <a id="btn-discord" href="https://discord.gg/J9wsre2Mz" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; background: #111; border: 1px dashed #5865F2; color: #5865F2; text-decoration: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: 0.2s; font-family: monospace;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
                             <span id="discord-text">Join the Resistance</span>
                         </a>
@@ -1428,15 +1428,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.userAuthToken) {
                     if(document.getElementById('user-sync-key')) document.getElementById('user-sync-key').value = res.userAuthToken;
                     if(badge) {
-                        badge.innerText = "CONNECTED ✅";
+                        badge.innerText = "VERIFIED";
                         badge.style.color = "#00e676";
+                        badge.style.borderColor = "#00e676";
+                        badge.style.background = "rgba(0, 230, 118, 0.1)";
                     }
                     btnSaveSync.style.display = 'none'; 
                     if(btnLogoutSync) btnLogoutSync.style.display = 'block'; 
                 } else {
                     if(badge) {
-                        badge.innerText = "FREE TIER 🆓";
+                        badge.innerText = "FREE TIER";
                         badge.style.color = "#aaa";
+                        badge.style.borderColor = "#444";
+                        badge.style.background = "rgba(170, 170, 170, 0.1)";
                     }
                     btnSaveSync.style.display = 'block';
                     if(btnLogoutSync) btnLogoutSync.style.display = 'none';
@@ -1931,7 +1935,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (data.limitReached || data.success === false) {
                 
                 const errorStr = String(data.verdetto || data.puntoRottura || data.message || data.tattica || "");
-                const isSecurityLock = errorStr.toLowerCase().includes("proton.me") || errorStr.toLowerCase().includes("security lock");
+                const isSecurityLock = errorStr.toLowerCase().includes("proton.me") || errorStr.toLowerCase().includes("discord");
 
                 const isLimitReached = !isSecurityLock && (
                                        data.azione === "UPGRADE" 
@@ -1943,6 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 if (isLimitReached) {
+                    // 🔥 FIX 3: Reindirizzamento diretto alla pagina di pagamento (/pricing)
                     container.innerHTML = `
                         <div style="background: linear-gradient(145deg, #1a1500, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 25px 20px; text-align: center; font-family: 'Segoe UI', sans-serif;">
                             <div style="font-size: 3em; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,170,0,0.4)); line-height: 1;"></div>
@@ -1950,18 +1955,34 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div style="color: #e4e4e7; font-size: 0.85em; line-height: 1.5; margin-bottom: 20px;">
                                 You have exhausted your 5 free AI scans for today.<br>Connect a <b style="color:#00ffcc;">Pro</b> or <b style="color:#b366ff;">Premium</b> account to unlock unlimited institutional forensics.
                             </div>
-                            <a href="https://www.memesaver.lol/dashboard/wallet" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
-                                 Upgrade to Premium
+                            <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #ffaa00, #ff8800); color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 170, 0, 0.4); transition: transform 0.2s;">
+                                 💎 Upgrade to Premium
                             </a>
                         </div>
                     `;
                 } else {
-                    let cleanErrorHTML = errorStr.replace(/🔒|❌|⚠️|💎/g, '');
+                    let cleanErrorHTML = errorStr.replace(/🔒|❌|⚠️️|💎/g, '');
                     cleanErrorHTML = cleanErrorHTML.replace(/from this IP/gi, 'from your network'); 
                     cleanErrorHTML = cleanErrorHTML.replace(/\bIP\b/gi, 'Network'); 
                     cleanErrorHTML = cleanErrorHTML.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ''); 
                     
-                    container.innerHTML = `<div style="color:#ff4d4d; padding:15px; text-align:center; border: 1px solid #ff4d4d; border-radius: 8px; background: rgba(255,77,77,0.1); font-weight:bold;">${cleanErrorHTML.trim() || "ANALYSIS FAILED"}</div>`;
+                    // 🔥 FIX 4: Box grafico dedicato per i blocchi Device / Cambio PC
+                    if (isSecurityLock) {
+                        container.innerHTML = `
+                        <div style="background: linear-gradient(145deg, #1a0505, #0a0c10); border: 1px solid #ff4d4d; border-radius: 8px; padding: 20px; text-align: center; font-family: 'Segoe UI', sans-serif;">
+                            <div style="font-size: 2.5em; margin-bottom: 10px;">🔒</div>
+                            <div style="color: #ff4d4d; font-size: 1.1em; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Security Lock</div>
+                            <div style="color: #e4e4e7; font-size: 0.85em; line-height: 1.6;">
+                                ${cleanErrorHTML.trim()}
+                            </div>
+                            <a href="https://discord.gg/J9wsre2Mz" target="_blank" style="display: inline-block; margin-top: 15px; background: #5865F2; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85em; transition: 0.2s;">
+                                 Open Discord Ticket
+                            </a>
+                        </div>`;
+                    } else {
+                        // Errori generici
+                        container.innerHTML = `<div style="color:#ff4d4d; padding:15px; text-align:center; border: 1px solid #ff4d4d; border-radius: 8px; background: rgba(255,77,77,0.1); font-weight:bold;">${cleanErrorHTML.trim() || "ANALYSIS FAILED"}</div>`;
+                    }
                 }
 
                 const badge = document.getElementById('ai-premium-badge') || document.getElementById('ai-lock-badge');

@@ -1333,8 +1333,12 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
     const ip = clientIp || "unknown";
 
+    // 🔥 FIX 1: Nuovo messaggio se manca il Device ID (Nessun "Please refresh")
     if (!cleanDevice) {
-        return { authorized: false, message: "⚠️ Extension Error: Missing Device ID. Please refresh." };
+        return { 
+            authorized: false, 
+            message: "Dispositivo non riconosciuto o resettato.<br><br>Se hai un piano PRO o PREMIUM e hai cambiato PC/Browser, contatta <b>HelpTrading@proton.me</b> o apri un ticket sul nostro <b>Discord</b> per riattivare la tua licenza." 
+        };
     }
 
     try {
@@ -1348,17 +1352,16 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
 
             if (!user) return { authorized: false, message: "❌ Sync Key not found or expired." };
 
-            // DEVICE LOCK (Anti-Condivisione)
             // DEVICE LOCK (Anti-Condivisione & Installazione Multipla)
             if (user.plan_type === 'pro' || user.plan_type === 'premium') {
                 if (!user.device_id) {
                     // Prima installazione in assoluto: blinda la chiave a questo dispositivo
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
                 } else if (user.device_id !== cleanDevice) {
-                    // L'utente ha reinstallato l'estensione o ha cambiato PC (ID diverso)
+                    // 🔥 FIX 2: Nuovo messaggio se il Device ID non coincide (Cambiato PC)
                     return { 
                         authorized: false, 
-                        message: "❌ SECURITY LOCK: This Sync Key is already locked to another device or previous installation.<br><br>If you reinstalled the extension, please contact <b>HelpTrading@proton.me</b> or open a ticket on our Discord to reset your Device ID." 
+                        message: "Questa Sync Key è già legata a un altro dispositivo.<br><br>Se hai cambiato PC o reinstallato l'estensione, contatta <b>HelpTrading@proton.me</b> o apri un ticket sul nostro <b>Discord</b> per autorizzare il nuovo device." 
                     };
                 }
                 
@@ -1366,7 +1369,6 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             }
         } 
-
         // ⚪ CASO 2: L'UTENTE È FREE (Controllo IP e Device)
         
         // 1. CONTROLLO ANTI-FURBO SULL'IP
