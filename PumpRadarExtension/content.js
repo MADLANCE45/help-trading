@@ -1843,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.005 4.150h-1.91z"/></svg>
                             Share on X
                         </button>
-                        <button id="btn-copy-verdict" data-text="Meme Saver Analysis\nCA: ${tokenMint}\nScore: ${trustScore}/100" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #1a1c29; border: 1px solid #2d3142; color: #4da6ff; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: background 0.2s;">
+                        <button id="btn-copy-verdict" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #1a1c29; border: 1px solid #2d3142; color: #4da6ff; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 0.8em; cursor: pointer; transition: background 0.2s;">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                             Copy
                         </button>
@@ -1852,12 +1852,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
                 
-                document.getElementById('btn-share-x').addEventListener('click', async (e) => {
-                    const btn = e.currentTarget;
-                    const originalHTML = btn.innerHTML;
-                    btn.innerHTML = '<span style="animation: pulseGlow 1s infinite;">FETCHING DATA...</span>';
-                    btn.style.pointerEvents = "none";
-                    
+                // 🔥 FIX: Funzione centralizzata per generare il testo dinamico per entrambi i pulsanti
+                const generaTestoCondivisione = async () => {
                     let liveMC = "N/A";
                     try {
                         const dexRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenMint}`);
@@ -1877,7 +1873,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch(err) {} 
 
-                    let rawShareText = `🤖 Meme Saver AI Scan\n\n🪙 CA: ${tokenMint}\n💎 Market Cap: ${liveMC}\n⚖️ Verdict: ${tweetVerdict}\n📊 Trust Score: ${trustScore}/100\n\nStop being exit liquidity 👇\n🔗 memesaver.lol\n\n${chainTag} @H3lpTrading `;
+                    return `🤖 Meme Saver AI Scan\n\n🪙 CA: ${tokenMint}\n💎 Market Cap: ${liveMC}\n⚖️ Verdict: ${tweetVerdict}\n📊 Trust Score: ${trustScore}/100\n\nStop being exit liquidity 👇\n🔗 memesaver.lol\n\n${chainTag} @H3lpTrading`;
+                };
+
+                document.getElementById('btn-share-x').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<span style="animation: pulseGlow 1s infinite;">FETCHING DATA...</span>';
+                    btn.style.pointerEvents = "none";
+                    
+                    const rawShareText = await generaTestoCondivisione();
                     
                     btn.innerHTML = originalHTML;
                     btn.style.pointerEvents = "auto";
@@ -1885,11 +1890,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(rawShareText)}`, '_blank');
                 });
 
-                document.getElementById('btn-copy-verdict').addEventListener('click', (e) => {
-                    navigator.clipboard.writeText(e.currentTarget.getAttribute('data-text')).then(() => {
-                        e.currentTarget.innerHTML = '<span style="color:#00e676;">COPIED!</span>';
+                document.getElementById('btn-copy-verdict').addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<span style="animation: pulseGlow 1s infinite;">FETCHING...</span>';
+                    btn.style.pointerEvents = "none";
+
+                    const rawShareText = await generaTestoCondivisione();
+
+                    navigator.clipboard.writeText(rawShareText).then(() => {
+                        btn.innerHTML = '<span style="color:#00e676;">COPIED!</span>';
                         setTimeout(() => {
-                            e.currentTarget.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy';
+                            btn.innerHTML = originalHTML;
+                            btn.style.pointerEvents = "auto";
                         }, 2000);
                     });
                 });
