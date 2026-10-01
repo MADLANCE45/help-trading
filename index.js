@@ -871,32 +871,38 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
         let promptCopilot = "";
 
         if (isEVM) {
-            // Recupera le metriche reali DexScreener memorizzate nello scan
+            // Recupero dati EVM (Thermal Vision) per istruire il Copilot
             const cachedBase = scanCache.get(tokenMint)?.data || scanCache.get(`${tokenMint}_${lingua}`)?.data;
-            const hudData = cachedBase?.hud || { volume: "0", change: 0, trend: "EVM" };
-            const m_metrics = cachedBase?.serverMetrics || { momentum: 50, liquidity: 50, safety: 50 };
+            const hudData = cachedBase?.hud || { volume: "0.0", change: 0, trend: "EVM" };
+            const m_metrics = cachedBase?.serverMetrics || { momentum: 50, liquidity: 50, safety: 50, manipulator: 50 };
             const verdictInfo = cachedBase?.rawVerdict || "Active EVM Pool";
 
             promptCopilot = `
-You are a quantitative sniper Copilot analyzing an EVM token (BNB/ETH/Base).
-TOKEN DATA:
-- Contract: ${tokenMint}
+You are a ruthless High-Frequency Trading (HFT) Copilot for memecoins. YOU ARE NOT A FINANCIAL ADVISOR. 
+Your goal is to guide extreme scalping on EVM chains (BNB, ETH, Base). Exploit the scammers.
+
+LIVE EVM DATA (Thermal Vision):
 - 24h Volume: $${hudData.volume}M | 24h Change: ${hudData.change}%
 - Momentum Score: ${m_metrics.momentum}/100
 - Liquidity Health: ${m_metrics.liquidity}/100
+- Manipulator Control: ${m_metrics.manipulator}/100
 - System Assessment: ${verdictInfo}
 
-RULES:
-1. DO NOT claim volume is zero if 24h volume exists.
-2. Formulate a short, razor-sharp tactical forecast for the trader.
-3. OUTPUT STRICTLY IN ${absoluteLang}.
-4. NO double quotes inside text strings.
+🔥 SCALPING RULES (THE JUNGLE):
+1. Wait/Idle (Low velocity): The manipulator is resting. Action: WAIT.
+2. High Momentum & Volume: The bundler is artificially pumping. Action: RIDE (Surf the fake volume, but prepare to exit).
+3. High Valuation but Dead Tape: You are exit liquidity. Action: AVOID or DUMP.
+4. Write like a cynical sniper. Short, brutal, actionable. No pleasantries. DO NOT claim volume is zero if 24h Volume exists.
+
+🔥 LINGUISTIC RULE (CRITICAL):
+OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE MULTIPLE LANGUAGES YOU WILL BE TERMINATED.
+NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
-  "tattica": "Tactical reading of EVM liquidity and momentum...",
-  "puntoRottura": "Expected market reaction in the upcoming sessions...",
-  "azione": "[EXACT ACTION: RIDE, SCALP, WAIT, or AVOID]"
+  "tattica": "Tactical analysis of EVM momentum and manipulator behavior...",
+  "puntoRottura": "Prediction: what the manipulator will do next...",
+  "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or AVOID]"
 }`;
         } else {
             promptCopilot = `
@@ -2058,8 +2064,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         // =================================================================
         // 🛑 BYPASS TOTALE PER I TOKEN NON ANCORA INDICIZZATI 
         // =================================================================
-        // Scatta SOLO se il token non è realmente trovato dalle API di DexScreener/Gecko
-        if (datiIniziali?.rischio === "AWAITING INDEXING" || serverVerdict.includes("Pool is too new")) {
+        if (datiIniziali?.rischio === "AWAITING INDEXING") {
             const reportHTML = `
                 <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
                     <div style="display: flex; align-items: center; gap: 20px;">

@@ -66,14 +66,9 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                 let flowDiff = currentFlow - 50; 
                 let amplifiedFlow = 50 + (flowDiff * 1.8); 
                 amplifiedFlow = Math.min(99, Math.max(1, amplifiedFlow));
-
-                if (baseStaticScore <= 40) {
-                    tacticalScore = baseStaticScore; 
-                } else {
-                    tacticalScore = (baseStaticScore * 0.15) + (amplifiedFlow * 0.85);
-                }
+                tacticalScore = baseStaticScore <= 40 ? baseStaticScore : (baseStaticScore * 0.15) + (amplifiedFlow * 0.85);
             } else if (!isEVM) {
-                // Riduci lo score solo se è Solana e il nastro è morto
+                // Riduciamo lo score per inattività solo su Solana
                 tacticalScore = baseStaticScore * 0.8; 
             }
 
@@ -81,7 +76,8 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
 
             let isDanger = tacticalScore <= 45;
             let isSafe = tacticalScore >= 65 && !isOverboughtAnomaly;
-
+            
+            const baseAction = (copilotData && copilotData.azione ? copilotData.azione : "").toUpperCase();
             if (baseAction.match(/AVOID|DUMP|SELL|FUGG/)) isDanger = true;
             if (baseAction.match(/RIDE|BUY/) && !isDanger) isSafe = true;
 
@@ -90,22 +86,26 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
             
             let text = "";
             
-            // 1. Priorità assoluta al Copilot o ai messaggi custom
-            if (copilotData.tattica && copilotData.puntoRottura) {
+            // 1. Priorità assoluta al Copilot
+            if (copilotData && copilotData.tattica && copilotData.puntoRottura) {
                 text = `[COPILOT_AI] ${copilotData.tattica} | ${copilotData.puntoRottura}`;
-                // Ricalibra il colore in base all'azione dettata dal Copilot
-                if (copilotData.azione && copilotData.azione.match(/RIDE|BUY/)) { mainColor = '#00e676'; bgColor = 'rgba(0, 20, 10, 0.95)'; }
-                else if (copilotData.azione && copilotData.azione.match(/AVOID|DUMP/)) { mainColor = '#ff4d4d'; bgColor = 'rgba(30, 0, 0, 0.95)'; }
-            } else if (copilotData.messaggioCustom) {
+                if (baseAction.match(/RIDE|BUY/)) { mainColor = '#00e676'; bgColor = 'rgba(0, 20, 10, 0.95)'; }
+                else if (baseAction.match(/AVOID|DUMP/)) { mainColor = '#ff4d4d'; bgColor = 'rgba(30, 0, 0, 0.95)'; }
+            } 
+            // 2. Messaggi Custom (Vampire Watcher)
+            else if (copilotData && copilotData.messaggioCustom) {
                 text = copilotData.messaggioCustom;
                 mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
-            } else if (isEVM) {
-                // 2. Se siamo su EVM e il Copilot non ha risposto, usa il verdetto quantitativo
+            } 
+            // 3. Logica EVM (Nessun WSS)
+            else if (isEVM) {
                 text = staticData.rawVerdict || `[EVM_METRICS] Market Cap: $${((staticData.targetMC || 0)/1.4/1000).toFixed(1)}k. Heuristic momentum active.`;
-            } else if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
-                text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Manipulator is distributing bags. Trust Score dropping to ${tacticalScore}/100. Brace for impact.`;
+            } 
+            // 4. Logica Solana (Con WSS)
+            else if (copilotData && copilotData.tattica === "VAMPIRE BLEED DETECTED") {
+                text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Trust Score dropping to ${tacticalScore}/100. Brace for impact.`;
             } else if (isOverboughtAnomaly) {
-                text = `[OVERBOUGHT_ANOMALY] Massive bundle pump detected (${recentBuyVol.toFixed(1)} SOL in 10s). Artificial pressure at ${currentFlow.toFixed(0)}%. Imminent dump probable. DO NOT FOMO.`;
+                text = `[OVERBOUGHT_ANOMALY] Massive bundle pump detected. Imminent dump probable. DO NOT FOMO.`;
                 mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
                 isSafe = false; isDanger = false;
             } else if (currentFlow === -1) {
@@ -113,23 +113,11 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                 mainColor = '#888'; bgColor = 'rgba(20, 20, 20, 0.95)';
                 isSafe = false; isDanger = false;
             } else if (isDanger) {
-                if (currentFlow < 30) {
-                    text = `[SEVERE_BLEED] Order flow collapsing (${currentFlow.toFixed(0)}% Buy). Sellers dominating the tape. Exit immediately to avoid becoming exit liquidity.`;
-                } else {
-                    text = `[HISTORICAL_RISK] Judge flags contract as unsafe (Base Score: ${baseStaticScore}). Reject entry despite temporary volume.`;
-                }
+                text = `[SEVERE_BLEED] Order flow collapsing (${currentFlow.toFixed(0)}% Buy). Sellers dominating the tape. Exit immediately.`;
             } else if (isSafe) {
-                if (currentFlow > 80) {
-                    text = `[PARABOLIC_MOMENTUM] Tape is hyper-bullish (${currentFlow.toFixed(0)}% Buy). Aggressive accumulation. Ride the trend but trail stop-loss tightly.`;
-                } else {
-                    text = `[STEADY_ACCUMULATION] Organic buying sustained. Trust Score: ${tacticalScore}/100. Smart money is quietly accumulating.`;
-                }
+                text = `[PARABOLIC_MOMENTUM] Tape is hyper-bullish (${currentFlow.toFixed(0)}% Buy). Aggressive accumulation. Ride the trend.`;
             } else {
-                if (currentFlow >= 50) {
-                    text = `[NEUTRAL_CHOP] Market undecided (${currentFlow.toFixed(0)}% Buy). Slight bullish lean, but volume lacks institutional conviction. Monitor for breakout.`;
-                } else {
-                    text = `[DISTRIBUTION_PHASE] Flow leaning bearish (${currentFlow.toFixed(0)}% Buy). Whales might be laddering sells. Execute scalp only on confirmed support.`;
-                }
+                text = `[NEUTRAL_CHOP] Market undecided (${currentFlow.toFixed(0)}% Buy). Monitor for breakout.`;
             }
 
             return { text, mainColor, bgColor, isDanger, isSafe, tacticalScore };
