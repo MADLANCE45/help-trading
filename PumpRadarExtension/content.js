@@ -53,6 +53,7 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
         const baseAction = (copilotData.azione || "").toUpperCase();
 
         function elaboraVerdetto(metrics) {
+            const isEVM = staticData && staticData.isEVM === true;
             let hasVolume = metrics && (parseFloat(metrics.buyVol) > 0 || parseFloat(metrics.sellVol) > 0);
             let currentFlow = hasVolume ? parseFloat(metrics.buyPressure) : -1; 
             
@@ -71,7 +72,8 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
                 } else {
                     tacticalScore = (baseStaticScore * 0.15) + (amplifiedFlow * 0.85);
                 }
-            } else {
+            } else if (!isEVM) {
+                // Riduci lo score solo se è Solana e il nastro è morto
                 tacticalScore = baseStaticScore * 0.8; 
             }
 
@@ -88,9 +90,18 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
             
             let text = "";
             
-            if (copilotData.messaggioCustom) {
+            // 1. Priorità assoluta al Copilot o ai messaggi custom
+            if (copilotData.tattica && copilotData.puntoRottura) {
+                text = `[COPILOT_AI] ${copilotData.tattica} | ${copilotData.puntoRottura}`;
+                // Ricalibra il colore in base all'azione dettata dal Copilot
+                if (copilotData.azione && copilotData.azione.match(/RIDE|BUY/)) { mainColor = '#00e676'; bgColor = 'rgba(0, 20, 10, 0.95)'; }
+                else if (copilotData.azione && copilotData.azione.match(/AVOID|DUMP/)) { mainColor = '#ff4d4d'; bgColor = 'rgba(30, 0, 0, 0.95)'; }
+            } else if (copilotData.messaggioCustom) {
                 text = copilotData.messaggioCustom;
                 mainColor = '#ffaa00'; bgColor = 'rgba(30, 20, 0, 0.95)';
+            } else if (isEVM) {
+                // 2. Se siamo su EVM e il Copilot non ha risposto, usa il verdetto quantitativo
+                text = staticData.rawVerdict || `[EVM_METRICS] Market Cap: $${((staticData.targetMC || 0)/1.4/1000).toFixed(1)}k. Heuristic momentum active.`;
             } else if (copilotData.tattica === "VAMPIRE BLEED DETECTED") {
                 text = `[VAMPIRE_ALERT] Sudden drop in buy pressure detected. Manipulator is distributing bags. Trust Score dropping to ${tacticalScore}/100. Brace for impact.`;
             } else if (isOverboughtAnomaly) {

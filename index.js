@@ -867,8 +867,39 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
         };
         const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
-        // 🧠 PROMPT CO-PILOT: IL CECCHINO (Predatore da Scalping)
-        const promptCopilot = `
+        const isEVM = isValidEVMAddress(tokenMint);
+        let promptCopilot = "";
+
+        if (isEVM) {
+            // Recupera le metriche reali DexScreener memorizzate nello scan
+            const cachedBase = scanCache.get(tokenMint)?.data || scanCache.get(`${tokenMint}_${lingua}`)?.data;
+            const hudData = cachedBase?.hud || { volume: "0", change: 0, trend: "EVM" };
+            const m_metrics = cachedBase?.serverMetrics || { momentum: 50, liquidity: 50, safety: 50 };
+            const verdictInfo = cachedBase?.rawVerdict || "Active EVM Pool";
+
+            promptCopilot = `
+You are a quantitative sniper Copilot analyzing an EVM token (BNB/ETH/Base).
+TOKEN DATA:
+- Contract: ${tokenMint}
+- 24h Volume: $${hudData.volume}M | 24h Change: ${hudData.change}%
+- Momentum Score: ${m_metrics.momentum}/100
+- Liquidity Health: ${m_metrics.liquidity}/100
+- System Assessment: ${verdictInfo}
+
+RULES:
+1. DO NOT claim volume is zero if 24h volume exists.
+2. Formulate a short, razor-sharp tactical forecast for the trader.
+3. OUTPUT STRICTLY IN ${absoluteLang}.
+4. NO double quotes inside text strings.
+
+JSON FORMAT:
+{
+  "tattica": "Tactical reading of EVM liquidity and momentum...",
+  "puntoRottura": "Expected market reaction in the upcoming sessions...",
+  "azione": "[EXACT ACTION: RIDE, SCALP, WAIT, or AVOID]"
+}`;
+        } else {
+            promptCopilot = `
 You are a ruthless High-Frequency Trading (HFT) Copilot for memecoins. YOU ARE NOT A FINANCIAL ADVISOR. 
 Your goal is to guide extreme scalping (trades lasting 10 seconds to 3 minutes). Exploit the scammers.
 
@@ -893,6 +924,7 @@ JSON FORMAT:
   "puntoRottura": "Prediction: what the manipulator will do in the next 30 seconds...",
   "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;
+        }
 
         // =================================================================
         // COPILOT AI ENGINE (ZERO GPT-4o PESANTE)
@@ -2026,7 +2058,8 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         // =================================================================
         // 🛑 BYPASS TOTALE PER I TOKEN NON ANCORA INDICIZZATI 
         // =================================================================
-        if (serverVerdict.includes("[WAIT]")) {
+        // Scatta SOLO se il token non è realmente trovato dalle API di DexScreener/Gecko
+        if (datiIniziali?.rischio === "AWAITING INDEXING" || serverVerdict.includes("Pool is too new")) {
             const reportHTML = `
                 <div style="background: linear-gradient(145deg, #11121a, #0a0c10); border: 1px solid #ffaa00; border-radius: 8px; padding: 15px; font-family: 'Segoe UI', sans-serif;">
                     <div style="display: flex; align-items: center; gap: 20px;">
