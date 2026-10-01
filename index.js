@@ -1895,17 +1895,37 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             logAnalisi.push(simulazione.testo);
 
             // 1. Calcoliamo prima i PUNTI DI RISCHIO (Più alto = Truffa)
-            let puntiRischio = isFakeDev ? 70 : (earlyBotData.bundleSlot0 ? 60 : 15);
+            // 🔥 FIX: Un dev finto (wallet appena nato) ora dà una penalità brutale (85 punti rischio su 100)
+            let puntiRischio = isFakeDev ? 85 : (earlyBotData.bundleSlot0 ? 60 : 15);
             if (cabalaData) puntiRischio += cabalaData.scoreAggiuntivo;
             if (microDumpData) puntiRischio += microDumpData.scoreAggiuntivo;
             if (earlyBotData.supplyBundledPct >= 20) puntiRischio = 100;
             if (fedinaDev) puntiRischio += fedinaDev.punteggioRischio;
 
+            // 🔥 THE WASH-TRADING DETECTOR (Anti-Scalinata)
+            // Se il Market Cap è bassissimo (< 15k) ma la Buy Pressure è perfettamente bilanciata (~50%)
+            // e ci sono decine di transazioni al minuto, NON è mercato organico: è il Dev che si compra e vende i token
+            // con blocchi fissi (es. 500$) per creare il pattern e attirare i retail.
+            const buyPress = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
+            if (currentFdv < 15000 && txInLast60s > 20 && buyPress >= 40 && buyPress <= 60) {
+                puntiRischio += 60; // Penalità letale
+                logAnalisi.push("🛑 WASH TRADING RILEVATO: Volumi artificiali a scalinata per generare FOMO.");
+                simulazione.azione = "TRAPPOLA WASH-TRADE";
+                simulazione.coloreAzione = "#ff4d4d";
+                simulazione.simulatoreTesto = `ATTENZIONE: Transazioni a blocchi artificiali. Il creatore sta manipolando il grafico a basso MC ($${(currentFdv/1000).toFixed(1)}k).`;
+            }
+
             puntiRischio = Math.min(100, puntiRischio); // Cap a 100
 
             // 2. INVERSIONE IN TRUST SCORE (100 = Sicuro/Verde, 0 = Truffa/Rosso)
-            // Questo allinea Solana all'interfaccia grafica e al motore EVM!
             let trustScoreBase = 100 - puntiRischio;
+            
+            // 🔥 CORREZIONE SINCRONIA COPILOT-GIUDICE
+            // Se il Copilot (nastro live) vede che la Buy Pressure sta già crollando (sotto il 30%),
+            // il Giudice non può dare un punteggio alto basandosi sul passato. Tagliamo il punteggio!
+            if (buyPress < 30) {
+                trustScoreBase = Math.min(trustScoreBase, 35);
+            }
 
             // 3. 🌐 INIEZIONE MACRO-SENTIMENT (Il volume detta legge)
             const marketTrend = parseFloat(macroMarketData.memeChange24h) || 0;
