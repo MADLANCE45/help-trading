@@ -1611,10 +1611,18 @@ async function analizzaTokenEVM(tokenAddress) {
                 rawVerdict = `[RIDE] PARABOLIC FOMO. Token went viral. ${txVelocity.toFixed(0)} tx/min with strong accumulation (B/S Ratio ${buySellRatio.toFixed(2)}). Ride the momentum towards the millions.`;
             }
             else if (fdvUsd > 300000 && txVelocity < 5) {
+            // FIX GHOST TOWN: Prima di dichiarare il token morto, verifichiamo il volume rispetto al MC
+            // Se c'è volume reale nelle ultime 24h, non è una Ghost Town, è solo una pausa fisiologica.
+            if (volToLiqRatio > 0.5) {
+                // Il token è scambiato, abbassiamo lo score ma non diamo l'allarme AVOID
+                finalScore = 55; finalAction = "WAIT"; color = "#888888";
+                rawVerdict = `[WAIT] IDLE MOMENTUM. Valuation is high ($${(fdvUsd/1000).toFixed(1)}k) with low immediate velocity (${txVelocity.toFixed(1)} tx/min), but historical volume holds. Await new impulse.`;
+            } else {
                 // GRAFICO MORTO AD ALTO MC
                 finalScore = 40; finalAction = "AVOID"; color = "#ff4d4d";
                 rawVerdict = `[AVOID] GHOST TOWN. High valuation ($${(fdvUsd/1000).toFixed(1)}k) but severe lack of volume (${txVelocity.toFixed(1)} tx/min). Price will slowly bleed out.`;
             }
+        }
             else {
                 // DINAMICA ORGANICA
                 let dynamicScore = 40; 
