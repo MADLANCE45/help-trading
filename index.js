@@ -915,10 +915,11 @@ LIVE TAPE (Last 10 seconds):
 - Sell Vol: ${datiLive.sellVol} SOL
 
 🔥 SCALPING RULES (THE JUNGLE):
-1. Dead Tape (Near zero vol): The manipulator is waiting. Action: WAIT.
-2. Heavy Buy Vol (0 Sells): The bundler is artificially pumping the chart. Action: RIDE (Surf the fake volume, but prepare to exit).
-3. Sell Vol matches/exceeds Buy Vol: The manipulator is distributing bags to retail. Action: DUMP immediately. You are exit liquidity.
-4. Write like a cynical sniper. Short, brutal, actionable. No pleasantries.
+1. Dead Tape (Near zero vol): The manipulator is resting. Action: WAIT.
+2. The Ambush / Tape Painting: Sudden isolated buy spikes (e.g. exactly $300 or 2 SOL) with zero follow-up. The dev is "painting the chart" to create a fake bullish candle and trigger retail FOMO. Action: WAIT or AVOID.
+3. MEV Baiting: Micro-buys (< 0.01 SOL) on a dead tape. The dev is pinging the liquidity pool to map out Sandwich bots before executing a rug. Action: WAIT.
+4. Heavy Organic Buy Vol (0 Sells): The bundler is artificially pumping the chart with real capital. Action: RIDE (Surf the fake volume, but prepare to exit).
+5. Sell Vol matches/exceeds Buy Vol: Distribution phase. You are exit liquidity. Action: DUMP immediately.
 
 🔥 LINGUISTIC RULE (CRITICAL):
 OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE MULTIPLE LANGUAGES YOU WILL BE TERMINATED.
@@ -926,7 +927,7 @@ NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
-  "tattica": "Tactical analysis of the 10-second order flow...",
+  "tattica": "Tactical analysis of the 10-second order flow (Name the exact tactic: Tape Painting, MEV Baiting, Accumulation, Distribution)...",
   "puntoRottura": "Prediction: what the manipulator will do in the next 30 seconds...",
   "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;

@@ -300,36 +300,66 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
     }); 
 }
 // =========================================================
-// 🧛 VAMPIRE WATCHER (Auto-Scan Silenzioso e Riavvio Ologramma)
+// 👁️ MATRIX WATCHER (Auto-Scan Reattivo per Pattern da Giungla)
 // =========================================================
-if (typeof window.vampireWatcher === 'undefined') {
-    window.vampireWatcher = true;
+if (typeof window.matrixWatcher === 'undefined') {
+    window.matrixWatcher = true;
     window.lastKnownPressure = 50;
+    window.lastKnownVol = 0;
     window.holoCooldown = 0;
 
     setInterval(() => {
         if (!window.liveMetrics) return;
         
-        const currentPressure = window.liveMetrics.buyPressure;
-        const delta = window.lastKnownPressure - currentPressure;
+        const currentPressure = parseFloat(window.liveMetrics.buyPressure) || 50;
+        const currentVol = (parseFloat(window.liveMetrics.buyVol) || 0) + (parseFloat(window.liveMetrics.sellVol) || 0);
         
-        // Se la pressione CROLLA e l'ologramma non spamma da 60 secondi
-        if (delta >= 25 && (Date.now() - window.holoCooldown > 60000)) {
-            const alertData = { azione: "DUMP", tattica: "VAMPIRE BLEED DETECTED" };
-            
+        const deltaPressure = window.lastKnownPressure - currentPressure;
+        const isSpamming = (Date.now() - window.holoCooldown < 45000); // Cooldown ridotto a 45s
+        
+        let alertData = null;
+
+        if (!isSpamming) {
+            // 1. VAMPIRE BLEED (Il manipolatore scarica lentamente liquidità)
+            if (deltaPressure >= 25 && currentVol > 0) {
+                alertData = { 
+                    azione: "DUMP", 
+                    tattica: "VAMPIRE BLEED DETECTED", 
+                    messaggioCustom: "[VAMPIRE_ALERT] Sudden drop in buy pressure. The manipulator is quietly draining liquidity. Brace for impact." 
+                };
+            }
+            // 2. THE AMBUSH / TAPE PAINTING (Da 0 transazioni a un'esplosione isolata per disegnare la candela)
+            else if (window.lastKnownVol === 0 && currentVol >= 0.5 && currentVol <= 5) {
+                alertData = { 
+                    azione: "WAIT", 
+                    tattica: "AMBUSH / TAPE PAINTING", 
+                    messaggioCustom: "[AMBUSH_DETECTED] Tape woke up instantly. The manipulator is printing a fake green candle to trigger retail FOMO. Do not bite the bait." 
+                };
+            }
+            // 3. MEV BAITING (Transazioni microscopiche su nastro morto per testare i bot)
+            else if (window.lastKnownVol === 0 && currentVol > 0 && currentVol < 0.05) {
+                alertData = { 
+                    azione: "WAIT", 
+                    tattica: "LIQUIDITY TEST", 
+                    messaggioCustom: "[MEV_BAIT] Micro-transaction detected. The Dev is pinging the pool to map active sniper bots before making a move. Standby." 
+                };
+            }
+        }
+
+        if (alertData) {
             chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (res) => {
                 if (res.userConfig && res.userConfig.holoEnabled === false) return; 
                 const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 
-                // 🔥 USIAMO IL ROUTER QUI INVECE DELLA CHIAMATA DIRETTA
+                // Forza l'iniezione dell'ologramma bypassando il popup
                 lanciaOlogrammaIntelligente(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
             });
-            
             window.holoCooldown = Date.now();
         }
         
         window.lastKnownPressure = currentPressure;
-    }, 10000); 
+        window.lastKnownVol = currentVol;
+    }, 4000); // Check rapido ogni 4 secondi
 }
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
