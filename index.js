@@ -750,7 +750,7 @@ async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply
 
     BEHAVIOR:
     1. Be brutal in your analysis. Use a cold, military tone. 
-    2. If data is missing, write "Analysis in progress", do not complain about missing data.
+    2. NEVER write 'Analysis in progress'. If specific data is missing or unmapped, formulate a cynical estimate based on risk (e.g. 'DEV: UNMAPPED / HIGH RISK', 'SUPPLY: HEURISTIC HOLD').
     
     Return EXCLUSIVELY a valid JSON with these 7 exact keys:
     {
@@ -1829,27 +1829,34 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             let fedinaDev = null;
             let logAnalisi = [];
 
-            if (rawSignatures.length > 0) {
+            // 🔥 FIX: Pump.fun passa già l'indirizzo del dev reale in pumpDataRaw.creator!
+            if (pumpDataRaw && pumpDataRaw.creator) {
+                devWallet = pumpDataRaw.creator;
+            } else if (rawSignatures.length > 0) {
                 const launchSig = rawSignatures[rawSignatures.length - 1].signature;
                 try {
                     const txDetails = await getRPC().getParsedTransaction(launchSig, { maxSupportedTransactionVersion: 0 });
                     if (txDetails && txDetails.transaction.message.accountKeys.length > 0) {
                         devWallet = txDetails.transaction.message.accountKeys[0].pubkey.toString();
-                        
-                        const [resFedina, resEta] = await Promise.all([
-                            analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
-                            calcolaEtaWallet(devWallet).catch(() => null)
-                        ]);
-                        fedinaDev = resFedina;
-                        if (resEta !== null) {
-                            walletAgeHours = resEta * 24;
-                            if (resEta < 1) {
-                                isFakeDev = true;
-                                logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
-                            }
-                        }
                     }
                 } catch (e) {}
+            }
+
+            if (devWallet && devWallet !== "Sconosciuto") {
+                try {
+                    const [resFedina, resEta] = await Promise.all([
+                        analizzaFedinaPenaleDev(devWallet, tokenMint).catch(() => null),
+                        calcolaEtaWallet(devWallet).catch(() => null)
+                    ]);
+                    fedinaDev = resFedina;
+                    if (resEta !== null) {
+                        walletAgeHours = resEta * 24;
+                        if (resEta < 1) {
+                            isFakeDev = true;
+                            logAnalisi.push("🛑 FAKE DEV: Wallet created less than 24 hours ago!");
+                        }
+                    }
+                } catch(e) {}
             }
 
             const tacticalAdvice = await eseguiSwarmIntelligence(
@@ -2056,8 +2063,17 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
 
         // Pulizia testi
         const pulisciTesto = (txt) => (txt || "").replace(/"/g, "'").replace(/\n/g, " ");
-        let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "Unknown");
-        let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "No bundle detected");
+        let devStatusStr = pulisciTesto(datiIniziali?.advice?.devStatus || "");
+        let bundleInfo = pulisciTesto(datiIniziali?.advice?.topHoldersStatus || "");
+
+        // 🔥 FILTRO ANTI-STALL: Se per qualsiasi motivo c'è "Analysis in progress", sostituiscilo con i dati on-chain
+        if (!devStatusStr || devStatusStr.includes("Analysis in progress")) {
+            devStatusStr = datiIniziali?.devHistory?.status || "DEV: FRESH OR UNMAPPED";
+        }
+        if (!bundleInfo || bundleInfo.includes("Analysis in progress")) {
+            bundleInfo = datiIniziali?.bundleShield?.indicatoreTesto || "Top holders distribution unverified";
+        }
+
         const devTxtStr = devStatusStr.toUpperCase();
         const serverVerdict = datiIniziali?.rawVerdict || "";
 
