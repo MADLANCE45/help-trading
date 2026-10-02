@@ -546,8 +546,8 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
     if (!currentFdv || currentFdv <= 0) {
         return {
             testo: "📈 Simulazione: ⏳ ATTESA DATI LIVE API.",
-            tradeValido: true, simulatoreTesto: "⚠️ Analisi in corso sulla curva iniziale.",
-            azione: "ATTESA DATI", coloreAzione: "#ffaa00", moltiplicatore: 1.5, targetMC: 7500,
+            tradeValido: false, simulatoreTesto: "⚠️ Analisi in corso sulla curva iniziale.",
+            azione: "ATTESA DATI", coloreAzione: "#ffaa00", moltiplicatore: 0, targetMC: 0,
             raccomandazioneFees: { slippage: "3%", fee: "0.0005 SOL", text: "Standard" }
         };
     }
@@ -1781,6 +1781,11 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             } else if (pumpDataRaw && pumpDataRaw.usd_market_cap) {
                 currentFdv = pumpDataRaw.usd_market_cap;
                 pairCreatedAt = pumpDataRaw.created_timestamp;
+            }
+
+            // 🔥 CORRECTIO: Si API DexScreener/Pump.fun deficiunt, utimur functione robusta
+            if (!currentFdv || currentFdv <= 0) {
+                currentFdv = await ottieniPrezzoToken(tokenMint);
             }
 
             const nowSec = Math.floor(Date.now() / 1000);
