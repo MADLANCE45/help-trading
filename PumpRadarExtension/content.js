@@ -307,21 +307,34 @@ if (typeof window.matrixWatcher === 'undefined') {
     window.lastKnownPressure = 50;
     window.lastKnownVol = 0;
     window.holoCooldown = 0;
+    window.matrixWarmupTicks = 0; // 🔥 Nuovo contatore di riscaldamento
 
     setInterval(() => {
         if (!window.liveMetrics) return;
+        
+        // 🔥 FIX 2: FASE DI RISCALDAMENTO (Warm-up)
+        // Il bot aspetta 4 cicli (circa 16 secondi) prima di fare paragoni sul nuovo token.
+        // Questo impedisce allarmi falsi dovuti al caricamento iniziale dei dati incrociati.
+        if (window.matrixWarmupTicks < 4) {
+            window.matrixWarmupTicks++;
+            window.lastKnownPressure = parseFloat(window.liveMetrics.buyPressure) || 50;
+            window.lastKnownVol = (parseFloat(window.liveMetrics.buyVol) || 0) + (parseFloat(window.liveMetrics.sellVol) || 0);
+            return; // Usciamo senza calcolare allarmi
+        }
         
         const currentPressure = parseFloat(window.liveMetrics.buyPressure) || 50;
         const currentVol = (parseFloat(window.liveMetrics.buyVol) || 0) + (parseFloat(window.liveMetrics.sellVol) || 0);
         
         const deltaPressure = window.lastKnownPressure - currentPressure;
-        const isSpamming = (Date.now() - window.holoCooldown < 45000); // Cooldown ridotto a 45s
+        const isSpamming = (Date.now() - window.holoCooldown < 45000); 
         
         let alertData = null;
 
         if (!isSpamming) {
             // 1. VAMPIRE BLEED (Il manipolatore scarica lentamente liquidità)
-            if (deltaPressure >= 25 && currentVol > 0) {
+            // 🔥 Aggiunta condizione: il crollo deve avvenire su un volume significativo (> 0.5 SOL) 
+            // per evitare falsi allarmi su micro-vendite di retail spaventati.
+            if (deltaPressure >= 25 && currentVol >= 0.5) {
                 alertData = { 
                     azione: "DUMP", 
                     tattica: "VAMPIRE BLEED DETECTED", 
@@ -351,7 +364,6 @@ if (typeof window.matrixWatcher === 'undefined') {
                 if (res.userConfig && res.userConfig.holoEnabled === false) return; 
                 const avatar = res.userConfig?.avatarUrl || chrome.runtime.getURL("avatar1.png");
                 
-                // Forza l'iniezione dell'ologramma bypassando il popup
                 lanciaOlogrammaIntelligente(alertData, res.ultimoRisultatoScan, avatar, window.liveMetrics); 
             });
             window.holoCooldown = Date.now();
@@ -359,7 +371,7 @@ if (typeof window.matrixWatcher === 'undefined') {
         
         window.lastKnownPressure = currentPressure;
         window.lastKnownVol = currentVol;
-    }, 4000); // Check rapido ogni 4 secondi
+    }, 4000); 
 }
 // 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -859,7 +871,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (matchSolana) {
                     tokenMint = matchSolana[0]; 
                 }
-
+                // 🔥 FIX 1: AZZERAMENTO MEMORIA E RISCALDAMENTO
+                // Se abbiamo cambiato pagina o token, puliamo i dati del token precedente
+                if (window.currentTokenMint !== tokenMint) {
+                    window.currentTokenMint = tokenMint;
+                    
+                    // Puliamo l'array dei trade precedenti
+                    if (typeof orderFlowWindow !== 'undefined') orderFlowWindow.length = 0;
+                    
+                    // Resettiamo le metriche live
+                    window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
+                    
+                    // Rimandiamo il Matrix Watcher in fase di riscaldamento
+                    window.matrixWarmupTicks = 0; 
+                }
                 // 🔥 FIX GOOGLE REVIEW: Costruiamo SEMPRE l'interfaccia del Popup, 
                 // anche se non c'è un token, così il revisore vede che l'app funziona.
                 costruisciInterfacciaLive(tokenMint);
