@@ -2212,12 +2212,16 @@ JSON FORMAT:
 
             let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
 
-            // 🔥 FIX 2: Il nuovo mandato da Sciacallo (Sfruttare il manipolatore)
-            let solanaMandate = `Analyze the data cynically. The Trust Score is ${mergedScore}/100.
-            CRITICAL DIRECTIVE: We are in the trenches. Our goal is to EXPLOIT scammers, not just run from them. 
-            If the data shows they are artificially pumping/wash-trading, DO NOT just say "AVOID". 
-            Use the tag [SCALP] or [RIDE] and explicitly tell the user to SURF the fake manipulation and front-run the dump.`;
-            
+            // 🔥 FIX 2: IL MANDATO PSICOLOGICO CORRETTO E BILANCIATO
+            let solanaMandate = "";
+            if (mergedScore <= 40) {
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is critically low (${mergedScore}/100). This token is a trap, a rug pull, or mathematically dead. You MUST use the tag [AVOID] or [TRAP]. Tell the user to stay away or exit immediately. DO NOT suggest buying.`;
+            } else if (mergedScore <= 65) {
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is mediocre (${mergedScore}/100). The chart shows clear bundler/manipulator activity. You MUST use the tag [SCALP]. Focus your analysis on how the bundlers are forming the pattern. You can lightly mention that experienced traders could try to extract a quick profit from the manipulator's liquidity, but keep this as a secondary, high-risk option.`;
+            } else {
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is good (${mergedScore}/100). Momentum is organic or heavily supported by whales. You MUST use the tag [RIDE]. Advise the user to ride the trend but maintain tight stop-losses.`;
+            }
+
             if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
                 mergedScore = Math.min(mergedScore, 35); // Tagliola definitiva
             } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
@@ -2230,10 +2234,10 @@ JSON FORMAT:
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
             const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
-            // 🔥 FIX 3: Il Prompt imbrigliato contro le allucinazioni matematiche
+            // 🔥 FIX 3: Il Prompt Imbrigliato con Focus sui Bundler
             promptLaboratorio = `
 You are a quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
-Your specific goal is to PREDICT THE SCAMMER'S NEXT MOVE and tell the user how to exploit it.
+Your goal is to PREDICT THE NEXT MOVE based on bundler patterns and supply data.
 ${solanaMandate}
 
 VERIFIED HELIUS RPC DATA:
@@ -2247,14 +2251,15 @@ VERIFIED HELIUS RPC DATA:
 🔥 LETHAL RULES:
 1. OUTPUT STRICTLY IN ${absoluteLang}.
 2. NEVER hallucinate numbers. The current MC is ${stimaMC_Attuale}. 
-3. If predicting a pump, ALWAYS use the target ${stimaMC_Target}. DO NOT invent numbers like "$7k" or "$15k".
-4. Teach the user to extract money from the scammer's pump before the rug.
-5. NO double quotes (") inside text strings, use ONLY single quotes (').
+3. NEVER predict a target MC that is lower than the current MC.
+4. Focus the explanation on the Bundler behavior and the chart pattern they are creating.
+5. If suggesting to "exploit the scammer", do it ONLY as a light, secondary note for extreme scalpers. It must NOT be the main focus of the verdict.
+6. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
-  "verdetto_finale": "[TRANSLATED_TAG] Tactical instruction on how to exploit the manipulator's current phase...",
+  "verdetto_finale": "[TRANSLATED_TAG] Tactical instruction based strictly on the CRITICAL DIRECTIVE...",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
     { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
