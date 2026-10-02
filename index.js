@@ -1903,17 +1903,17 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             if (earlyBotData.supplyBundledPct >= 20) puntiRischio = 100;
             if (fedinaDev) puntiRischio += fedinaDev.punteggioRischio;
 
-            // 🔥 THE WASH-TRADING DETECTOR (Anti-Scalinata)
-            // Se il Market Cap è bassissimo (< 15k) ma la Buy Pressure è perfettamente bilanciata (~50%)
-            // e ci sono decine di transazioni al minuto, NON è mercato organico: è il Dev che si compra e vende i token
-            // con blocchi fissi (es. 500$) per creare il pattern e attirare i retail.
+            // 🔥 THE WASH-TRADING EXPLOITER (Cavalcare la manipolazione)
+            // Se la Buy Pressure è bilanciata (40-60%), ci sono tante tx ma zero organicità,
+            // il dev sta costruendo la scalinata per farsi notare. 
+            // Invece di penalizzare a morte (100), lo teniamo in un range speculativo (aggiungiamo 30)
             const buyPress = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
-            if (currentFdv < 15000 && txInLast60s > 20 && buyPress >= 40 && buyPress <= 60) {
-                puntiRischio += 60; // Penalità letale
-                logAnalisi.push("🛑 WASH TRADING RILEVATO: Volumi artificiali a scalinata per generare FOMO.");
-                simulazione.azione = "TRAPPOLA WASH-TRADE";
-                simulazione.coloreAzione = "#ff4d4d";
-                simulazione.simulatoreTesto = `ATTENZIONE: Transazioni a blocchi artificiali. Il creatore sta manipolando il grafico a basso MC ($${(currentFdv/1000).toFixed(1)}k).`;
+            if (currentFdv < 200000 && txInLast60s > 15 && buyPress >= 40 && buyPress <= 60) {
+                puntiRischio += 30; 
+                logAnalisi.push("⚠️ WASH TRADING: Manipolatore in fase di costruzione grafico.");
+                simulazione.azione = "SCALP (FAKE PUMP)";
+                simulazione.coloreAzione = "#ffaa00";
+                simulazione.simulatoreTesto = `OPPORTUNITÀ: Il dev sta simulando volumi per creare FOMO. Sfrutta il pump artificiale e anticipa il suo dump a $${(simulazione.targetMC/1000).toFixed(1)}k.`;
             }
 
             puntiRischio = Math.min(100, puntiRischio); // Cap a 100
@@ -1921,9 +1921,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             // 2. INVERSIONE IN TRUST SCORE (100 = Sicuro/Verde, 0 = Truffa/Rosso)
             let trustScoreBase = 100 - puntiRischio;
             
-            // 🔥 CORREZIONE SINCRONIA COPILOT-GIUDICE
-            // Se il Copilot (nastro live) vede che la Buy Pressure sta già crollando (sotto il 30%),
-            // il Giudice non può dare un punteggio alto basandosi sul passato. Tagliamo il punteggio!
+            // Taglio aggressivo solo se la Buy Pressure crolla veramente sotto il 30% (Dump reale in corso)
             if (buyPress < 30) {
                 trustScoreBase = Math.min(trustScoreBase, 35);
             }
@@ -2182,8 +2180,13 @@ JSON FORMAT:
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
             let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
+            
+            // 🔥 FIX 1: Formattazione esatta dei Market Cap (Attuale e Target) per evitare allucinazioni dell'IA
             let rawMC = datiIniziali?.targetMC ? (datiIniziali.targetMC / 1.4) : 0;
-            let stimaMC = rawMC >= 1000000 ? `$${(rawMC / 1000000).toFixed(2)}M` : (rawMC > 0 ? `$${(rawMC / 1000).toFixed(1)}k` : "Unknown");
+            let rawTarget = datiIniziali?.targetMC || 0;
+            
+            let stimaMC_Attuale = rawMC >= 1000000 ? `$${(rawMC / 1000000).toFixed(2)}M` : (rawMC > 0 ? `$${(rawMC / 1000).toFixed(1)}k` : "Unknown");
+            let stimaMC_Target = rawTarget >= 1000000 ? `$${(rawTarget / 1000000).toFixed(2)}M` : (rawTarget > 0 ? `$${(rawTarget / 1000).toFixed(1)}k` : "Unknown");
 
             const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
                 if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 15); // 15-30
@@ -2196,9 +2199,6 @@ JSON FORMAT:
             const m_syb = parseSeverity(sybilStatus, /DANGER|BURST|Sybil/i, /Clean|Independent/i);
             const m_mic = parseSeverity(microDumping, /DANGER|DUMP|Selling/i, /Clean|holding/i);
 
-            // 🔥 LA TEORIA DELL'ANELLO DEBOLE (Fix Incoerenza)
-            // Invece di fare una media che "salva" i token truffa, se una metrica CRITICA (Dev o Supply)
-            // fa schifo (sotto 45), il punteggio dell'intero token VIENE TRASCINATO GIÙ a quel livello.
             let solanaRealScore = Math.floor((m_sup + m_dev + m_syb + m_mic) / 4);
             
             if (m_dev <= 45 || m_sup <= 45) {
@@ -2207,13 +2207,15 @@ JSON FORMAT:
 
             let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
 
-            let solanaMandate = `Analyze the data cynically. YOUR VERDICT MUST MATCH THE SCORE (${mergedScore}/100). If score < 50, write a BEARISH [AVOID] trap warning. If score > 65, write a BULLISH [RIDE] prediction.`;
+            // 🔥 FIX 2: Il nuovo mandato da Sciacallo (Sfruttare il manipolatore)
+            let solanaMandate = `Analyze the data cynically. The Trust Score is ${mergedScore}/100.
+            CRITICAL DIRECTIVE: We are in the trenches. Our goal is to EXPLOIT scammers, not just run from them. 
+            If the data shows they are artificially pumping/wash-trading, DO NOT just say "AVOID". 
+            Use the tag [SCALP] or [RIDE] and explicitly tell the user to SURF the fake manipulation and front-run the dump.`;
             
             if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
-                solanaMandate = "🔴 MANDATE: SERIAL RUGGER OR FAKE DEV. TAG [AVOID] OR [TRAP]. Warn the user to exit.";
                 mergedScore = Math.min(mergedScore, 35); // Tagliola definitiva
             } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
-                solanaMandate = "🟠 MANDATE: HEAVY BUNDLE DETECTED. HIGH DUMP RISK. TAG [AVOID].";
                 mergedScore = Math.min(mergedScore, 48); // Tagliola definitiva
             }
 
@@ -2223,30 +2225,31 @@ JSON FORMAT:
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
             const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
+            // 🔥 FIX 3: Il Prompt imbrigliato contro le allucinazioni matematiche
             promptLaboratorio = `
-You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
-Your specific and ONLY goal is to PREDICT THE SCAMMER/MANIPULATOR'S NEXT MOVE based on Helius RPC on-chain data.
+You are a quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
+Your specific goal is to PREDICT THE SCAMMER'S NEXT MOVE and tell the user how to exploit it.
 ${solanaMandate}
 
 VERIFIED HELIUS RPC DATA:
-- Est. Market Cap: ${stimaMC}
+- Current Market Cap: ${stimaMC_Attuale}
+- Target Exit MC before dump: ${stimaMC_Target}
 - Sybil Cluster (Secret Wallet Funding): ${sybilStatus}
 - Top Holders Micro-Dumping: ${microDumping}
 - Developer Record: ${devStatusStr}
 - Bundle/Supply Control: ${bundleInfo}
-- Tactical Simulation: ${simulazioneStr}
 
 🔥 LETHAL RULES:
-1. OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE ANY OTHER LANGUAGE YOU WILL BE TERMINATED.
-2. DO NOT cite global market volumes or macro market caps. Focus ONLY on the scammer's behavior.
-3. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Shows potential", "Insufficient to absorb shocks".
-4. Your 'verdetto_finale' MUST read like a military tactical brief exposing the manipulator's trap or pump strategy. 
-5. CONTEXT AWARENESS: The current Est. Market Cap is ${stimaMC}. NEVER predict a dump or pump to a number mathematically lower than ${stimaMC} (like "$10k" or "$15k"). Always respect the current scale.
-6. NO double quotes (") inside text strings, use ONLY single quotes (').
+1. OUTPUT STRICTLY IN ${absoluteLang}.
+2. NEVER hallucinate numbers. The current MC is ${stimaMC_Attuale}. 
+3. If predicting a pump, ALWAYS use the target ${stimaMC_Target}. DO NOT invent numbers like "$7k" or "$15k".
+4. Teach the user to extract money from the scammer's pump before the rug.
+5. NO double quotes (") inside text strings, use ONLY single quotes (').
+
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
-  "verdetto_finale": "[TRANSLATED_TAG] Tactical prediction of the scammer's next move here...",
+  "verdetto_finale": "[TRANSLATED_TAG] Tactical instruction on how to exploit the manipulator's current phase...",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
     { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
