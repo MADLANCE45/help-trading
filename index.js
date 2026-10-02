@@ -2184,14 +2184,13 @@ JSON FORMAT:
             let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
             let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
-            let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             
-            // 🔥 FIX 1: Formattazione esatta dei Market Cap (Attuale e Target) per evitare allucinazioni dell'IA
-            let rawMC = datiIniziali?.targetMC ? (datiIniziali.targetMC / 1.4) : 0;
-            let rawTarget = datiIniziali?.targetMC || 0;
-            
-            let stimaMC_Attuale = rawMC >= 1000000 ? `$${(rawMC / 1000000).toFixed(2)}M` : (rawMC > 0 ? `$${(rawMC / 1000).toFixed(1)}k` : "Unknown");
-            let stimaMC_Target = rawTarget >= 1000000 ? `$${(rawTarget / 1000000).toFixed(2)}M` : (rawTarget > 0 ? `$${(rawTarget / 1000).toFixed(1)}k` : "Unknown");
+            // 🔥 FIX 1: Addio allucinazioni matematiche! 
+            // Invece di passare numeri in dollari che possono sballare se l'API va in rate-limit, 
+            // passiamo all'IA solo la percentuale di crescita prevista dall'algoritmo.
+            let moltiplicatoreReale = datiIniziali?.moltiplicatore || 1;
+            if (moltiplicatoreReale <= 1) moltiplicatoreReale = 1.15; // Minimo 15% di scalp
+            let targetPercent = ((moltiplicatoreReale - 1) * 100).toFixed(0);
 
             const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
                 if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 15); // 15-30
@@ -2234,15 +2233,14 @@ JSON FORMAT:
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
             const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
-            // 🔥 FIX 3: Il Prompt Imbrigliato con Focus sui Bundler
+            // 🔥 FIX 3: Il Prompt Imbrigliato con Divieto Assoluto sui Dollari
             promptLaboratorio = `
 You are a quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
 Your goal is to PREDICT THE NEXT MOVE based on bundler patterns and supply data.
 ${solanaMandate}
 
 VERIFIED HELIUS RPC DATA:
-- Current Market Cap: ${stimaMC_Attuale}
-- Target Exit MC before dump: ${stimaMC_Target}
+- Algorithmic Target Profit: +${targetPercent}% expected move
 - Sybil Cluster (Secret Wallet Funding): ${sybilStatus}
 - Top Holders Micro-Dumping: ${microDumping}
 - Developer Record: ${devStatusStr}
@@ -2250,11 +2248,10 @@ VERIFIED HELIUS RPC DATA:
 
 🔥 LETHAL RULES:
 1. OUTPUT STRICTLY IN ${absoluteLang}.
-2. NEVER hallucinate numbers. The current MC is ${stimaMC_Attuale}. 
-3. NEVER predict a target MC that is lower than the current MC.
+2. NEVER mention absolute fiat numbers or market caps (e.g. NEVER write "$34k", "$100k", "5k").
+3. Use ONLY percentages based on the "Algorithmic Target Profit" (e.g. write "expect a +${targetPercent}% pump" or "ride the +${targetPercent}% move").
 4. Focus the explanation on the Bundler behavior and the chart pattern they are creating.
-5. If suggesting to "exploit the scammer", do it ONLY as a light, secondary note for extreme scalpers. It must NOT be the main focus of the verdict.
-6. NO double quotes (") inside text strings, use ONLY single quotes (').
+5. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
