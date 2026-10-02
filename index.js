@@ -2182,7 +2182,8 @@ JSON FORMAT:
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
             let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
             let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
-            let stimaMC = datiIniziali?.targetMC ? `$${(datiIniziali.targetMC / 1.4).toFixed(0)}` : "Unknown";
+            let rawMC = datiIniziali?.targetMC ? (datiIniziali.targetMC / 1.4) : 0;
+            let stimaMC = rawMC >= 1000000 ? `$${(rawMC / 1000000).toFixed(2)}M` : (rawMC > 0 ? `$${(rawMC / 1000).toFixed(1)}k` : "Unknown");
 
             const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
                 if (text.match(isDangerRegex)) return 15 + Math.floor(Math.random() * 15); // 15-30
@@ -2240,8 +2241,8 @@ VERIFIED HELIUS RPC DATA:
 2. DO NOT cite global market volumes or macro market caps. Focus ONLY on the scammer's behavior.
 3. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Shows potential", "Insufficient to absorb shocks".
 4. Your 'verdetto_finale' MUST read like a military tactical brief exposing the manipulator's trap or pump strategy. 
-5. NO double quotes (") inside text strings, use ONLY single quotes (').
-
+5. CONTEXT AWARENESS: The current Est. Market Cap is ${stimaMC}. NEVER predict a dump or pump to a number mathematically lower than ${stimaMC} (like "$10k" or "$15k"). Always respect the current scale.
+6. NO double quotes (") inside text strings, use ONLY single quotes (').
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
