@@ -2304,7 +2304,6 @@ JSON FORMAT:
         let fallbackModel = "openai/gpt-4o-mini"; // Costa $0.15/1M (identico a DeepSeek)
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
-            // Se l'utente ha scelto esplicitamente Claude o Mini, lo usiamo, altrimenti DeepSeek
             if (requestedModel.includes("claude")) {
                 primaryModel = "anthropic/claude-3.5-haiku";
                 fallbackModel = "openai/gpt-4o-mini";
@@ -2339,36 +2338,57 @@ JSON FORMAT:
             return await resp.json();
         };
 
-        // 1. TENTATIVO PRINCIPALE
-        let data = await chiamaOpenRouter(primaryModel);
+        // 🔥 LO SCUDO ANTI-CRASH INIZIA QUI: Isoliamo l'IA per non farla crashare mai
+        let aiResult;
+        try {
+            // 1. TENTATIVO PRINCIPALE
+            let data = await chiamaOpenRouter(primaryModel);
 
-        // 2. FALLBACK SE IL MODELLO CADE
-        if (data.error) {
-            console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback: ${fallbackModel}...`);
-            data = await chiamaOpenRouter(fallbackModel);
+            // 2. FALLBACK SE IL MODELLO CADE
+            if (data.error) {
+                console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback...`);
+                data = await chiamaOpenRouter(fallbackModel);
+            }
+
+            if (data.error) throw new Error(`OpenRouter API Failure: ${data.error.message}`);
+
+            // =================================================================
+            // 🪤 PARSING SICURO (Protezione dai "Pensieri" di DeepSeek V3)
+            // =================================================================
+            let rawText = data.choices[0].message.content;
+            
+            let cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            cleanText = cleanText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            
+            const startIdx = cleanText.indexOf('{');
+            const endIdx = cleanText.lastIndexOf('}');
+            
+            if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+                cleanText = cleanText.substring(startIdx, endIdx + 1);
+            } else {
+                throw new Error(`JSON format non valido dall'IA.`);
+            }
+
+            aiResult = JSON.parse(cleanText);
+
+        } catch (aiCallError) {
+            // 🛡️ SE L'IA MUORE (Per traffico, rate-limit o allucinazioni nel JSON), INTERVENIAMO NOI!
+            console.log(`🛡️ SCUDO ATTIVATO! Errore Provider IA (${aiCallError.message}). Applico fallback matematico.`);
+            
+            // Generiamo un finto risultato IA estraendo la pura matematica che avevamo già calcolato
+            let fallbackScore = baseScoreAlgoritmico;
+            let fallbackTag = fallbackScore >= 65 ? "[RIDE]" : (fallbackScore <= 40 ? "[AVOID]" : "[SCALP]");
+            
+            aiResult = {
+                global_score: fallbackScore,
+                verdetto_finale: `${fallbackTag} HFT Node active. Natural language generation is temporarily rate-limited by the AI provider, but quantitative heuristics are fully operational. Trust the mathematical score.`,
+                metrics: [
+                    { name: "Algorithmic Integrity", score: fallbackScore, tooltip: "Quantitative measurement successfully calculated via Helius RPC." },
+                    { name: "Quantitative Threat", score: Math.max(0, 100 - fallbackScore), tooltip: "Inverted algorithmic risk assessment." }
+                ]
+            };
         }
 
-        if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
-
-        // =================================================================
-        // 🪤 PARSING SICURO (Protezione dai "Pensieri" di DeepSeek V3)
-        // =================================================================
-        let rawText = data.choices[0].message.content;
-        
-        // 🔥 FIX: Rimuove i blocchi di ragionamento <think>...</think> prima di estrarre il JSON
-        let cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-        cleanText = cleanText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
-        const startIdx = cleanText.indexOf('{');
-        const endIdx = cleanText.lastIndexOf('}');
-        
-        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-            cleanText = cleanText.substring(startIdx, endIdx + 1);
-        } else {
-            throw new Error(`Risposta IA non valida: JSON non trovato nel testo pulito.`);
-        }
-
-        const aiResult = JSON.parse(cleanText);
         let globalScore = aiResult.global_score || baseScoreAlgoritmico;
         let verdettoTesto = aiResult.verdetto_finale || "";
 
