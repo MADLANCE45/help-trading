@@ -2295,13 +2295,12 @@ JSON FORMAT:
         }
 
         // =================================================================
-        // ESECUZIONE CHIAMATA IA (CASCATA SALVA-BUDGET: ZERO GPT-4o PESANTE)
+        // ESECUZIONE CHIAMATA IA (CON SCUDO ANTI-CRASH INTEGRATO)
         // =================================================================
         let requestedModel = req.headers['x-ai-model'] || "deepseek/deepseek-chat";
         
-        // Default assoluto sempre DeepSeek per proteggere il budget
         let primaryModel = "deepseek/deepseek-chat";
-        let fallbackModel = "openai/gpt-4o-mini"; // Costa $0.15/1M (identico a DeepSeek)
+        let fallbackModel = "openai/gpt-4o-mini";
 
         if (authStatus.plan === 'premium' || authStatus.plan === 'admin') {
             if (requestedModel.includes("claude")) {
@@ -2338,19 +2337,20 @@ JSON FORMAT:
             return await resp.json();
         };
 
-        // 🔥 LO SCUDO ANTI-CRASH INIZIA QUI: Isoliamo l'IA per non farla crashare mai
-        let aiResult;
+        // 🛡️ INIZIO SCUDO ANTI-CRASH: Isoliamo l'operazione più fragile
+        let aiResult = {};
+
         try {
             // 1. TENTATIVO PRINCIPALE
             let data = await chiamaOpenRouter(primaryModel);
 
             // 2. FALLBACK SE IL MODELLO CADE
             if (data.error) {
-                console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback...`);
+                console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback: ${fallbackModel}...`);
                 data = await chiamaOpenRouter(fallbackModel);
             }
 
-            if (data.error) throw new Error(`OpenRouter API Failure: ${data.error.message}`);
+            if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
 
             // =================================================================
             // 🪤 PARSING SICURO (Protezione dai "Pensieri" di DeepSeek V3)
@@ -2366,25 +2366,25 @@ JSON FORMAT:
             if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
                 cleanText = cleanText.substring(startIdx, endIdx + 1);
             } else {
-                throw new Error(`JSON format non valido dall'IA.`);
+                throw new Error(`Risposta IA non valida: JSON non trovato nel testo pulito.`);
             }
 
             aiResult = JSON.parse(cleanText);
 
-        } catch (aiCallError) {
-            // 🛡️ SE L'IA MUORE (Per traffico, rate-limit o allucinazioni nel JSON), INTERVENIAMO NOI!
-            console.log(`🛡️ SCUDO ATTIVATO! Errore Provider IA (${aiCallError.message}). Applico fallback matematico.`);
+        } catch (erroreAI) {
+            // 🔥 IL SALVAGENTE: Se OpenRouter, DeepSeek o OpenAI muoiono, costruiamo un risultato matematico finto.
+            // L'interfaccia si caricherà perfettamente e l'utente non vedrà nessun "Network Interference".
+            console.log(`🛡️ Scudo Anti-Crash Laboratorio attivato: ${erroreAI.message}`);
             
-            // Generiamo un finto risultato IA estraendo la pura matematica che avevamo già calcolato
-            let fallbackScore = baseScoreAlgoritmico;
-            let fallbackTag = fallbackScore >= 65 ? "[RIDE]" : (fallbackScore <= 40 ? "[AVOID]" : "[SCALP]");
+            let emergenzaScore = baseScoreAlgoritmico || 50;
+            let azioneEmergenza = emergenzaScore >= 65 ? "[RIDE]" : (emergenzaScore <= 40 ? "[AVOID]" : "[SCALP]");
             
             aiResult = {
-                global_score: fallbackScore,
-                verdetto_finale: `${fallbackTag} HFT Node active. Natural language generation is temporarily rate-limited by the AI provider, but quantitative heuristics are fully operational. Trust the mathematical score.`,
+                global_score: emergenzaScore,
+                verdetto_finale: `${azioneEmergenza} Language model is temporarily congested, but quantitative algorithms are fully active. Trust the mathematical score and monitor dynamic metrics carefully.`,
                 metrics: [
-                    { name: "Algorithmic Integrity", score: fallbackScore, tooltip: "Quantitative measurement successfully calculated via Helius RPC." },
-                    { name: "Quantitative Threat", score: Math.max(0, 100 - fallbackScore), tooltip: "Inverted algorithmic risk assessment." }
+                    { name: "Algorithmic Integrity", score: emergenzaScore, tooltip: "Quantitative measurement calculated locally." },
+                    { name: "Quantitative Risk", score: Math.max(0, 100 - emergenzaScore), tooltip: "Inverted algorithmic risk assessment." }
                 ]
             };
         }
