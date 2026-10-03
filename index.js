@@ -367,8 +367,11 @@ function avviaAscoltoLive(tokenMint) {
 //app.use(cors()); // Sblocca le protezioni del browser
 // Permette di leggere i body delle richieste POST
 const PORT = 3000;
-// 🕵️ LOG GLOBALE: Stampa tutte le richieste in entrata
+// 🕵️ LOG GLOBALE E ANTI-CACHE: Impedisce al browser di salvare gli errori
 app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     console.log(`➡️ [${req.method}] ${req.url}`);
     next();
 });
@@ -2316,7 +2319,6 @@ JSON FORMAT:
         }
 
         const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("Chiave OPENROUTER mancante nel .env");
 
         const chiamaOpenRouter = async (nomeModello) => {
             const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -2341,6 +2343,8 @@ JSON FORMAT:
         let aiResult = {};
 
         try {
+            if (!apiKey) throw new Error("API Key mancante nel .env");
+
             // 1. TENTATIVO PRINCIPALE
             let data = await chiamaOpenRouter(primaryModel);
 
@@ -2351,6 +2355,7 @@ JSON FORMAT:
             }
 
             if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
+            if (!data.choices || !data.choices[0]) throw new Error("Risposta IA vuota o malformata.");
 
             // =================================================================
             // 🪤 PARSING SICURO (Protezione dai "Pensieri" di DeepSeek V3)
@@ -2366,14 +2371,13 @@ JSON FORMAT:
             if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
                 cleanText = cleanText.substring(startIdx, endIdx + 1);
             } else {
-                throw new Error(`Risposta IA non valida: JSON non trovato nel testo pulito.`);
+                throw new Error(`JSON non trovato nel testo.`);
             }
 
             aiResult = JSON.parse(cleanText);
 
         } catch (erroreAI) {
-            // 🔥 IL SALVAGENTE: Se OpenRouter, DeepSeek o OpenAI muoiono, costruiamo un risultato matematico finto.
-            // L'interfaccia si caricherà perfettamente e l'utente non vedrà nessun "Network Interference".
+            // 🔥 IL SALVAGENTE: Se OpenRouter muore, costruiamo un risultato matematico finto.
             console.log(`🛡️ Scudo Anti-Crash Laboratorio attivato: ${erroreAI.message}`);
             
             let emergenzaScore = baseScoreAlgoritmico || 50;
