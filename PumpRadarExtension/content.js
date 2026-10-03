@@ -1777,7 +1777,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let reportHTML = "";
         if (data.advice) {
+            
+            // 🛡️ FIX: FALLBACK MULTIPLO
+            // Se l'IA restituisce stringhe vuote, "Unknown" o errori di rate-limit, 
+            // andiamo a pescare forzatamente la metrica matematica cruda estratta dal Nodo RPC.
             let devText = traduciDalBackend(data.advice.devStatus || "");
+            if (!devText || devText.length < 5 || devText.toUpperCase().includes("UNKNOWN") || devText.toUpperCase().includes("SCONOSCIUTO") || devText.includes("Rate Limit")) {
+                devText = traduciDalBackend(data.devHistory?.status || "DEV: FRESH OR UNMAPPED");
+            }
+            
+            let bundleText = traduciDalBackend(data.advice.topHoldersStatus || "");
+            if (!bundleText || bundleText.length < 5 || bundleText.toUpperCase().includes("UNKNOWN") || bundleText.toUpperCase().includes("SCONOSCIUTO") || bundleText.includes("Rate Limit")) {
+                bundleText = traduciDalBackend(data.bundleShield?.indicatoreTesto || "Top holders distribution unverified.");
+            }
+
             let devColor = '#00ffcc'; 
             let devIcon = '👨‍💻';
             
@@ -1790,8 +1803,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 devIcon = '⚠️';
             }
 
-            let bundleText = traduciDalBackend(data.advice.topHoldersStatus || "");
-            let bundleColor = bundleText.match(/ATTENZIONE|RISCHIO|0%|RISK/) ? '#ffaa00' : '#00ffcc';
+            let bundleColor = bundleText.toUpperCase().match(/ATTENZIONE|RISCHIO|0%|RISK/) ? '#ffaa00' : '#00ffcc';
             
             if (bundleText.includes('0%')) {
                 bundleColor = '#ffaa00'; 

@@ -1799,7 +1799,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
 
             if (secondiDaUltimaTx > 300 && rawSignatures.length > 0) {
                 return {
-                    score: 90, rischio: "MORTO / ILLIQUIDO",
+                    score: 10, rischio: "MORTO / ILLIQUIDO", // 🔥 FIX: Score corretto da 90 a 10
                     dettagli: [`🛑 Nessuna transazione negli ultimi 5 minuti.`],
                     graficoAttivo: false, vitaToken: "N/A", azione: "EVITARE", fugaColor: "#ff4d4d",
                     hud: { change: 0, volume: 0, trend: "N/A", color: "#444", icon: "💤" },
@@ -1901,19 +1901,33 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             logAnalisi.push(simulazione.testo);
 
             // 1. Calcoliamo prima i PUNTI DI RISCHIO (Più alto = Truffa)
-            // 🔥 FIX: Un dev finto (wallet appena nato) ora dà una penalità brutale (85 punti rischio su 100)
             let puntiRischio = isFakeDev ? 85 : (earlyBotData.bundleSlot0 ? 60 : 15);
             if (cabalaData) puntiRischio += cabalaData.scoreAggiuntivo;
             if (microDumpData) puntiRischio += microDumpData.scoreAggiuntivo;
             if (earlyBotData.supplyBundledPct >= 20) puntiRischio = 100;
             if (fedinaDev) puntiRischio += fedinaDev.punteggioRischio;
 
-            // 🔥 THE WASH-TRADING EXPLOITER (Cavalcare la manipolazione)
-            // Se la Buy Pressure è bilanciata (40-60%), ci sono tante tx ma zero organicità,
-            // il dev sta costruendo la scalinata per farsi notare. 
-            // Invece di penalizzare a morte (100), lo teniamo in un range speculativo (aggiungiamo 30)
+            // =================================================================
+            // 🔥 NEW: THE PYRAMID / ONDULAR SCAM DETECTOR (Zero Cost)
+            // =================================================================
+            // Calcoliamo quanti wallet "veri" stanno muovendo il grafico.
+            // Se ci sono tante tx ma pochissimi wallet, è il dev che dipinge onde e piramidi.
+            if (ubiData && ubiData.totalTx >= 8) {
+                const ubiRatio = ubiData.uniqueBuyers / ubiData.totalTx;
+                
+                // Se meno del 30% dei wallet è unico, è un pattern artificiale al 100%
+                if (ubiRatio <= 0.30) {
+                    puntiRischio += 60; // Penalità devastante
+                    logAnalisi.push(`🛑 PATTERN A PIRAMIDE/ONDE: Solo ${ubiData.uniqueBuyers} wallet stanno generando ${ubiData.totalTx} txs. Grafico artificiale.`);
+                    simulazione.azione = "TRAPPOLA (PIRAMIDE)";
+                    simulazione.coloreAzione = "#ff4d4d";
+                    simulazione.simulatoreTesto = `ATTENZIONE: Pattern a onde rilevato (UBI Ratio: ${(ubiRatio*100).toFixed(0)}%). I bundler stanno riciclando la loro stessa liquidità per creare finte candele verdi e scaricare sui retail.`;
+                }
+            }
+
+            // 🔥 THE WASH-TRADING EXPLOITER (Cavalcare la manipolazione leggera)
             const buyPress = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
-            if (currentFdv < 200000 && txInLast60s > 15 && buyPress >= 40 && buyPress <= 60) {
+            if (currentFdv < 200000 && txInLast60s > 15 && buyPress >= 40 && buyPress <= 60 && (!ubiData || (ubiData.uniqueBuyers / ubiData.totalTx) > 0.30)) {
                 puntiRischio += 30; 
                 logAnalisi.push("⚠️ WASH TRADING: Manipolatore in fase di costruzione grafico.");
                 simulazione.azione = "SCALP (FAKE PUMP)";
@@ -2210,6 +2224,20 @@ JSON FORMAT:
             }
 
             let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
+
+            // 🔥 FIX: KILL-SWITCH PER IL "SLOW BLEED" (Grafico a onde morente)
+            // Se il Market Cap reale è sotto i 15k$ (come il tuo a 4.18K), il token è di fatto svuotato. 
+            // Anche se le metriche dei micro-dump sembrano calme perché gli scammer hanno già venduto, 
+            // il punteggio DEVE crollare senza pietà.
+            if (rawMC > 0 && rawMC < 8000) {
+                mergedScore = 12; // Completamente Morto / Svuotato
+            } else if (rawMC >= 8000 && rawMC < 20000) {
+                mergedScore = Math.min(mergedScore, 25); // Sanguinamento terminale (Slow Bleed)
+            } else if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
+                mergedScore = Math.min(mergedScore, 35); // Tagliola per Dev Truffa
+            } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
+                mergedScore = Math.min(mergedScore, 48); // Tagliola per Bundler
+            }
 
             // 🔥 FIX 2: IL MANDATO PSICOLOGICO CORRETTO E BILANCIATO
             let solanaMandate = "";
