@@ -2201,10 +2201,12 @@ JSON FORMAT:
             let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
             let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
             let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
+            let simulazioneStr = pulisciTesto(datiIniziali?.simulatoreTesto || "Analyzing dynamic exit targets.");
             
-            // 🔥 FIX 1: Addio allucinazioni matematiche! 
-            // Invece di passare numeri in dollari che possono sballare se l'API va in rate-limit, 
-            // passiamo all'IA solo la percentuale di crescita prevista dall'algoritmo.
+            // 🔥 REINTRODUCIAMO rawMC: Serve per il Kill-Switch dei token svuotati!
+            let rawMC = datiIniziali?.targetMC ? (datiIniziali.targetMC / (datiIniziali.moltiplicatore || 1.4)) : 0;
+            
+            // 🔥 PERCENTUALI AL POSTO DEI DOLLARI: Addio allucinazioni matematiche
             let moltiplicatoreReale = datiIniziali?.moltiplicatore || 1;
             if (moltiplicatoreReale <= 1) moltiplicatoreReale = 1.15; // Minimo 15% di scalp
             let targetPercent = ((moltiplicatoreReale - 1) * 100).toFixed(0);
@@ -2228,21 +2230,18 @@ JSON FORMAT:
 
             let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
 
-            // 🔥 FIX: KILL-SWITCH PER IL "SLOW BLEED" (Grafico a onde morente)
-            // Se il Market Cap reale è sotto i 15k$ (come il tuo a 4.18K), il token è di fatto svuotato. 
-            // Anche se le metriche dei micro-dump sembrano calme perché gli scammer hanno già venduto, 
-            // il punteggio DEVE crollare senza pietà.
+            // 🔥 KILL-SWITCH PER IL "SLOW BLEED" (Grafico a onde morente)
             if (rawMC > 0 && rawMC < 8000) {
                 mergedScore = 12; // Completamente Morto / Svuotato
             } else if (rawMC >= 8000 && rawMC < 20000) {
                 mergedScore = Math.min(mergedScore, 25); // Sanguinamento terminale (Slow Bleed)
             } else if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
-                mergedScore = Math.min(mergedScore, 35); // Tagliola per Dev Truffa
+                mergedScore = Math.min(mergedScore, 35); // Tagliola definitiva per scammer seriali
             } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
-                mergedScore = Math.min(mergedScore, 48); // Tagliola per Bundler
+                mergedScore = Math.min(mergedScore, 48); // Tagliola per i bundler
             }
 
-            // 🔥 FIX 2: IL MANDATO PSICOLOGICO CORRETTO E BILANCIATO
+            // 🔥 IL MANDATO PSICOLOGICO CORRETTO E BILANCIATO
             let solanaMandate = "";
             if (mergedScore <= 40) {
                 solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is critically low (${mergedScore}/100). This token is a trap, a rug pull, or mathematically dead. You MUST use the tag [AVOID] or [TRAP]. Tell the user to stay away or exit immediately. DO NOT suggest buying.`;
@@ -2252,19 +2251,13 @@ JSON FORMAT:
                 solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is good (${mergedScore}/100). Momentum is organic or heavily supported by whales. You MUST use the tag [RIDE]. Advise the user to ride the trend but maintain tight stop-losses.`;
             }
 
-            if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
-                mergedScore = Math.min(mergedScore, 35); // Tagliola definitiva
-            } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
-                mergedScore = Math.min(mergedScore, 48); // Tagliola definitiva
-            }
-
             // Tooltip dinamici
             const tt_sup = bundleInfo !== "No bundle detected" ? bundleInfo : (m_sup >= 75 ? "Supply is well distributed. No massive bundles detected." : (m_sup <= 40 ? "Warning: Concentrated supply. High risk of coordinated dump." : "Moderate supply concentration. Monitor top holders."));
             const tt_dev = devStatusStr !== "Unknown" ? devStatusStr : (m_dev >= 75 ? "Developer history is clean. No serial rug traces found." : (m_dev <= 40 ? "Suspicious developer activity. High risk of scam." : "Standard new developer. Usual meme risks apply."));
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
             const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
-            // 🔥 FIX 3: Il Prompt Imbrigliato con Divieto Assoluto sui Dollari
+            // 🔥 Il Prompt Imbrigliato con Divieto Assoluto sui Dollari
             promptLaboratorio = `
 You are a quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
 Your goal is to PREDICT THE NEXT MOVE based on bundler patterns and supply data.
