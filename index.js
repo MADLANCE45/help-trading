@@ -1375,11 +1375,11 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
     const ip = clientIp || "unknown";
 
-    // 🔥 FIX 1: Nuovo messaggio se manca il Device ID (Nessun "Please refresh")
+    // 🔥 FIX 1: Messaggio se manca il Device ID (In inglese)
     if (!cleanDevice) {
         return { 
             authorized: false, 
-            message: "Dispositivo non riconosciuto o resettato.<br><br>Se hai un piano PRO o PREMIUM e hai cambiato PC/Browser, contatta <b>HelpTrading@proton.me</b> o apri un ticket sul nostro <b>Discord</b> per riattivare la tua licenza." 
+            message: "Device not recognized or reset.<br><br>If you hold a PRO or PREMIUM plan and have changed your PC or browser, please contact <b>HelpTrading@proton.me</b> or open a ticket on our <b>Discord</b> to re-authorize your license." 
         };
     }
 
@@ -1400,10 +1400,10 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
                     // Prima installazione in assoluto: blinda la chiave a questo dispositivo
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
                 } else if (user.device_id !== cleanDevice) {
-                    // 🔥 FIX 2: Nuovo messaggio se il Device ID non coincide (Cambiato PC)
+                    // 🔥 FIX 2: Messaggio se il Device ID non coincide (In inglese)
                     return { 
                         authorized: false, 
-                        message: "Questa Sync Key è già legata a un altro dispositivo.<br><br>Se hai cambiato PC o reinstallato l'estensione, contatta <b>HelpTrading@proton.me</b> o apri un ticket sul nostro <b>Discord</b> per autorizzare il nuovo device." 
+                        message: "This Sync Key is already bound to another device.<br><br>If you changed your PC or reinstalled the extension, please contact <b>HelpTrading@proton.me</b> or open a ticket on our <b>Discord</b> to authorize your new device." 
                     };
                 }
                 
