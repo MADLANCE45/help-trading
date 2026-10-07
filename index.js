@@ -488,15 +488,15 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
 
         return { potenzialeVolumeBot: livelloVolume, bundleSlot0: sameBlockTxCount >= 3, supplyBundledPct: supplyBundledPct, funderComune: masterWallet, indicatoreTesto: indicatore };
     } catch (error) {
-        console.log("⚠️ RPC error during Bot Early Launch analysis (Rate Limit Helius). I use neutral data.");
+        console.log("⚠️ RPC error during Bot Early Launch analysis. ATTIVAZIONE PROTOCOLLO DI SICUREZZA.");
         
-        // Restituiamo un oggetto valido invece di usare "res.json" che fa crashare il server
+        // Se il nodo RPC è bloccato e non possiamo vedere i Top Holder, ASSUMIAMO IL PEGGIO (Guilty until proven innocent)
         return {
-            bundleSlot0: false,
-            supplyBundledPct: 0,
-            funderComune: null,
-            potenzialeVolumeBot: "⚠️ SCONOSCIUTO",
-            indicatoreTesto: "⚠️ Bot analysis blocked by RPC node request limit."
+            bundleSlot0: true, 
+            supplyBundledPct: 100, // Forziamo il rischio al MASSIMO (100%) per far crollare il Trust Score
+            funderComune: "RPC_BLIND_SPOT",
+            potenzialeVolumeBot: "⚠️ EXTREME RISK",
+            indicatoreTesto: "⚠️ BLIND SPOT: Impossibile leggere la Supply (Rate Limit RPC). Il sistema assume una manipolazione totale del 100% per proteggere il capitale."
         };
     }
 
@@ -789,7 +789,8 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
         }
 
         return {
-            devStatus: isFakeDev ? "FAKE DEV (BURNER)" : (fedinaDev && fedinaDev.status ? fedinaDev.status : "CLEAN (First Project)"),
+            // 🔥 Ripristinate le statistiche complete (Lanci e Status)
+            devStatus: isFakeDev ? "FAKE DEV (BURNER)" : (fedinaDev ? `Tokens Launched: ${fedinaDev.tokensLanciati} | Status: ${fedinaDev.status}` : "UNMAPPED"),
             volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
             topHoldersStatus: `Bundle: ${bundledSupply}%. (Bear Threat: ${rugRisk}/100)`,
             sybilStatus: sybilData ? sybilData.testo : "N/A",
@@ -2209,25 +2210,25 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             const tt_saf = m_saf >= 80 ? 'Contract verified. Safe taxes and no malicious functions detected.' : (m_saf <= 35 ? 'Unverified or Honeypot risk. Contract has hidden or malicious functions.' : 'Standard unmapped EVM contract. Usual risks apply.');
             const tt_man = m_man >= 75 ? 'Clean distribution. No massive wash-trading detected.' : (m_man <= 40 ? 'High manipulation risk. Fake volume or trap distribution detected.' : 'Standard retail trading activity.');
 
-            // 🔥 IL NUOVO PROMPT: Analitico, Professionale, Freddo. Nessuno slang.
+            // 🔥 IL NUOVO PROMPT: Algoritmico, Predittivo e Professionale. Include i Target.
             promptLaboratorio = `
-You are an Institutional Risk Execution Terminal for High-Frequency Traders.
-Your ONLY goal is to explain the algorithmic decision professionally and mathematically. People's real capital is at stake.
+You are an Institutional Risk Execution Terminal for Algorithmic Trading.
+Your goal is to translate the on-chain logic and provide a clear, predictive algorithmic target.
 
 VERIFIED TRIBUNAL STRATEGY:
 "${strategiaTribunale}"
 
 RULES:
 1. OUTPUT STRICTLY IN ${absoluteLang}.
-2. Your "verdetto_finale" MUST start with the exact tag [${azioneSuggerita}], followed by a cold, analytical, and professional explanation of the on-chain data.
-3. FORBIDDEN WORDS: "rat", "meat", "degen", "grind", "virgin", "blood", "game", "moon". NO METAPHORS. NO SLANG.
-4. State exactly WHY the system chose this action (e.g., "Avoid: Developer holds 30% of supply and buy pressure dropped 15%"). Do NOT output empty fluff.
+2. Your "verdetto_finale" MUST start with the exact tag [${azioneSuggerita}].
+3. PREDICTIVE REQUIREMENT: You MUST explicitly include the mathematical projection using the algorithmic target provided (e.g., "The algorithm projects a +${targetPercent}% move before distribution", or "Targeting a +${targetPercent}% algorithmic push").
+4. Explain WHY based on the Tribunal Strategy. Be cold, analytical, and direct. NO SLANG. NO METAPHORS. NO FLUFF.
 5. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
-  "verdetto_finale": "[${azioneSuggerita}] Professional and analytical explanation of the on-chain logic here...",
+  "verdetto_finale": "[${azioneSuggerita}] The system projects a +${targetPercent}% algorithmic move. [Insert cold, professional explanation of the on-chain data here...]",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
     { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
