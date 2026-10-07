@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const fs = require('fs');
 const path = require('path');
+const { Redis } = require('@upstash/redis');
 const { createClient } = require('@supabase/supabase-js');
 const rateLimit = require('express-rate-limit'); // 🛡️
 const WebSocket = require('ws');
@@ -25,15 +26,19 @@ app.use(cors({ origin: "*" }));
 // Parsing del body in JSON e impostazione proxy per Railway/Vercel
 app.use(express.json()); 
 app.set('trust proxy', 1);
-
+// 🚀 CONNESSIONE REDIS (UPSTASH)
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 // Inserisci le tue chiavi Supabase (meglio se nel file .env)
+// 🚀 CONNESSIONE SUPABASE (Resta uguale)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-    auth: { persistSession: false },
-    realtime: {
-        transport: WebSocket // 👈 Fornisce l'implementazione del WebSocket richiesta da Node 20
-    }
+    auth: { persistSession: false }
 });
 
+// 🔥 COSTANTI INTELLIGENTI
+const CACHE_TTL_SEC = 60; // Redis scarta in automatico i dati vecchi dopo 60 secondi
 // 🤫 SILENZIATORE GLOBALE RPC: Nasconde lo spam dei 429 di Solana mantenendo gli scudi attivi
 const originalWarn = console.warn;
 const originalError = console.error;
@@ -106,38 +111,7 @@ app.get('/api/ping', (req, res) => {
 
 const dbPath = 'paper_trading.json';
 
-function getPaperTrades() {
-    if (!fs.existsSync(dbPath)) {
-        return { bilancio: 0, trades: [] };
-    }
-    try { 
-        return JSON.parse(fs.readFileSync(dbPath, 'utf8')); 
-    } catch(e) { 
-        return { bilancio: 0, trades: [] }; 
-    }
-}
-function salvaTradeInLocale(mint, pnl) {
-    const filePaper = 'paper_trading.json';
-    let db = { bilancio: 0, trades: [] };
-    
-    if (fs.existsSync(filePaper)) {
-        try { db = JSON.parse(fs.readFileSync(filePaper, 'utf8')); } catch(e){}
-    }
-    
-    // Aggiorna il bilancio totale
-    db.bilancio += pnl;
-    
-    // Aggiunge la nuova operazione in cima alla lista
-    db.trades.unshift({
-        data: new Date().toLocaleString('it-IT'),
-        mint: mint,
-        pnl: parseFloat(pnl.toFixed(5)),
-        esito: pnl > 0 ? "✅ WIN" : "❌ LOSS"
-    });
-    
-    // Salva il file fisicamente sul PC
-    fs.writeFileSync(filePaper, JSON.stringify(db, null, 2));
-}
+
 app.get('/api/health', (req, res) => {
     res.json({
         status: "operational",
@@ -2015,30 +1989,48 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
 });
 
 // =====================================================================
-// 5. PAPER TRADING API
+// 5. PAPER TRADING API (SU SUPABASE)
 // =====================================================================
-app.post('/api/paper-trading', express.json(), (req, res) => {
+
+// Nuova funzione helper per Supabase
+async function salvaTradeSupabase(tokenMint, pnl) {
+    const esito = pnl > 0 ? "✅ WIN" : "❌ LOSS";
+    try {
+        const { error } = await supabase
+            .from('paper_trades')
+            .insert([{
+                token_mint: tokenMint,
+                pnl_sol: parseFloat(pnl.toFixed(5)),
+                esito: esito
+            }]);
+        if (error) console.error("Errore salvataggio trade Supabase:", error);
+    } catch (e) {
+        console.error("Errore DB Paper Trading:", e);
+    }
+}
+
+app.post('/api/paper-trading', express.json(), async (req, res) => {
     try {
         const { tokenMint, azione, pnlNetto } = req.body;
-        const db = getPaperTrades();
         let resMsg = "";
 
         if (azione === "EXIT") {
             const pnl = parseFloat(pnlNetto) || 0;
-            db.bilancio += pnl; 
-            db.trades.unshift({ id: Date.now(), token: tokenMint, pnlSol: pnl, data: new Date().toLocaleString('it-IT') });
-            if (db.trades.length > 50) db.trades.length = 50; 
+            
+            // Salvataggio asincrono su Supabase (nessun file locale)
+            await salvaTradeSupabase(tokenMint, pnl);
+            
             resMsg = `Uscita: ${pnl > 0 ? '+' : ''}${pnl.toFixed(3)} SOL`;
         }
 
-        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-        res.json({ success: true, bilancio: db.bilancio, messaggio: resMsg });
+        // Rimuoviamo il calcolo del bilancio dal server (ora il server è stateless)
+        // Il bilancio totale potrà essere calcolato dal frontend interrogando Supabase
+        res.json({ success: true, messaggio: resMsg });
     } catch (e) {
         console.error("Errore POST Paper Trading:", e);
         res.status(500).json({ error: "Errore interno server" });
     }
 });
-
 // =====================================================================
 // ⚖️ LABORATORIO FORENSE: IL GIUDICE SUPREMO (V1.4 - DEFINITIVE EDITION)
 // =====================================================================
@@ -2081,14 +2073,16 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             });
         }
 
-        // Recupero Dati dalla Cache Base
+        // Recupero Dati dalla Cache Base (Redis)
         let datiIniziali = null;
-        if (scanCache.has(cacheKey)) {
-            datiIniziali = scanCache.get(cacheKey).data;
-        } else if (scanCache.has(tokenMint)) {
-            datiIniziali = scanCache.get(tokenMint).data;
-        }
+        const cachedScan = await redis.get(`scan_${cacheKey}`);
+        const fallbackScan = await redis.get(`scan_${tokenMint}_en`); // Fallback
         
+        if (cachedScan) {
+            datiIniziali = cachedScan.data;
+        } else if (fallbackScan) {
+            datiIniziali = fallbackScan.data;
+        }
         if (!datiIniziali) {
             return res.json({ success: false, verdetto: "Insufficient data. Please run a base scan first." });
         }
@@ -2140,16 +2134,14 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         }
 
         // =================================================================
-        // ⚡ RECUPERO ISTANTANEO (ANTI-CRASH ESTENSIONE A 0ms)
+        // ⚡ RECUPERO ISTANTANEO DA REDIS (ANTI-CRASH ESTENSIONE A 0ms)
         // =================================================================
-        if (labCache.has(cacheKey)) {
-            const cachedLab = labCache.get(cacheKey);
-            if (Date.now() - cachedLab.timestamp < CACHE_TTL_MS) {
-                console.log(`⚡ LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
-                cachedLab.data.scansLeft = authStatus.scansLeft; 
-                cachedLab.data.plan = authStatus.plan;
-                return res.json(cachedLab.data);
-            }
+        const cachedLab = await redis.get(`lab_${cacheKey}`);
+        if (cachedLab) {
+            console.log(`⚡ REDIS LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
+            cachedLab.data.scansLeft = authStatus.scansLeft; 
+            cachedLab.data.plan = authStatus.plan;
+            return res.json(cachedLab.data);
         }
 
         let promptLaboratorio = "";
@@ -2526,9 +2518,9 @@ JSON FORMAT:
             </div>
         `;
         
-        // 💾 SALVATAGGIO IN MEMORIA PER RECUPERO ISTANTANEO
+        // 💾 SALVATAGGIO IN REDIS PER RECUPERO ISTANTANEO
         const finalResponse = { success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft };
-        labCache.set(cacheKey, { timestamp: Date.now(), data: finalResponse });
+        await redis.set(`lab_${cacheKey}`, { timestamp: Date.now(), data: finalResponse }, { ex: CACHE_TTL_SEC });
         return res.json(finalResponse);
         
     } catch (error) {
@@ -3033,7 +3025,7 @@ async function chiudiPosizioneStalker(tokenMint, mcEntrata) {
         console.log(`📈 Variazione Reale: ${(variazionePct * 100).toFixed(2)}%`);
 
         // Scrittura diretta sul disco
-        salvaTradeInLocale(tokenMint, pnlReale);
+        await salvaTradeSupabase(tokenMint, pnlReale);
         console.log(`💰 [STALKER] Trade Sincronizzato Chiuso! PnL: ${pnlReale > 0 ? '+' : ''}${pnlReale.toFixed(4)} SOL`);
         
     } catch (e) {
