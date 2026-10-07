@@ -600,9 +600,10 @@ function calcolaSimulazioneRendimento(currentFdv, isFakeDev, clusterRisk, bundle
         // Se c'è un bundle, assicuriamoci di uscire prima della sua soglia di dump
         if (sogliaDump > 0 && nostraUscita > sogliaDump) nostraUscita = Math.floor(sogliaDump * 0.85);
 
-        risultato.azione = buyPressure > 60 ? "TREND RIALZISTA" : "SCALP RAPIDO"; 
+        // 🔥 FIX: Usiamo i Tag standard inglesi che l'IA comprende
+        risultato.azione = buyPressure > 60 ? "RIDE" : "SCALP"; 
         risultato.coloreAzione = buyPressure > 60 ? "#00ffcc" : "#ffaa00";
-        risultato.testo = `📈 Simulazione: Buy Pressure al ${buyPressure}%. Obiettivo dinamico pre-dump: $${nostraUscita.toLocaleString()} MC.`;
+        risultato.testo = `📈 Algorithmic Target: Buy Pressure at ${buyPressure}%. Expected target: $${nostraUscita.toLocaleString()} MC.`;
     }
 
     risultato.targetMC = nostraUscita;
@@ -720,11 +721,14 @@ async function interrogaAgente(nomeAgente, prompt) {
 // ⚖️ IL TRIBUNALE HFT (Adversarial Multi-Agent + Determinismo Node.js)
 async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en') {
     
+    // Mappatura Lingua Universale per gli Agenti
+    const langMap = { 'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN' };
+    const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
+
     const ubiPct = (ubiData && ubiData.totalTx > 0) ? ((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1) : 0;
     const bpReale = orderFlowData ? orderFlowData.buyPressure : 50;
-    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; // Usiamo questo come proxy di velocità
+    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; 
     
-    // 1. Calcolo del Delta (La percezione del tempo)
     const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVel, liqUsd);
 
     const contestoDati = `
@@ -735,7 +739,6 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
     - TIME-SERIES DELTA (CRITICAL): ${vettori.trendDescrizione} (Buy Pressure var: ${vettori.deltaBP.toFixed(1)}%)
     `;
 
-    // 2. AGENTE BULL (L'Ottimista)
     const promptBull = `
     You are the BULL AGENT (Momentum Scalper). Your goal is to find reasons why this token will PUMP.
     Analyze the TIME-SERIES DELTA and Network activity.
@@ -743,10 +746,9 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
     Output ONLY a JSON object:
     {
         "fomo_score": [0 to 100, where 100 is parabolic absolute fomo],
-        "bull_thesis": "[Short sentence explaining the upward momentum in ${lingua}]"
+        "bull_thesis": "[Short sentence explaining the upward momentum in ${absoluteLang}]"
     }`;
 
-    // 3. AGENTE BEAR (Il Paranoico)
     const promptBear = `
     You are the BEAR AGENT (Scam Hunter). Your goal is to find reasons why this token is a RUG PULL or TRAP.
     Analyze the Sybil, Bundle, and TIME-SERIES DELTA data.
@@ -754,50 +756,41 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
     Output ONLY a JSON object:
     {
         "rug_probability": [0 to 100, where 100 is a guaranteed scam/dump],
-        "bear_thesis": "[Short sentence explaining the danger in ${lingua}]"
+        "bear_thesis": "[Short sentence explaining the danger in ${absoluteLang}]"
     }`;
 
     try {
-        // ESECUZIONE PARALLELA (Dimezza i tempi di risposta)
         const [bullRes, bearRes] = await Promise.all([
             interrogaAgente("BullAgent", promptBull),
             interrogaAgente("BearAgent", promptBear)
         ]);
 
-        // Estrazione sicura dei punteggi
         const fomo = bullRes.fomo_score || 50;
         const rugRisk = bearRes.rug_probability || 50;
 
-        // =========================================================
-        // 🛑 IL GIUDICE DETERMINISTICO (NODE.JS) - ZERO ALLUCINAZIONI
-        // =========================================================
         let finalAction = "WAIT";
         let finalStrategy = "";
 
-        // Veto 1: Hard Rug Detection (La matematica vince sempre sull'IA)
         if (isFakeDev || bundledSupply > 25 || (sybilData && sybilData.rilevato)) {
             finalAction = "AVOID";
-            finalStrategy = `⛔ VETO DI SISTEMA: Manipolazione matematica rilevata. ${bearRes.bear_thesis}`;
+            finalStrategy = `SYSTEM VETO: Mathematical manipulation detected. Bear Agent warns: ${bearRes.bear_thesis}`;
         }
-        // Veto 2: Il crollo della domanda (La derivata prima è negativa)
         else if (vettori.deltaBP < -20 || rugRisk > 75) {
             finalAction = "DUMP";
-            finalStrategy = `🩸 FASE DI DISTRIBUZIONE: ${vettori.trendDescrizione} ${bearRes.bear_thesis}`;
+            finalStrategy = `DISTRIBUTION PHASE: ${vettori.trendDescrizione}. Bear Agent warns: ${bearRes.bear_thesis}`;
         }
-        // Veto 3: Il Momentum Perfetto (Bull vince)
         else if (fomo > 70 && rugRisk < 40 && vettori.deltaBP >= 0) {
             finalAction = "RIDE";
-            finalStrategy = `🚀 MOMENTUM CONFERMATO: ${bullRes.bull_thesis} (Rischio stimato dall'IA: ${rugRisk}%)`;
+            finalStrategy = `MOMENTUM CONFIRMED. Bull Agent says: ${bullRes.bull_thesis} (AI Risk: ${rugRisk}%)`;
         }
-        // Choppy Market
         else {
             finalAction = "SCALP";
-            finalStrategy = `⚖️ SCONTRO TRA AGENTI: Bull dice [${bullRes.bull_thesis}] ma Bear avverte [${bearRes.bear_thesis}]. Tradare solo da livello a livello.`;
+            finalStrategy = `CHOP ZONE. Bull says: [${bullRes.bull_thesis}] but Bear warns: [${bearRes.bear_thesis}]. Execute level-to-level.`;
         }
 
-        // Restituiamo il formato esatto che si aspetta il tuo motore di Scan
+        // 🔥 FIX 2: Reinserita la lettura dinamica di fedinaDev.status (Stop al "CLEAN HISTORY" su tutti)
         return {
-            devStatus: isFakeDev ? "FAKE DEV (BURNER WALLET)" : "CLEAN HISTORY",
+            devStatus: isFakeDev ? "FAKE DEV (BURNER)" : (fedinaDev && fedinaDev.status ? fedinaDev.status : "CLEAN (First Project)"),
             volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
             topHoldersStatus: `Bundle: ${bundledSupply}%. (Bear Threat: ${rugRisk}/100)`,
             sybilStatus: sybilData ? sybilData.testo : "N/A",
