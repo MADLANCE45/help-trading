@@ -740,23 +740,23 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
     `;
 
     const promptBull = `
-    You are the BULL AGENT (Momentum Scalper). Your goal is to find reasons why this token will PUMP.
-    Analyze the TIME-SERIES DELTA and Network activity.
+    You are an Institutional Quantitative Analyst. Your goal is to identify mathematical upward momentum factors.
+    Analyze the TIME-SERIES DELTA and Network activity based ONLY on the data below.
     ${contestoDati}
     Output ONLY a JSON object:
     {
-        "fomo_score": [0 to 100, where 100 is parabolic absolute fomo],
-        "bull_thesis": "[Short sentence explaining the upward momentum in ${absoluteLang}]"
+        "fomo_score": [0 to 100],
+        "bull_thesis": "[State strictly the factual on-chain reasons for upward momentum in ${absoluteLang}. No slang, no metaphors, no emotions.]"
     }`;
 
     const promptBear = `
-    You are the BEAR AGENT (Scam Hunter). Your goal is to find reasons why this token is a RUG PULL or TRAP.
-    Analyze the Sybil, Bundle, and TIME-SERIES DELTA data.
+    You are an Institutional Risk Manager. Your goal is to identify mathematical rug pulls, traps, and distribution patterns.
+    Analyze the Sybil, Bundle, and TIME-SERIES DELTA data based ONLY on the data below.
     ${contestoDati}
     Output ONLY a JSON object:
     {
-        "rug_probability": [0 to 100, where 100 is a guaranteed scam/dump],
-        "bear_thesis": "[Short sentence explaining the danger in ${absoluteLang}]"
+        "rug_probability": [0 to 100],
+        "bear_thesis": "[State strictly the factual on-chain risks in ${absoluteLang}. No slang, no metaphors, no emotions.]"
     }`;
 
     try {
@@ -773,22 +773,21 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
 
         if (isFakeDev || bundledSupply > 25 || (sybilData && sybilData.rilevato)) {
             finalAction = "AVOID";
-            finalStrategy = `SYSTEM VETO: Mathematical manipulation detected. Bear Agent warns: ${bearRes.bear_thesis}`;
+            finalStrategy = `Critical Risk Veto: Mathematical manipulation confirmed. ${bearRes.bear_thesis}`;
         }
         else if (vettori.deltaBP < -20 || rugRisk > 75) {
             finalAction = "DUMP";
-            finalStrategy = `DISTRIBUTION PHASE: ${vettori.trendDescrizione}. Bear Agent warns: ${bearRes.bear_thesis}`;
+            finalStrategy = `Distribution Phase Active: ${vettori.trendDescrizione}. ${bearRes.bear_thesis}`;
         }
         else if (fomo > 70 && rugRisk < 40 && vettori.deltaBP >= 0) {
             finalAction = "RIDE";
-            finalStrategy = `MOMENTUM CONFIRMED. Bull Agent says: ${bullRes.bull_thesis} (AI Risk: ${rugRisk}%)`;
+            finalStrategy = `Momentum Confirmed: ${bullRes.bull_thesis} (System Risk: ${rugRisk}%)`;
         }
         else {
             finalAction = "SCALP";
-            finalStrategy = `CHOP ZONE. Bull says: [${bullRes.bull_thesis}] but Bear warns: [${bearRes.bear_thesis}]. Execute level-to-level.`;
+            finalStrategy = `Neutral/Choppy Market: Buy pressure is conflicting with risk metrics. Trade strictly level-to-level. Bull factor: ${bullRes.bull_thesis} Bear factor: ${bearRes.bear_thesis}`;
         }
 
-        // 🔥 FIX 2: Reinserita la lettura dinamica di fedinaDev.status (Stop al "CLEAN HISTORY" su tutti)
         return {
             devStatus: isFakeDev ? "FAKE DEV (BURNER)" : (fedinaDev && fedinaDev.status ? fedinaDev.status : "CLEAN (First Project)"),
             volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
@@ -1945,10 +1944,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 // Se meno del 30% dei wallet è unico, è un pattern artificiale al 100%
                 if (ubiRatio <= 0.30) {
                     puntiRischio += 60; // Penalità devastante
-                    logAnalisi.push(`🛑 PATTERN A PIRAMIDE/ONDE: Solo ${ubiData.uniqueBuyers} wallet stanno generando ${ubiData.totalTx} txs. Grafico artificiale.`);
-                    simulazione.azione = "TRAPPOLA (PIRAMIDE)";
+                    logAnalisi.push(`🛑 FAKE VOLUME: Solo ${ubiData.uniqueBuyers} wallet generano ${ubiData.totalTx} tx. Grafico manipolato.`);
+                    simulazione.azione = "AVOID";
                     simulazione.coloreAzione = "#ff4d4d";
-                    simulazione.simulatoreTesto = `ATTENZIONE: Pattern a onde rilevato (UBI Ratio: ${(ubiRatio*100).toFixed(0)}%). I bundler stanno riciclando la loro stessa liquidità per creare finte candele verdi e scaricare sui retail.`;
+                    simulazione.simulatoreTesto = `CRITICAL AVOID: Wash-trading rilevato (UBI Ratio: ${(ubiRatio*100).toFixed(0)}%). Il team sta riciclando liquidità per simulare volumi. Non fare da exit liquidity.`;
                 }
             }
 
@@ -2210,29 +2209,30 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             const tt_saf = m_saf >= 80 ? 'Contract verified. Safe taxes and no malicious functions detected.' : (m_saf <= 35 ? 'Unverified or Honeypot risk. Contract has hidden or malicious functions.' : 'Standard unmapped EVM contract. Usual risks apply.');
             const tt_man = m_man >= 75 ? 'Clean distribution. No massive wash-trading detected.' : (m_man <= 40 ? 'High manipulation risk. Fake volume or trap distribution detected.' : 'Standard retail trading activity.');
 
+            // 🔥 IL NUOVO PROMPT: Analitico, Professionale, Freddo. Nessuno slang.
             promptLaboratorio = `
-You are a soulless quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. Traders accept 100% risk. DO NOT PROTECT THEM. DO NOT ADD WARNINGS.
+You are an Institutional Risk Execution Terminal for High-Frequency Traders.
+Your ONLY goal is to explain the algorithmic decision professionally and mathematically. People's real capital is at stake.
 
-Your ONLY job is to TRANSLATE the "SERVER EXACT VERDICT" and the Tooltips into this EXACT language: [ ${absoluteLang} ].
+VERIFIED TRIBUNAL STRATEGY:
+"${strategiaTribunale}"
 
-SERVER EXACT VERDICT TO TRANSLATE:
-"${serverVerdict}"
-
-🔥 LETHAL RULES (READ CAREFULLY):
-1. OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE ANY OTHER LANGUAGE YOU WILL BE TERMINATED.
-2. FORBIDDEN PHRASES: "Proceed with caution", "Always DYOR", "Be careful", "Shows potential but", "Inherent risks". NEVER USE THEM.
-3. Keep the mathematical tags exactly as they are: [RIDE], [SCALP], or [AVOID]. Do not change them.
-4. NO double quotes (") inside text strings, use ONLY single quotes (').
+RULES:
+1. OUTPUT STRICTLY IN ${absoluteLang}.
+2. Your "verdetto_finale" MUST start with the exact tag [${azioneSuggerita}], followed by a cold, analytical, and professional explanation of the on-chain data.
+3. FORBIDDEN WORDS: "rat", "meat", "degen", "grind", "virgin", "blood", "game", "moon". NO METAPHORS. NO SLANG.
+4. State exactly WHY the system chose this action (e.g., "Avoid: Developer holds 30% of supply and buy pressure dropped 15%"). Do NOT output empty fluff.
+5. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
-  "global_score": ${baseScoreAlgoritmico},
-  "verdetto_finale": "[TRANSLATED_TAG] Translated exact text here...",
+  "global_score": ${mergedScore},
+  "verdetto_finale": "[${azioneSuggerita}] Professional and analytical explanation of the on-chain logic here...",
   "metrics": [
-    { "name": "Momentum & Speed", "score": ${m_mom}, "tooltip": "Translate this: ${tt_mom}" },
-    { "name": "Liquidity Depth", "score": ${m_liq}, "tooltip": "Translate this: ${tt_liq}" },
-    { "name": "Contract Safety", "score": ${m_saf}, "tooltip": "Translate this: ${tt_saf}" },
-    { "name": "Manipulator Risk", "score": ${m_man}, "tooltip": "Translate this: ${tt_man}" }
+    { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
+    { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
+    { "name": "Sybil Resistance", "score": ${m_syb}, "tooltip": "Translate this: ${tt_syb}" },
+    { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${tt_mic}" }
   ]
 }`;
         }
