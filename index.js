@@ -362,29 +362,21 @@ const io = new Server(server, {
 app.use(express.json({ limit: '50mb' }));
 //app.use(cors());
 const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
+// 🔥 GARBAGE COLLECTOR OTTIMIZZATO (Solo per WebSocket)
 setInterval(() => {
     const now = Date.now();
     let puliti = 0;
 
-    // 1. Pulisce la cache delle scansioni statiche
-    for (const [key, val] of scanCache.entries()) {
-        if (now - val.timestamp > CACHE_TTL_MS) { scanCache.delete(key); puliti++; }
-    }
-    
-    // 2. Pulisce i referti vecchi dell'IA
-    for (const [key, val] of labCache.entries()) {
-        if (now - val.timestamp > CACHE_TTL_MS) { labCache.delete(key); }
-    }
-
-    // 3. Pulisce la memoria Spy e BlackBox dei token non più attivi
+    // Pulisce solo la memoria Spy e BlackBox dei token non più attivi
     for (const [token, eventi] of blackBoxEventi.entries()) {
         if (eventi.length === 0 || now - (eventi[eventi.length-1].timestamp || 0) > 900000) {
             blackBoxEventi.delete(token);
             spyCache.delete(token);
+            puliti++;
         }
     }
     
-    if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] RAM ottimizzata. Rimossi ${puliti} vecchi dati.`);
+    if (puliti > 0) console.log(`🧹 [GARBAGE COLLECTOR] Stream WSS ottimizzati. Rimossi ${puliti} vecchi ascolti.`);
 }, 180000); // Gira ogni 3 minuti
 
 
