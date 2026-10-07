@@ -501,7 +501,46 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
     }
 
 };
+// ⏱️ MOTORE TIME-SERIES: Calcola l'accelerazione del token
+async function calcolaVettoriMomentum(tokenMint, buyPressure, txVelocity, liqUsd) {
+    const historyKey = `history_${tokenMint}`;
+    let storico = (await redis.get(historyKey)) || [];
 
+    // Se lo storico non è un array (errore di parsing), resettalo
+    if (!Array.isArray(storico)) storico = [];
+
+    const statoAttuale = {
+        bp: parseFloat(buyPressure) || 50,
+        tx: parseFloat(txVelocity) || 0,
+        liq: parseFloat(liqUsd) || 0,
+        time: Date.now()
+    };
+
+    let deltaBP = 0;
+    let deltaTx = 0;
+    let trendDescrizione = "Inizio tracciamento. Nessun dato storico.";
+
+    if (storico.length > 0) {
+        const statoPrecedente = storico[storico.length - 1];
+        deltaBP = statoAttuale.bp - statoPrecedente.bp;
+        deltaTx = statoAttuale.tx - statoPrecedente.tx;
+
+        // Traduciamo la matematica in testo tattico per l'IA
+        if (deltaBP > 10 && deltaTx > 5) trendDescrizione = "ACCELERAZIONE RIALZISTA: I compratori stanno aumentando aggressivamente.";
+        else if (deltaBP < -15) trendDescrizione = "COLLASSO DEMAND: La pressione in acquisto sta crollando, probabile inizio distribuzione.";
+        else if (deltaTx < -10) trendDescrizione = "DECELERAZIONE: Il volume delle transazioni sta morendo. Il momentum si sta esaurendo.";
+        else trendDescrizione = "LATERALIZZAZIONE: Flusso di cassa stabile.";
+    }
+
+    // Aggiorna lo storico mantenendo solo gli ultimi 3 snapshot
+    storico.push(statoAttuale);
+    if (storico.length > 3) storico.shift();
+    
+    // Salva in Redis per 5 minuti (il tempo di vita utile di uno scalp)
+    await redis.set(historyKey, storico, { ex: 300 });
+
+    return { deltaBP, deltaTx, trendDescrizione };
+}
 
 // 2. SIMULATORE AVANZATO E SOGLIA DI DUMP (Dinamico)
 // =====================================================================
@@ -678,69 +717,99 @@ async function interrogaAgente(nomeAgente, prompt) {
         tradeSetup: `WAIT`
     };
 }
-// 🔥 2.2 L'AGENTE MASTER (Modalità Spietata)
-// 🔥 2.2 L'AGENTE MASTER (Modalità Spietata Multilingua)
-async function eseguiSwarmIntelligence(devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, lingua = 'en') {
+// ⚖️ IL TRIBUNALE HFT (Adversarial Multi-Agent + Determinismo Node.js)
+async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en') {
     
     const ubiPct = (ubiData && ubiData.totalTx > 0) ? ((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1) : 0;
+    const bpReale = orderFlowData ? orderFlowData.buyPressure : 50;
+    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; // Usiamo questo come proxy di velocità
     
-    let sybilStr = "Too early to map network";
-    if (sybilData) {
-        sybilStr = sybilData.rilevato 
-            ? `DANGER: ${sybilData.numeroWallet} wallets control ${sybilData.supplyControllata}% (Main Funder: ${sybilData.funderMadre}). Selling: ${sybilData.inVendita}`
-            : "CLEAN: Independent Top Holders. No Mixer detected.";
-    }
+    // 1. Calcolo del Delta (La percezione del tempo)
+    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVel, liqUsd);
 
-    const fedinaStr = fedinaDev ? JSON.stringify(fedinaDev) : "No data";
-    const flowStr = orderFlowData ? JSON.stringify(orderFlowData) : "No Order Flow data";
-
-    console.log("🧠 Risveglio dell'Agente Master (Modalità Spietata)...");
-
-    const promptMaster = `
-    You are the INSTITUTIONAL MASTER AGENT, a cynical, ruthless, and paranoid Risk Manager. Your only goal is to protect capital from scammers. You consider every token a SCAM until proven otherwise.
-    
-    INPUT ON-CHAIN DATA:
-    - Dev Age: ${devWalletAgeHours}h (Fake Dev: ${isFakeDev})
-    - UBI Volume: ${ubiPct}% unique wallets out of ${ubiData ? ubiData.totalTx : 0} txs
-    - Bundle Supply: ${bundledSupply}% controlled by Top Holders
-    - Sybil Network: ${sybilStr}
-    - Dev History: ${fedinaStr}
-    - Order Flow: ${flowStr}
-
-    🔥 LINGUISTIC RULE (CRITICAL):
-    You MUST write all your analysis, warnings, and sentences inside the JSON strictly in this language: ${lingua.toUpperCase()} (EN=English, IT=Italian, ZH=Chinese, FR=French). 
-    NEVER use double quotes (") inside the text strings, use ONLY single quotes (').
-
-    BEHAVIOR:
-    1. Be brutal in your analysis. Use a cold, military tone. 
-    2. NEVER write 'Analysis in progress'. If specific data is missing or unmapped, formulate a cynical estimate based on risk (e.g. 'DEV: UNMAPPED / HIGH RISK', 'SUPPLY: HEURISTIC HOLD').
-    
-    Return EXCLUSIVELY a valid JSON with these 7 exact keys:
-    {
-        "devStatus": "Evaluate dev history and wallet age",
-        "volumeStatus": "Evaluate UBI and Order Flow",
-        "topHoldersStatus": "Evaluate Bundle Supply",
-        "sybilStatus": "Evaluate Sybil Network",
-        "estimatedRugTime": "Cynical estimation of time before dump",
-        "strategy": "Your brutal verdict",
-        "tradeSetup": "Final action: AVOID, WAIT, or SCALP"
-    }
+    const contestoDati = `
+    ON-CHAIN DATA:
+    - Dev Age: ${devWalletAgeHours}h (Fake: ${isFakeDev}) | History: ${fedinaDev ? JSON.stringify(fedinaDev) : 'Clean'}
+    - Network: ${ubiPct}% unique wallets.
+    - Sybil/Bundle Risk: ${bundledSupply}% bundled. ${sybilData ? sybilData.testo : 'No Sybil detected'}
+    - TIME-SERIES DELTA (CRITICAL): ${vettori.trendDescrizione} (Buy Pressure var: ${vettori.deltaBP.toFixed(1)}%)
     `;
 
+    // 2. AGENTE BULL (L'Ottimista)
+    const promptBull = `
+    You are the BULL AGENT (Momentum Scalper). Your goal is to find reasons why this token will PUMP.
+    Analyze the TIME-SERIES DELTA and Network activity.
+    ${contestoDati}
+    Output ONLY a JSON object:
+    {
+        "fomo_score": [0 to 100, where 100 is parabolic absolute fomo],
+        "bull_thesis": "[Short sentence explaining the upward momentum in ${lingua}]"
+    }`;
+
+    // 3. AGENTE BEAR (Il Paranoico)
+    const promptBear = `
+    You are the BEAR AGENT (Scam Hunter). Your goal is to find reasons why this token is a RUG PULL or TRAP.
+    Analyze the Sybil, Bundle, and TIME-SERIES DELTA data.
+    ${contestoDati}
+    Output ONLY a JSON object:
+    {
+        "rug_probability": [0 to 100, where 100 is a guaranteed scam/dump],
+        "bear_thesis": "[Short sentence explaining the danger in ${lingua}]"
+    }`;
+
     try {
-        const sentenzaFinale = await interrogaAgente("Master", promptMaster);
-        return sentenzaFinale;
-    } catch (error) {
-        console.log("⚠️ Agente Master in Rate Limit o errore. Applico paracadute di sicurezza.");
+        // ESECUZIONE PARALLELA (Dimezza i tempi di risposta)
+        const [bullRes, bearRes] = await Promise.all([
+            interrogaAgente("BullAgent", promptBull),
+            interrogaAgente("BearAgent", promptBear)
+        ]);
+
+        // Estrazione sicura dei punteggi
+        const fomo = bullRes.fomo_score || 50;
+        const rugRisk = bearRes.rug_probability || 50;
+
+        // =========================================================
+        // 🛑 IL GIUDICE DETERMINISTICO (NODE.JS) - ZERO ALLUCINAZIONI
+        // =========================================================
+        let finalAction = "WAIT";
+        let finalStrategy = "";
+
+        // Veto 1: Hard Rug Detection (La matematica vince sempre sull'IA)
+        if (isFakeDev || bundledSupply > 25 || (sybilData && sybilData.rilevato)) {
+            finalAction = "AVOID";
+            finalStrategy = `⛔ VETO DI SISTEMA: Manipolazione matematica rilevata. ${bearRes.bear_thesis}`;
+        }
+        // Veto 2: Il crollo della domanda (La derivata prima è negativa)
+        else if (vettori.deltaBP < -20 || rugRisk > 75) {
+            finalAction = "DUMP";
+            finalStrategy = `🩸 FASE DI DISTRIBUZIONE: ${vettori.trendDescrizione} ${bearRes.bear_thesis}`;
+        }
+        // Veto 3: Il Momentum Perfetto (Bull vince)
+        else if (fomo > 70 && rugRisk < 40 && vettori.deltaBP >= 0) {
+            finalAction = "RIDE";
+            finalStrategy = `🚀 MOMENTUM CONFERMATO: ${bullRes.bull_thesis} (Rischio stimato dall'IA: ${rugRisk}%)`;
+        }
+        // Choppy Market
+        else {
+            finalAction = "SCALP";
+            finalStrategy = `⚖️ SCONTRO TRA AGENTI: Bull dice [${bullRes.bull_thesis}] ma Bear avverte [${bearRes.bear_thesis}]. Tradare solo da livello a livello.`;
+        }
+
+        // Restituiamo il formato esatto che si aspetta il tuo motore di Scan
         return {
-            devStatus: "⚠️ UNKNOWN - Rate Limit",
-            volumeStatus: "⚠️ UNKNOWN - Rate Limit",
-            topHoldersStatus: "⚠️ UNKNOWN - Rate Limit",
-            sybilStatus: "⚠️ UNKNOWN - Rate Limit",
-            estimatedRugTime: "N/A - Standby",
-            strategy: "⚠️ Rate Limit exceeded. Waiting for cooldown.",
-            tradeSetup: "WAIT",
-            errore: true
+            devStatus: isFakeDev ? "FAKE DEV (BURNER WALLET)" : "CLEAN HISTORY",
+            volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
+            topHoldersStatus: `Bundle: ${bundledSupply}%. (Bear Threat: ${rugRisk}/100)`,
+            sybilStatus: sybilData ? sybilData.testo : "N/A",
+            estimatedRugTime: rugRisk > 80 ? "IMMINENT" : "STABLE",
+            strategy: finalStrategy,
+            tradeSetup: finalAction
+        };
+
+    } catch (error) {
+        return {
+            devStatus: "⚠️ RATE LIMIT", volumeStatus: "⚠️ RATE LIMIT", topHoldersStatus: "⚠️ RATE LIMIT", sybilStatus: "⚠️ RATE LIMIT",
+            estimatedRugTime: "UNKNOWN", strategy: "⛔ AI NETWORK CONGESTION. SYSTEM DEGRADED.", tradeSetup: "WAIT", errore: true
         };
     }
 }
@@ -1827,9 +1896,12 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 } catch(e) {}
             }
 
-            const tacticalAdvice = await eseguiSwarmIntelligence(
-                walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
-                isFakeDev, sybilData, fedinaDev, orderFlowData, lingua
+            // Estraiamo la liquidità approssimativa dal FDV per il nuovo motore Vettoriale
+            const stimaLiq = currentFdv ? currentFdv * 0.2 : 0; // Se non abbiamo il dato esatto di DexScreener, stimiamo il 20% del MC
+            
+            const tacticalAdvice = await eseguiTribunaleHFT(
+                tokenMint, walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
+                isFakeDev, sybilData, fedinaDev, orderFlowData, stimaLiq, lingua
             );
 
             logAnalisi.push(earlyBotData.indicatoreTesto);
@@ -2219,14 +2291,9 @@ JSON FORMAT:
             }
 
             // 🔥 IL MANDATO PSICOLOGICO CORRETTO E BILANCIATO
-            let solanaMandate = "";
-            if (mergedScore <= 40) {
-                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is critically low (${mergedScore}/100). This token is a trap, a rug pull, or mathematically dead. You MUST use the tag [AVOID] or [TRAP]. Tell the user to stay away or exit immediately. DO NOT suggest buying.`;
-            } else if (mergedScore <= 65) {
-                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is mediocre (${mergedScore}/100). The chart shows clear bundler/manipulator activity. You MUST use the tag [SCALP]. Focus your analysis on how the bundlers are forming the pattern. You can lightly mention that experienced traders could try to extract a quick profit from the manipulator's liquidity, but keep this as a secondary, high-risk option.`;
-            } else {
-                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is good (${mergedScore}/100). Momentum is organic or heavily supported by whales. You MUST use the tag [RIDE]. Advise the user to ride the trend but maintain tight stop-losses.`;
-            }
+            // Recuperiamo la strategia dinamica (lo scontro Bull vs Bear) prodotta dal Tribunale nello Scan
+            const strategiaTribunale = pulisciTesto(datiIniziali?.advice?.strategy || "Analisi on-chain in corso...");
+            const azioneSuggerita = pulisciTesto(datiIniziali?.azione || "WAIT");
 
             // Tooltip dinamici
             const tt_sup = bundleInfo !== "No bundle detected" ? bundleInfo : (m_sup >= 75 ? "Supply is well distributed. No massive bundles detected." : (m_sup <= 40 ? "Warning: Concentrated supply. High risk of coordinated dump." : "Moderate supply concentration. Monitor top holders."));
@@ -2234,30 +2301,24 @@ JSON FORMAT:
             const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
             const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
 
-            // 🔥 Il Prompt Imbrigliato con Divieto Assoluto sui Dollari
+            // 🔥 IL NUOVO PROMPT: Nessun testo hardcoded. L'IA modella solo la tesi del Tribunale.
             promptLaboratorio = `
 You are a quantitative execution terminal for Degen Crypto Traders. YOU ARE NOT A FINANCIAL ADVISOR. 
-Your goal is to PREDICT THE NEXT MOVE based on bundler patterns and supply data.
-${solanaMandate}
+Your goal is to TRANSLATE and REFINE the exact strategy generated by our internal Multi-Agent Tribunal.
 
-VERIFIED HELIUS RPC DATA:
-- Algorithmic Target Profit: +${targetPercent}% expected move
-- Sybil Cluster (Secret Wallet Funding): ${sybilStatus}
-- Top Holders Micro-Dumping: ${microDumping}
-- Developer Record: ${devStatusStr}
-- Bundle/Supply Control: ${bundleInfo}
+VERIFIED TRIBUNAL STRATEGY:
+"${strategiaTribunale}"
 
 🔥 LETHAL RULES:
 1. OUTPUT STRICTLY IN ${absoluteLang}.
-2. NEVER mention absolute fiat numbers or market caps (e.g. NEVER write "$34k", "$100k", "5k").
-3. Use ONLY percentages based on the "Algorithmic Target Profit" (e.g. write "expect a +${targetPercent}% pump" or "ride the +${targetPercent}% move").
-4. Focus the explanation on the Bundler behavior and the chart pattern they are creating.
-5. NO double quotes (") inside text strings, use ONLY single quotes (').
+2. Your "verdetto_finale" MUST start with the tag [${azioneSuggerita}], followed by a cynical, brutal, and concise translation of the TRIBUNAL STRATEGY.
+3. NEVER invent generic advice (like "maintain tight stop-losses"). Only use the facts from the strategy.
+4. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
-  "verdetto_finale": "[TRANSLATED_TAG] Tactical instruction based strictly on the CRITICAL DIRECTIVE...",
+  "verdetto_finale": "[${azioneSuggerita}] Translated and refined tribunal strategy here...",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
     { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
@@ -2265,7 +2326,6 @@ JSON FORMAT:
     { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${tt_mic}" }
   ]
 }`;
-        }
 
         // =================================================================
         // ESECUZIONE CHIAMATA IA (CON SCUDO ANTI-CRASH INTEGRATO)
