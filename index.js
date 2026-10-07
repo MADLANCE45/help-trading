@@ -2326,7 +2326,7 @@ JSON FORMAT:
     { "name": "Micro-Dump Risk", "score": ${m_mic}, "tooltip": "Translate this: ${tt_mic}" }
   ]
 }`;
-
+    }
         // =================================================================
         // ESECUZIONE CHIAMATA IA (CON SCUDO ANTI-CRASH INTEGRATO)
         // =================================================================
