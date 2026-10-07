@@ -361,12 +361,6 @@ const io = new Server(server, {
 
 app.use(express.json({ limit: '50mb' }));
 //app.use(cors());
-// 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius
-// 🔥 RAM CACHE: Memoria a breve termine per abbattere il carico su Helius e Gemini
-// 🔥 RAM CACHE CON AUTO-PULIZIA (Anti Memory-Leak per Railway)
-// 🔥 RAM CACHE CON AUTO-PULIZIA GLOBALE (Anti Memory-Leak)
-const scanCache = new Map();
-const labCache = new Map(); // 🧠 NUOVA MEMORIA: Salva i referti dell'IA
 const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
 setInterval(() => {
     const now = Date.now();
@@ -1528,7 +1522,7 @@ async function analizzaTokenEVM(tokenAddress) {
                 tradeValido: false, simulatoreTesto: `API Indexing...`, moltiplicatore: 0, targetMC: 0, prezzoSol: 0,
                 tradingFees: { slippage: "N/A", fee: "N/A", text: "PENDING" }, rawVerdict: "[WAIT] Pool is too new. Waiting for block propagation."
             };
-            scanCache.set(tokenAddress, { timestamp: Date.now(), data: fallbackEVM });
+            await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: fallbackEVM }, { ex: CACHE_TTL_SEC });
             return fallbackEVM;
         }
 
@@ -1685,7 +1679,7 @@ async function analizzaTokenEVM(tokenAddress) {
             tradingFees: { slippage: finalScore < 45 ? "50%" : "5%", fee: "EVM Gas", text: chain }
         };
 
-        scanCache.set(tokenAddress, { timestamp: Date.now(), data: risultatoEVM });
+        await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoEVM }, { ex: CACHE_TTL_SEC });
         return risultatoEVM;
 
     } catch (error) { throw new Error(error.message); }
@@ -1719,12 +1713,11 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
         avviaAscoltoLive(tokenMint);
 
         // CONTROLLO CACHE MULTILINGUA
-        if (scanCache.has(cacheKey)) {
-            const cached = scanCache.get(cacheKey);
-            if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
-                console.log(`⚡ CACHE HIT [${lingua.toUpperCase()}]: Dati per ${tokenMint} in 0ms`);
-                return res.json(cached.data);
-            }
+        // CONTROLLO CACHE MULTILINGUA SU REDIS
+        const cachedData = await redis.get(`scan_${cacheKey}`);
+        if (cachedData) {
+            console.log(`⚡ REDIS CACHE HIT [${lingua.toUpperCase()}]: Dati per ${tokenMint} in 0ms`);
+            return res.json(cachedData.data);
         }
 
         if (pendingScans.has(cacheKey)) {
@@ -1972,7 +1965,7 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 tradingFees: simulazione.raccomandazioneFees
             };
 
-            scanCache.set(cacheKey, { timestamp: Date.now(), data: risultatoFinale });
+            await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoFinale }, { ex: CACHE_TTL_SEC });
             return risultatoFinale;
         })();
 
@@ -3345,14 +3338,13 @@ app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
             return res.status(400).json({ error: "Invalid Solana address" });
         }
 
-        // 1. LATENZA ZERO: Controlla la memoria RAM
+        // 1. LATENZA ZERO: Controlla REDIS
         // Se un umano ha scansionato questo token di recente, diamo il dato al bot gratis e in 0ms
         let cachedVerdict = null;
-        for (const [key, val] of scanCache.entries()) {
-            if (key.includes(tokenMint) && (Date.now() - val.timestamp < 120000)) { // Valido 2 minuti
-                cachedVerdict = val.data; 
-                break;
-            }
+        const scanData = await redis.get(`scan_${tokenMint}_en`) || await redis.get(`scan_${tokenMint}_it`);
+        
+        if (scanData) {
+            cachedVerdict = scanData.data; 
         }
 
         if (cachedVerdict && !cachedVerdict.isEVM) {
