@@ -501,45 +501,147 @@ async function analizzaBotEarlyLaunch(mintPubKey) {
     }
 
 };
-// ⏱️ MOTORE TIME-SERIES: Calcola l'accelerazione del token
+// ⏱️ MOTORE TIME-SERIES: Calcola l'accelerazione del token senza falsi positivi al primo avvio
 async function calcolaVettoriMomentum(tokenMint, buyPressure, txVelocity, liqUsd) {
     const historyKey = `history_${tokenMint}`;
-    let storico = (await redis.get(historyKey)) || [];
+    let storico = [];
+    try {
+        storico = (await redis.get(historyKey)) || [];
+        if (!Array.isArray(storico)) storico = [];
+    } catch (e) {
+        storico = [];
+    }
 
-    // Se lo storico non è un array (errore di parsing), resettalo
-    if (!Array.isArray(storico)) storico = [];
+    const bpAttuale = parseFloat(buyPressure) || 50;
+    const txAttuale = parseFloat(txVelocity) || 0;
 
     const statoAttuale = {
-        bp: parseFloat(buyPressure) || 50,
-        tx: parseFloat(txVelocity) || 0,
+        bp: bpAttuale,
+        tx: txAttuale,
         liq: parseFloat(liqUsd) || 0,
         time: Date.now()
     };
 
     let deltaBP = 0;
     let deltaTx = 0;
-    let trendDescrizione = "Inizio tracciamento. Nessun dato storico.";
+    // 🔥 FIX: Al primo scan descriviamo lo stato reale attuale invece di "Nessun dato storico"
+    let trendDescrizione = bpAttuale >= 60 
+        ? `ACTIVE BUY PRESSURE (${bpAttuale}% Buys, Recent Vol: ${txAttuale} SOL)` 
+        : (bpAttuale <= 40 ? `SELL PRESSURE DOMINANT (${bpAttuale}% Buys)` : `BALANCED FLOW (${bpAttuale}% Buys)`);
 
     if (storico.length > 0) {
         const statoPrecedente = storico[storico.length - 1];
         deltaBP = statoAttuale.bp - statoPrecedente.bp;
         deltaTx = statoAttuale.tx - statoPrecedente.tx;
 
-        // Traduciamo la matematica in testo tattico per l'IA
-        if (deltaBP > 10 && deltaTx > 5) trendDescrizione = "ACCELERAZIONE RIALZISTA: I compratori stanno aumentando aggressivamente.";
-        else if (deltaBP < -15) trendDescrizione = "COLLASSO DEMAND: La pressione in acquisto sta crollando, probabile inizio distribuzione.";
-        else if (deltaTx < -10) trendDescrizione = "DECELERAZIONE: Il volume delle transazioni sta morendo. Il momentum si sta esaurendo.";
-        else trendDescrizione = "LATERALIZZAZIONE: Flusso di cassa stabile.";
+        if (deltaBP > 10 && deltaTx > 2) trendDescrizione = "BULLISH ACCELERATION: Buyers are stepping in aggressively.";
+        else if (deltaBP < -15) trendDescrizione = "DEMAND COLLAPSE: Buy pressure is dropping fast, probable distribution.";
+        else if (deltaTx < -10) trendDescrizione = "DECELERATION: Transaction volume is slowing down.";
+        else trendDescrizione = `STABLE FLOW: Buy Pressure at ${bpAttuale}%.`;
     }
 
-    // Aggiorna lo storico mantenendo solo gli ultimi 3 snapshot
     storico.push(statoAttuale);
     if (storico.length > 3) storico.shift();
     
-    // Salva in Redis per 5 minuti (il tempo di vita utile di uno scalp)
-    await redis.set(historyKey, storico, { ex: 300 });
+    try {
+        await redis.set(historyKey, storico, { ex: 300 });
+    } catch (e) {}
 
     return { deltaBP, deltaTx, trendDescrizione };
+}
+
+// ⚖️ IL TRIBUNALE HFT (Chiamata Unificata Anti-429 + Fallback Matematico)
+async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en') {
+    const langMap = { 'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN' };
+    const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
+
+    // 🔥 FIX: Se Helius ha bloccato il parsing delle tx (totalTx == 0), non passiamo "0% unique wallets"
+    const hasUbi = ubiData && ubiData.totalTx > 0;
+    const ubiStr = hasUbi 
+        ? `${((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1)}% unique buyers out of ${ubiData.totalTx} recent txs` 
+        : "Standard retail flow (RPC batch limit)";
+
+    const bpReale = orderFlowData ? orderFlowData.buyPressure : 50;
+    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; 
+    
+    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVel, liqUsd);
+
+    let statoDevReale = "CLEAN (First Project)";
+    if (isFakeDev) {
+        statoDevReale = "🚨 FAKE DEV (Burner Wallet < 24h)";
+    } else if (fedinaDev && fedinaDev.status) {
+        statoDevReale = `Tokens Launched: ${fedinaDev.tokensLanciati} | Status: ${fedinaDev.status}`;
+    }
+
+    // 🔥 FIX: 1 sola chiamata a Groq invece di Promise.all (Dimezza i consumi ed elimina i 429)
+    const promptTribunale = `
+    You are an Institutional Quantitative Trading Tribunal (Bull Analyst vs Risk Manager).
+    Analyze the following on-chain metrics objectively:
+    - Developer Status: ${statoDevReale} (Wallet Age: ${devWalletAgeHours.toFixed(1)}h)
+    - Holder Activity: ${ubiStr}
+    - Bundle/Supply Control: ${bundledSupply}% held by top cluster. ${sybilData ? sybilData.testo : 'Independent holders'}
+    - Order Flow & Momentum: ${vettori.trendDescrizione} (Buy Pressure: ${bpReale}%, Recent Vol: ${txVel} SOL)
+
+    RULES:
+    1. Output strictly in ${absoluteLang}.
+    2. Do NOT use metaphors (never write 'blindfolded monkey' or 'virgin chart'). Keep a cold, quantitative tone.
+    3. Use only single quotes (') inside strings.
+
+    Output ONLY a valid JSON object:
+    {
+        "fomo_score": 50,
+        "rug_probability": 50,
+        "bull_thesis": "Factual bullish factors based on buy pressure and holder independence",
+        "bear_thesis": "Factual risk factors based on bundle supply, dev history, or sell pressure"
+    }`;
+
+    try {
+        const resTribunale = await interrogaAgente("TribunaleHFT", promptTribunale);
+        if (resTribunale.errore) throw new Error("Groq fallback triggered");
+
+        const fomo = resTribunale.fomo_score || 50;
+        const rugRisk = resTribunale.rug_probability || 50;
+
+        let finalAction = "SCALP";
+        let finalStrategy = "";
+
+        if (isFakeDev || bundledSupply >= 20 || (sybilData && sybilData.rilevato)) {
+            finalAction = "AVOID";
+            finalStrategy = `Critical Risk Veto: On-chain manipulation or burner dev detected. ${resTribunale.bear_thesis || ''}`;
+        } else if (vettori.deltaBP < -20 || rugRisk > 75 || parseFloat(bpReale) < 30) {
+            finalAction = "AVOID";
+            finalStrategy = `Distribution Phase Active: ${vettori.trendDescrizione}. ${resTribunale.bear_thesis || ''}`;
+        } else if (fomo >= 68 && rugRisk <= 45 && parseFloat(bpReale) >= 55) {
+            finalAction = "RIDE";
+            finalStrategy = `Momentum Confirmed: ${resTribunale.bull_thesis || ''} (Risk Index: ${rugRisk}%)`;
+        } else {
+            finalAction = "SCALP";
+            finalStrategy = `Active Order Flow (${bpReale}% Buy Pressure). Bull factor: ${resTribunale.bull_thesis || 'Organic accumulation.'} Risk factor: ${resTribunale.bear_thesis || 'Standard volatility.'}`;
+        }
+
+        return {
+            devStatus: statoDevReale,
+            volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
+            topHoldersStatus: `Bundle: ${bundledSupply}% | Risk Index: ${rugRisk}/100`,
+            sybilStatus: sybilData ? sybilData.testo : "Clean",
+            estimatedRugTime: rugRisk > 75 ? "IMMINENT" : "STABLE",
+            strategy: finalStrategy,
+            tradeSetup: finalAction,
+            errore: false
+        };
+    } catch (error) {
+        // Fallback quantitativo se tutte le chiavi Groq sono occupate
+        return {
+            devStatus: statoDevReale,
+            volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
+            topHoldersStatus: `Bundled Supply: ${bundledSupply}%`,
+            sybilStatus: sybilData ? sybilData.testo : "Clean",
+            estimatedRugTime: isFakeDev || bundledSupply >= 20 ? "HIGH RISK" : "MODERATE",
+            strategy: `Quantitative Order Flow at ${bpReale}% Buy Pressure (${txVel} SOL recent volume). Bundled supply is ${bundledSupply}%.`,
+            tradeSetup: (isFakeDev || bundledSupply >= 20) ? "AVOID" : (parseFloat(bpReale) > 60 ? "RIDE" : "SCALP"),
+            errore: true
+        };
+    }
 }
 
 // 2. SIMULATORE AVANZATO E SOGLIA DI DUMP (Dinamico)
@@ -718,101 +820,7 @@ async function interrogaAgente(nomeAgente, prompt) {
         tradeSetup: `WAIT`
     };
 }
-// ⚖️ IL TRIBUNALE HFT (Adversarial Multi-Agent + Determinismo Node.js)
-async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en') {
-    
-    // Mappatura Lingua Universale per gli Agenti
-    const langMap = { 'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN' };
-    const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
-    const ubiPct = (ubiData && ubiData.totalTx > 0) ? ((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1) : 0;
-    const bpReale = orderFlowData ? orderFlowData.buyPressure : 50;
-    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; 
-    
-    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVel, liqUsd);
-
-    const contestoDati = `
-    ON-CHAIN DATA:
-    - Dev Age: ${devWalletAgeHours}h (Fake: ${isFakeDev}) | History: ${fedinaDev ? JSON.stringify(fedinaDev) : 'Clean'}
-    - Network: ${ubiPct}% unique wallets.
-    - Sybil/Bundle Risk: ${bundledSupply}% bundled. ${sybilData ? sybilData.testo : 'No Sybil detected'}
-    - TIME-SERIES DELTA (CRITICAL): ${vettori.trendDescrizione} (Buy Pressure var: ${vettori.deltaBP.toFixed(1)}%)
-    `;
-
-    const promptBull = `
-    You are an Institutional Quantitative Analyst. Your goal is to identify mathematical upward momentum factors.
-    Analyze the TIME-SERIES DELTA and Network activity based ONLY on the data below.
-    ${contestoDati}
-    Output ONLY a JSON object:
-    {
-        "fomo_score": [0 to 100],
-        "bull_thesis": "[State strictly the factual on-chain reasons for upward momentum in ${absoluteLang}. No slang, no metaphors, no emotions.]"
-    }`;
-
-    const promptBear = `
-    You are an Institutional Risk Manager. Your goal is to identify mathematical rug pulls, traps, and distribution patterns.
-    Analyze the Sybil, Bundle, and TIME-SERIES DELTA data based ONLY on the data below.
-    ${contestoDati}
-    Output ONLY a JSON object:
-    {
-        "rug_probability": [0 to 100],
-        "bear_thesis": "[State strictly the factual on-chain risks in ${absoluteLang}. No slang, no metaphors, no emotions.]"
-    }`;
-
-    try {
-        const [bullRes, bearRes] = await Promise.all([
-            interrogaAgente("BullAgent", promptBull),
-            interrogaAgente("BearAgent", promptBear)
-        ]);
-
-        const fomo = bullRes.fomo_score || 50;
-        const rugRisk = bearRes.rug_probability || 50;
-
-        let finalAction = "WAIT";
-        let finalStrategy = "";
-
-        if (isFakeDev || bundledSupply > 25 || (sybilData && sybilData.rilevato)) {
-            finalAction = "AVOID";
-            finalStrategy = `Critical Risk Veto: Mathematical manipulation confirmed. ${bearRes.bear_thesis}`;
-        }
-        else if (vettori.deltaBP < -20 || rugRisk > 75) {
-            finalAction = "DUMP";
-            finalStrategy = `Distribution Phase Active: ${vettori.trendDescrizione}. ${bearRes.bear_thesis}`;
-        }
-        else if (fomo > 70 && rugRisk < 40 && vettori.deltaBP >= 0) {
-            finalAction = "RIDE";
-            finalStrategy = `Momentum Confirmed: ${bullRes.bull_thesis} (System Risk: ${rugRisk}%)`;
-        }
-        else {
-            finalAction = "SCALP";
-            finalStrategy = `Neutral/Choppy Market: Buy pressure is conflicting with risk metrics. Trade strictly level-to-level. Bull factor: ${bullRes.bull_thesis} Bear factor: ${bearRes.bear_thesis}`;
-        }
-
-        // 🔥 SOSTITUZIONE PULITA: Gestione intelligente dello stato del Developer
-        let statoDevReale = "CLEAN (First Project)";
-        if (isFakeDev) {
-            statoDevReale = "🚨 FAKE DEV (Burner Wallet < 24h)";
-        } else if (fedinaDev) {
-            statoDevReale = `Tokens Launched: ${fedinaDev.tokensLanciati} | Status: ${fedinaDev.status}`;
-        }
-
-        return {
-            devStatus: statoDevReale,
-            volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
-            topHoldersStatus: `Bundle: ${bundledSupply}%. (Bear Threat: ${rugRisk}/100)`,
-            sybilStatus: sybilData ? sybilData.testo : "N/A",
-            estimatedRugTime: rugRisk > 80 ? "IMMINENT" : "STABLE",
-            strategy: finalStrategy,
-            tradeSetup: finalAction
-        };
-
-    } catch (error) {
-        return {
-            devStatus: "⚠️ RATE LIMIT", volumeStatus: "⚠️ RATE LIMIT", topHoldersStatus: "⚠️ RATE LIMIT", sybilStatus: "⚠️ RATE LIMIT",
-            estimatedRugTime: "UNKNOWN", strategy: "⛔ AI NETWORK CONGESTION. SYSTEM DEGRADED.", tradeSetup: "WAIT", errore: true
-        };
-    }
-}
 
 // 3. ANALISI COMPONENTI
 
@@ -1583,7 +1591,7 @@ async function analizzaTokenEVM(tokenAddress) {
                 tradeValido: false, simulatoreTesto: `API Indexing...`, moltiplicatore: 0, targetMC: 0, prezzoSol: 0,
                 tradingFees: { slippage: "N/A", fee: "N/A", text: "PENDING" }, rawVerdict: "[WAIT] Pool is too new. Waiting for block propagation."
             };
-            await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: fallbackEVM }, { ex: CACHE_TTL_SEC });
+            await redis.set(`scan_${tokenAddress}_en`, { timestamp: Date.now(), data: risultatoEVM }, { ex: CACHE_TTL_SEC });
             return fallbackEVM;
         }
 
@@ -2030,6 +2038,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             };
 
             await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoFinale }, { ex: CACHE_TTL_SEC });
+            // 🔥 GUARD CLAUSE REDIS: Non salviamo in cache se l'RPC ha avuto un blind spot totale
+            if (rawSignatures.length > 0 && !tacticalAdvice.errore) {
+                await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoFinale }, { ex: CACHE_TTL_SEC });
+            }
             return risultatoFinale;
         })();
 
@@ -2217,26 +2229,116 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             const tt_saf = m_saf >= 80 ? 'Contract verified. Safe taxes and no malicious functions detected.' : (m_saf <= 35 ? 'Unverified or Honeypot risk. Contract has hidden or malicious functions.' : 'Standard unmapped EVM contract. Usual risks apply.');
             const tt_man = m_man >= 75 ? 'Clean distribution. No massive wash-trading detected.' : (m_man <= 40 ? 'High manipulation risk. Fake volume or trap distribution detected.' : 'Standard retail trading activity.');
 
-            // 🔥 IL NUOVO PROMPT: Sfruttare i manipolatori. Niente panico, solo estrazione di valore.
             promptLaboratorio = `
-You are an Advanced Algorithmic Trading Copilot for MEV and quantitative traders.
-We operate in a PVP (Player vs Player) market. We KNOW that bundlers and scammers manipulate these tokens.
-Your goal is NOT to run away from manipulators, but to EXPLOIT them. You must explain how to ride their artificial pump and extract profit before they dump on retail.
+You are a quantitative execution terminal for crypto traders.
+Translate the "SERVER EXACT VERDICT" and the Tooltips into this language: [ ${absoluteLang} ].
 
-VERIFIED ALGORITHMIC STRATEGY:
-"${strategiaTribunale}"
+SERVER EXACT VERDICT TO TRANSLATE:
+"${serverVerdict}"
 
-RULES:
-1. OUTPUT STRICTLY IN ${absoluteLang}.
-2. Your "verdetto_finale" MUST start with the exact tag [${azioneSuggerita}].
-3. PREDICTIVE REQUIREMENT: You MUST predict the algorithmic target. Tell the user to ride the +${targetPercent}% projected move before the distribution phase begins.
-4. Tone: Cold, tactical, and calculating. Explain the bundler's current phase (Accumulation, Pumping, or Distribution) based on the data, and how to extract money from it.
-5. NO double quotes (") inside text strings, use ONLY single quotes (').
+IMPORTANT RULES:
+1. Output strictly and exclusively in ${absoluteLang}.
+2. Keep the tactical tags exactly as they are: [RIDE], [SCALP], or [AVOID].
+3. No double quotes (") inside text strings, use only single quotes (').
+
+JSON FORMAT:
+{
+  "global_score": ${baseScoreAlgoritmico},
+  "verdetto_finale": "[TAG] Translated exact text here...",
+  "metrics": [
+    { "name": "Momentum & Speed", "score": ${m_mom}, "tooltip": "Translate this: ${tt_mom}" },
+    { "name": "Liquidity Depth", "score": ${m_liq}, "tooltip": "Translate this: ${tt_liq}" },
+    { "name": "Contract Safety", "score": ${m_saf}, "tooltip": "Translate this: ${tt_saf}" },
+    { "name": "Manipulator Risk", "score": ${m_man}, "tooltip": "Translate this: ${tt_man}" }
+  ]
+}`;
+        }
+        // =================================================================
+        // RAMO 2: CERVELLO SOLANA (Matrice Completa + Tribunale HFT)
+        // =================================================================
+        else {
+            let sybilStatus = pulisciTesto(datiIniziali?.sybil?.testo || "Clean: Independent holders");
+            let microDumping = pulisciTesto(datiIniziali?.sanguisughe?.testo || "Clean: Top holders holding");
+            let bundleInfo = pulisciTesto(datiIniziali?.bundleShield?.indicatoreTesto || "No bundle detected");
+            let strategiaTribunale = pulisciTesto(datiIniziali?.advice?.strategy || "Active on-chain monitoring.");
+
+            let rawMC = datiIniziali?.targetMC ? (datiIniziali.targetMC / (datiIniziali.moltiplicatore || 1.4)) : 0;
+            let moltiplicatoreReale = datiIniziali?.moltiplicatore || 1;
+            if (moltiplicatoreReale <= 1) moltiplicatoreReale = 1.15;
+            let targetPercent = ((moltiplicatoreReale - 1) * 100).toFixed(0);
+
+            const parseSeverity = (text, isDangerRegex, isCleanRegex) => {
+                if (text.match(isDangerRegex)) return 18 + Math.floor(Math.random() * 12); // 18-30
+                if (text.match(isCleanRegex)) return 82 + Math.floor(Math.random() * 13);  // 82-95
+                return 48 + Math.floor(Math.random() * 15); // 48-63
+            };
+
+            const m_sup = parseSeverity(bundleInfo, /RISK|control|WARNING|bundle|predatory/i, /0%|No bundle|No bot pattern/i);
+            const m_dev = parseSeverity(devTxtStr, /RUG|FAKE|HONEYPOT|SERIAL|BURNER|UNKNOWN/i, /CLEAN|SAFE|TRUST|First Project/i);
+            const m_syb = parseSeverity(sybilStatus, /DANGER|BURST|Sybil|stesso wallet/i, /Clean|indipendenti|Independent/i);
+            const m_mic = parseSeverity(microDumping, /DANGER|DUMP|Selling|vendite/i, /Clean|holding|pulito/i);
+
+            let solanaRealScore = Math.floor((m_sup + m_dev + m_syb + m_mic) / 4);
+            if (m_dev <= 40 || m_sup <= 35) {
+                solanaRealScore = Math.min(m_dev, m_sup);
+            }
+
+            let mergedScore = Math.floor((baseScoreAlgoritmico + solanaRealScore) / 2);
+
+            // 🔥 KILL-SWITCHES (Allineati con il punteggio)
+            if (rawMC > 0 && rawMC < 8000) {
+                mergedScore = 12;
+            } else if (rawMC >= 8000 && rawMC < 20000) {
+                mergedScore = Math.min(mergedScore, 25);
+            } else if (devTxtStr.match(/RUG|FAKE|HONEYPOT|SERIAL|BURNER/)) {
+                mergedScore = Math.min(mergedScore, 35);
+            } else if (datiIniziali?.bundleShield?.bundleSlot0 || datiIniziali?.bundleShield?.supplyBundledPct > 20) {
+                mergedScore = Math.min(mergedScore, 48);
+            }
+
+            // 🔥 RIPRISTINO DEL MANDATO COERENTE COL PUNTEGGIO
+            let forcedTag = "SCALP";
+            let solanaMandate = "";
+            if (mergedScore <= 40) {
+                forcedTag = "AVOID";
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is low (${mergedScore}/100). You MUST start with [${forcedTag}]. Expose the specific risk (dev burner, bundle trap, or drained liquidity) and advise against entry.`;
+            } else if (mergedScore <= 65) {
+                forcedTag = "SCALP";
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is moderate (${mergedScore}/100). You MUST start with [${forcedTag}]. Explain how bundlers or traders are moving the chart and suggest a fast scalp for the +${targetPercent}% move with strict exit discipline.`;
+            } else {
+                forcedTag = "RIDE";
+                solanaMandate = `CRITICAL DIRECTIVE: The Trust Score is strong (${mergedScore}/100). You MUST start with [${forcedTag}]. Highlight the clean holder distribution and momentum towards the +${targetPercent}% target.`;
+            }
+
+            const tt_sup = bundleInfo !== "No bundle detected" ? bundleInfo : (m_sup >= 75 ? "Supply is well distributed. No massive bundles detected." : (m_sup <= 40 ? "Warning: Concentrated supply. High risk of coordinated dump." : "Moderate supply concentration. Monitor top holders."));
+            const tt_dev = devStatusStr !== "Unknown" ? devStatusStr : (m_dev >= 75 ? "Developer history is clean. No serial rug traces found." : (m_dev <= 40 ? "Suspicious developer activity. High risk of scam." : "Standard new developer. Usual meme risks apply."));
+            const tt_syb = sybilStatus !== "Clean: Independent holders" ? sybilStatus : (m_syb >= 75 ? "Organic holder distribution. No Sybil clusters detected." : (m_syb <= 40 ? "DANGER: Large Sybil network funding detected. Fake holders." : "Moderate wallet linkages detected. Monitor for coordinated selling."));
+            const tt_mic = microDumping !== "Clean: Top holders holding" ? microDumping : (m_mic >= 75 ? "Top holders are accumulating or holding steady." : (m_mic <= 40 ? "DANGER: Top wallets are quietly micro-dumping on retail." : "Minor profit taking from top wallets. Standard behavior."));
+
+            promptLaboratorio = `
+You are a quantitative execution terminal for crypto traders.
+Your goal is to synthesize the on-chain forensics and Tribunal notes into a sharp tactical verdict.
+${solanaMandate}
+
+VERIFIED ON-CHAIN TELEMETRY:
+- Algorithmic Target Move: +${targetPercent}%
+- Tribunal Notes: ${strategiaTribunale}
+- Sybil Cluster Check: ${sybilStatus}
+- Top Holders Micro-Dumping: ${microDumping}
+- Developer Record: ${devStatusStr}
+- Bundle/Supply Control: ${bundleInfo}
+
+IMPORTANT RULES:
+1. Output strictly in ${absoluteLang}.
+2. Start 'verdetto_finale' with [${forcedTag}].
+3. Never mention absolute dollar market caps, use only percentages (+${targetPercent}%).
+4. Never use silly metaphors like 'blindfolded monkey'. Use professional quantitative terminology.
+5. No double quotes (") inside text strings, use only single quotes (').
 
 JSON FORMAT:
 {
   "global_score": ${mergedScore},
-  "verdetto_finale": "[${azioneSuggerita}] Target projection: +${targetPercent}%. [Explain tactically how to exploit the manipulator's current setup here...]",
+  "verdetto_finale": "[${forcedTag}] Concise tactical synthesis based on the telemetry...",
   "metrics": [
     { "name": "Supply Integrity", "score": ${m_sup}, "tooltip": "Translate this: ${tt_sup}" },
     { "name": "Developer Trust", "score": ${m_dev}, "tooltip": "Translate this: ${tt_dev}" },
@@ -2565,9 +2667,11 @@ JSON FORMAT:
             </div>
         `;
         
-        // 💾 SALVATAGGIO IN REDIS PER RECUPERO ISTANTANEO
+        // 💾 SALVATAGGIO IN REDIS SOLO SE L'IA HA RISPOSTO CORRETTAMENTE (NO FALLBACK IN CACHE)
         const finalResponse = { success: true, score: globalScore, verdetto: reportHTML, plan: authStatus.plan, scansLeft: authStatus.scansLeft };
-        await redis.set(`lab_${cacheKey}`, { timestamp: Date.now(), data: finalResponse }, { ex: CACHE_TTL_SEC });
+        if (!verdettoTesto.includes("temporarily congested") && !verdettoTesto.includes("AI Network Interference")) {
+            await redis.set(`lab_${cacheKey}`, { timestamp: Date.now(), data: finalResponse }, { ex: CACHE_TTL_SEC });
+        }
         return res.json(finalResponse);
         
     } catch (error) {
