@@ -2475,7 +2475,7 @@ JSON FORMAT:
 
         if (baseScoreAlgoritmico < 45 && globalScore >= 50) {
             globalScore = baseScoreAlgoritmico; 
-            verdettoTesto = verdettoTesto.replace(/[RIDE]|[SCALP]/gi, '[AVOID]');
+            verdettoTesto = verdettoTesto.replace(/\[RIDE\]|\[SCALP\]/gi, '[AVOID]');
         }
         
         if (devTxtStr.includes("HONEYPOT") && globalScore > 15) {
