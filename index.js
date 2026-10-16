@@ -85,13 +85,23 @@ const pendingScans = new Map(); // Traccia le scansioni in corso per evitare dop
 // 💰 IL TUO WALLET PHANTOM (Sostituisci questo indirizzo con il tuo vero wallet!)
 const TARGET_FOUNDER_WALLET = 'ERRYCEdzkYXcnCycVGYNmoQ2RHhdhi1wDfnFuRKHJ7QA';
 
-// 🛡️ DIFESA 2: API RATE LIMITING (Massimo 50 richieste al minuto per IP)
-const globalLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, 
-  max: 50, 
-  message: { error: 'RATE_LIMIT_EXCEEDED', details: 'Too many requests from this IP.' }
+// 🛡️ DIFESA 2: REITTIEN MUKAAN ERIYTETTY RATE LIMITING
+const generalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 60,
+    message: { error: 'RATE_LIMIT_EXCEEDED', details: 'Too many requests.' }
 });
-app.use('/api/', globalLimiter);
+
+const heavyAiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 15, // Suojaa Helius RPC:tä ja OpenRouteria spämmiltä
+    message: { error: 'AI_RATE_LIMIT', details: 'Scan rate limit reached. Wait a few seconds.' }
+});
+
+app.use('/api/', generalLimiter);
+app.use('/api/scan/', heavyAiLimiter);
+app.use('/api/laboratorio/', heavyAiLimiter);
+app.use('/api/copilot/', heavyAiLimiter);
 
 // ... QUI CONTINUA IL TUO CODICE DA: let activeSubscriptionId = null; ...
 // Variabile globale per tenere traccia della connessione aperta
@@ -493,8 +503,8 @@ async function analizzaBotEarlyLaunch(mintPubKey, rawSignaturesPassate = null) {
         };
     }
 }
-// ⏱️ MOTORE TIME-SERIES: Calcola l'accelerazione del token senza falsi positivi al primo avvio
-async function calcolaVettoriMomentum(tokenMint, buyPressure, txVelocity, liqUsd) {
+// ⏱️ MOTORE TIME-SERIES RAG: Seuraa Ostopainetta, Volyymia JA Markkina-arvon suuntaa (Delta MC)
+async function calcolaVettoriMomentum(tokenMint, buyPressure, txVelocity, liqUsd, currentFdv = 0) {
     const historyKey = `history_${tokenMint}`;
     let storico = [];
     try {
@@ -506,90 +516,117 @@ async function calcolaVettoriMomentum(tokenMint, buyPressure, txVelocity, liqUsd
 
     const bpAttuale = parseFloat(buyPressure) || 50;
     const txAttuale = parseFloat(txVelocity) || 0;
+    const mcAttuale = parseFloat(currentFdv) || 0;
 
     const statoAttuale = {
         bp: bpAttuale,
         tx: txAttuale,
         liq: parseFloat(liqUsd) || 0,
+        mc: mcAttuale,
         time: Date.now()
     };
 
     let deltaBP = 0;
     let deltaTx = 0;
-    // 🔥 FIX: Al primo scan descriviamo lo stato reale attuale invece di "Nessun dato storico"
-    let trendDescrizione = bpAttuale >= 60 
-        ? `ACTIVE BUY PRESSURE (${bpAttuale}% Buys, Recent Vol: ${txAttuale} SOL)` 
-        : (bpAttuale <= 40 ? `SELL PRESSURE DOMINANT (${bpAttuale}% Buys)` : `BALANCED FLOW (${bpAttuale}% Buys)`);
+    let deltaMC_Pct = 0;
+    let trendDescrizione = bpAttuale >= 58 
+        ? `ACTIVE ACCUMULATION (${bpAttuale}% Buys, Vol: ${txAttuale} SOL)` 
+        : (bpAttuale <= 42 ? `HEAVY SELLING (${bpAttuale}% Buys)` : `CONSOLIDATION (${bpAttuale}% Buys)`);
 
     if (storico.length > 0) {
         const statoPrecedente = storico[storico.length - 1];
         deltaBP = statoAttuale.bp - statoPrecedente.bp;
         deltaTx = statoAttuale.tx - statoPrecedente.tx;
+        if (statoPrecedente.mc > 0 && mcAttuale > 0) {
+            deltaMC_Pct = ((mcAttuale - statoPrecedente.mc) / statoPrecedente.mc) * 100;
+        }
 
-        if (deltaBP > 10 && deltaTx > 2) trendDescrizione = "BULLISH ACCELERATION: Buyers are stepping in aggressively.";
-        else if (deltaBP < -15) trendDescrizione = "DEMAND COLLAPSE: Buy pressure is dropping fast, probable distribution.";
-        else if (deltaTx < -10) trendDescrizione = "DECELERATION: Transaction volume is slowing down.";
-        else trendDescrizione = `STABLE FLOW: Buy Pressure at ${bpAttuale}%.`;
+        if (deltaMC_Pct > 8 && deltaBP >= 0) {
+            trendDescrizione = `PARABOLIC IMPULSE: MC jumped +${deltaMC_Pct.toFixed(1)}%, Buy Pressure ${bpAttuale}% (${deltaBP >= 0 ? '+' : ''}${deltaBP.toFixed(1)}%).`;
+        } else if (deltaMC_Pct < -10 || deltaBP < -15) {
+            trendDescrizione = `DUMP / DISTRIBUTION DETECTED: MC changed ${deltaMC_Pct.toFixed(1)}%, Buy Pressure dropped ${deltaBP.toFixed(1)}% (now ${bpAttuale}%).`;
+        } else if (deltaBP > 8) {
+            trendDescrizione = `STEALTH REVERSAL: Buy Pressure increased +${deltaBP.toFixed(1)}% to ${bpAttuale}%. Dip is being bought.`;
+        } else {
+            trendDescrizione = `HOLDING LEVEL: MC var ${deltaMC_Pct.toFixed(1)}%, Buy Pressure at ${bpAttuale}%.`;
+        }
     }
 
     storico.push(statoAttuale);
-    if (storico.length > 3) storico.shift();
+    if (storico.length > 4) storico.shift();
     
     try {
         await redis.set(historyKey, storico, { ex: 300 });
     } catch (e) {}
 
-    return { deltaBP, deltaTx, trendDescrizione };
+    return { deltaBP, deltaTx, deltaMC_Pct, trendDescrizione };
 }
 
-// ⚖️ IL TRIBUNALE HFT (Chiamata Unificata Anti-429 + Fallback Matematico)
-async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en') {
+// ⚖️ IL TRIBUNALE HFT (PvP Scammer Exploit + Stealth Retail Detection)
+async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundledSupply, isFakeDev, sybilData, fedinaDev, orderFlowData, liqUsd, lingua = 'en', currentFdv = 0) {
     const langMap = { 'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'es': 'SPANISH', 'zh': 'CHINESE', 'de': 'GERMAN' };
     const absoluteLang = langMap[lingua.toLowerCase()] || 'ENGLISH';
 
-    // 🔥 FIX: Se Helius ha bloccato il parsing delle tx (totalTx == 0), non passiamo "0% unique wallets"
-    const hasUbi = ubiData && ubiData.totalTx > 0;
-    const ubiStr = hasUbi 
-        ? `${((ubiData.uniqueBuyers / ubiData.totalTx) * 100).toFixed(1)}% unique buyers out of ${ubiData.totalTx} recent txs` 
-        : "Standard retail flow (RPC batch limit)";
+    const bpReale = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
+    const txVelSol = orderFlowData ? parseFloat(orderFlowData.volumeTotaleRecente) : 0; 
+    const priceChangeM5 = orderFlowData?.priceChangeM5 || 0;
+    const isStealthRetail = orderFlowData?.stealthRetailPattern === true;
+    const sizeCV = orderFlowData?.sizeVarianceCV || "0.00";
 
-    const bpReale = orderFlowData ? orderFlowData.buyPressure : 50;
-    const txVel = orderFlowData ? orderFlowData.volumeTotaleRecente : 0; 
-    
-    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVel, liqUsd);
+    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVelSol, liqUsd, currentFdv);
+
+    // 🔥 Lasketaan kuinka paljon pääomaa manipulaattori kierrättää suhteessa markkina-arvoon
+    const volUsdRecente = txVelSol * (macroMarketData.solPriceUsd || 150);
+    const volToMcRatio = currentFdv > 0 ? (volUsdRecente / currentFdv) : 0;
+
+    // 🔥 Määritetään manipulaattorin tarkka vaihe (Viidakon laki)
+    let manipulatorPhase = "ORGANIC_OR_CHOP";
+    const sybilIsDumping = sybilData && sybilData.inVendita === true;
+
+    if (vettori.deltaMC_Pct < -12 || priceChangeM5 < -15 || bpReale < 36 || sybilIsDumping) {
+        manipulatorPhase = "DISTRIBUTION_DUMP"; // Manipulaattori purkaa positioitaan -> PYSY POISSA
+    } else if (currentFdv > 0 && currentFdv <= 55000 && (volToMcRatio >= 0.25 || isStealthRetail) && bpReale >= 53) {
+        manipulatorPhase = "LOW_MC_DEV_ACCUMULATION"; // Kultainen vaihe: Dev pumppaa matalalta omalla pääomallaan -> HYÖDYNNÄ!
+    } else if (bpReale >= 58 && priceChangeM5 >= 5) {
+        manipulatorPhase = "ACTIVE_MARKUP_PUMP"; // Vahva nousutrendi -> RIDE / SCALP
+    }
 
     let statoDevReale = "CLEAN (First Project)";
     if (isFakeDev) {
-        statoDevReale = "🚨 FAKE DEV (Burner Wallet < 24h)";
+        statoDevReale = "Burner Wallet (<24h) - Active Capital";
     } else if (fedinaDev && fedinaDev.status) {
-        statoDevReale = `Tokens Launched: ${fedinaDev.tokensLanciati} | Status: ${fedinaDev.status}`;
+        statoDevReale = `Prev Tokens: ${fedinaDev.tokensLanciati} | ${fedinaDev.status}`;
     }
 
-    // 🔥 FIX: 1 sola chiamata a Groq invece di Promise.all (Dimezza i consumi ed elimina i 429)
     const promptTribunale = `
-    You are an Institutional Quantitative Trading Tribunal (Bull Analyst vs Risk Manager).
-    Analyze the following on-chain metrics objectively:
-    - Developer Status: ${statoDevReale} (Wallet Age: ${devWalletAgeHours.toFixed(1)}h)
-    - Holder Activity: ${ubiStr}
-    - Bundle/Supply Control: ${bundledSupply}% held by top cluster. ${sybilData ? sybilData.testo : 'Independent holders'}
-    - Order Flow & Momentum: ${vettori.trendDescrizione} (Buy Pressure: ${bpReale}%, Recent Vol: ${txVel} SOL)
+    You are an elite PvP Memecoin Quantitative Strategist. Traders here accept high risk and want to EXPLOIT market manipulators.
+    We do NOT fear bundlers or dev burner wallets IF they are injecting capital at a low valuation and holding the floor. We ride their artificial pump and exit before their distribution phase.
+
+    ON-CHAIN & ORDER FLOW TELEMETRY:
+    - Manipulator Phase: ${manipulatorPhase}
+    - Volume-to-MC Ratio (5m): ${(volToMcRatio * 100).toFixed(0)}% (Recent Vol: ${txVelSol} SOL | Buy Pressure: ${bpReale}%)
+    - Stealth Retail Disguise (Varied Buy Sizes): ${isStealthRetail ? `DETECTED (Size CV: ${sizeCV} - Dev is buying via multiple retail-sized wallets to paint a bullish chart)` : `Normal (Size CV: ${sizeCV})`}
+    - Time-Series RAG Delta: ${vettori.trendDescrizione} (5m Price Change: ${priceChangeM5}%)
+    - Supply & Sybil Structure: ${bundledSupply}% top cluster. ${sybilData ? sybilData.testo : 'Independent'}
+    - Developer Profile: ${statoDevReale}
 
     RULES:
     1. Output strictly in ${absoluteLang}.
-    2. Do NOT use metaphors (never write 'blindfolded monkey' or 'virgin chart'). Keep a cold, quantitative tone.
-    3. Use only single quotes (') inside strings.
+    2. If Manipulator Phase is 'LOW_MC_DEV_ACCUMULATION' or 'ACTIVE_MARKUP_PUMP', explain how to exploit the dev's capital commitment and where to front-run the exit.
+    3. If Manipulator Phase is 'DISTRIBUTION_DUMP', warn that the manipulator is already offloading onto retail.
+    4. Use only single quotes (') inside strings.
 
     Output ONLY a valid JSON object:
     {
-        "fomo_score": 50,
-        "rug_probability": 50,
-        "bull_thesis": "Factual bullish factors based on buy pressure and holder independence",
-        "bear_thesis": "Factual risk factors based on bundle supply, dev history, or sell pressure"
+        "fomo_score": 70,
+        "rug_probability": 40,
+        "bull_thesis": "How to exploit the current volume, stealth dev buying, and momentum",
+        "bear_thesis": "Key invalidation trigger or distribution risk to watch"
     }`;
 
     try {
         const resTribunale = await interrogaAgente("TribunaleHFT", promptTribunale);
-        if (resTribunale.errore) throw new Error("Groq fallback triggered");
+        if (resTribunale.errore) throw new Error("Groq fallback");
 
         const fomo = resTribunale.fomo_score || 50;
         const rugRisk = resTribunale.rug_probability || 50;
@@ -597,40 +634,45 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
         let finalAction = "SCALP";
         let finalStrategy = "";
 
-        if (isFakeDev || bundledSupply >= 20 || (sybilData && sybilData.rilevato)) {
+        if (manipulatorPhase === "DISTRIBUTION_DUMP") {
             finalAction = "AVOID";
-            finalStrategy = `Critical Risk Veto: On-chain manipulation or burner dev detected. ${resTribunale.bear_thesis || ''}`;
-        } else if (vettori.deltaBP < -20 || rugRisk > 75 || parseFloat(bpReale) < 30) {
-            finalAction = "AVOID";
-            finalStrategy = `Distribution Phase Active: ${vettori.trendDescrizione}. ${resTribunale.bear_thesis || ''}`;
-        } else if (fomo >= 68 && rugRisk <= 45 && parseFloat(bpReale) >= 55) {
+            finalStrategy = `[PHASE: DISTRIBUTION] ${vettori.trendDescrizione} ${resTribunale.bear_thesis || ''}`;
+        } else if (manipulatorPhase === "LOW_MC_DEV_ACCUMULATION") {
             finalAction = "RIDE";
-            finalStrategy = `Momentum Confirmed: ${resTribunale.bull_thesis || ''} (Risk Index: ${rugRisk}%)`;
+            finalStrategy = `[PHASE: DEV CAPITAL EXPLOIT] High Vol/MC ratio (${(volToMcRatio*100).toFixed(0)}%) at low valuation. ${isStealthRetail ? 'Stealth retail-sized dev buys detected. ' : ''}${resTribunale.bull_thesis || ''}`;
+        } else if (manipulatorPhase === "ACTIVE_MARKUP_PUMP" && fomo >= 62) {
+            finalAction = "RIDE";
+            finalStrategy = `[PHASE: MARKUP WAVE] ${resTribunale.bull_thesis || ''} Watch exit trigger: ${resTribunale.bear_thesis || ''}`;
         } else {
             finalAction = "SCALP";
-            finalStrategy = `Active Order Flow (${bpReale}% Buy Pressure). Bull factor: ${resTribunale.bull_thesis || 'Organic accumulation.'} Risk factor: ${resTribunale.bear_thesis || 'Standard volatility.'}`;
+            finalStrategy = `[PHASE: PVP ROTATION] Buy Pressure ${bpReale}% (${txVelSol} SOL vol). Edge: ${resTribunale.bull_thesis || ''} Risk: ${resTribunale.bear_thesis || ''}`;
         }
 
         return {
             devStatus: statoDevReale,
             volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
-            topHoldersStatus: `Bundle: ${bundledSupply}% | Risk Index: ${rugRisk}/100`,
+            topHoldersStatus: `Top Cluster: ${bundledSupply}% | Phase: ${manipulatorPhase}`,
             sybilStatus: sybilData ? sybilData.testo : "Clean",
-            estimatedRugTime: rugRisk > 75 ? "IMMINENT" : "STABLE",
+            estimatedRugTime: manipulatorPhase === "DISTRIBUTION_DUMP" ? "DUMPING NOW" : "ACCUMULATING / PUMPING",
             strategy: finalStrategy,
             tradeSetup: finalAction,
+            manipulatorPhase: manipulatorPhase,
+            stealthRetail: isStealthRetail,
+            volToMcRatio: volToMcRatio,
             errore: false
         };
     } catch (error) {
-        // Fallback quantitativo se tutte le chiavi Groq sono occupate
         return {
             devStatus: statoDevReale,
             volumeStatus: `DELTA: ${vettori.trendDescrizione}`,
-            topHoldersStatus: `Bundled Supply: ${bundledSupply}%`,
+            topHoldersStatus: `Top Cluster: ${bundledSupply}% | Phase: ${manipulatorPhase}`,
             sybilStatus: sybilData ? sybilData.testo : "Clean",
-            estimatedRugTime: isFakeDev || bundledSupply >= 20 ? "HIGH RISK" : "MODERATE",
-            strategy: `Quantitative Order Flow at ${bpReale}% Buy Pressure (${txVel} SOL recent volume). Bundled supply is ${bundledSupply}%.`,
-            tradeSetup: (isFakeDev || bundledSupply >= 20) ? "AVOID" : (parseFloat(bpReale) > 60 ? "RIDE" : "SCALP"),
+            estimatedRugTime: manipulatorPhase === "DISTRIBUTION_DUMP" ? "HIGH RISK" : "ACTIVE",
+            strategy: `Phase: ${manipulatorPhase}. Order Flow at ${bpReale}% Buy Pressure (${txVelSol} SOL recent vol, Vol/MC: ${(volToMcRatio*100).toFixed(0)}%). ${isStealthRetail ? 'Stealth varied-size dev accumulation active.' : ''}`,
+            tradeSetup: manipulatorPhase === "DISTRIBUTION_DUMP" ? "AVOID" : (manipulatorPhase === "LOW_MC_DEV_ACCUMULATION" ? "RIDE" : "SCALP"),
+            manipulatorPhase: manipulatorPhase,
+            stealthRetail: isStealthRetail,
+            volToMcRatio: volToMcRatio,
             errore: true
         };
     }
@@ -1159,8 +1201,11 @@ async function analizzaGrafoSybil(mintPubKey) {
         const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
         if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
-        const topHolders = largestAccs.value.slice(1, 11); // 📉 Ridotto a 10 per salvare i crediti RPC
-        let funderMap = {}; let areSelling = false;
+        const topHolders = largestAccs.value.slice(1, 11);
+        let funderMap = {}; 
+        let areSelling = false;
+        let creationTimestamps = []; // 🔥 Tallentaa lompakoiden luontihetket (Timing Analysis)
+        let freshRetailDisguiseCount = 0; // 🔥 Laskee tuoreet lompakot, joilla dev teeskentelee retailia
 
         for (let acc of topHolders) {
             if (acc.uiAmount < 1000000) continue; 
@@ -1175,7 +1220,14 @@ async function analizzaGrafoSybil(mintPubKey) {
                 const sigs = await getRPC().getSignaturesForAddress(new PublicKey(owner), { limit: 15 });
                 if (sigs.length === 0 || sigs.length >= 15) continue; 
 
+                // Jos top-omistajalla on vain 2-8 transaktiota, se on todennäköisesti devin sivu-lompakko
+                if (sigs.length <= 8) freshRetailDisguiseCount++;
+
                 const oldestTx = sigs[sigs.length - 1];
+                if (oldestTx.blockTime) {
+                    creationTimestamps.push({ time: oldestTx.blockTime, pct: pct });
+                }
+
                 await delay(150);
                 const txDetails = await getRPC().getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
                 
@@ -1187,12 +1239,14 @@ async function analizzaGrafoSybil(mintPubKey) {
 
                 if (funder !== "Sconosciuto" && funder !== "CEX_Mixer") {
                     if (!funderMap[funder]) funderMap[funder] = { count: 0, pct: 0 };
-                    funderMap[funder].count++; funderMap[funder].pct += pct;
+                    funderMap[funder].count++; 
+                    funderMap[funder].pct += pct;
                 }
                 if (sigs.length > 4) areSelling = true;
             } catch (e) { continue; }
         }
 
+        // 1. Klassinen tarkistus: sama emolompakko
         let maxSybilNode = null;
         for (const [funder, data] of Object.entries(funderMap)) {
             if (data.count >= 3) {
@@ -1200,8 +1254,50 @@ async function analizzaGrafoSybil(mintPubKey) {
             }
         }
 
-        if (maxSybilNode) return { rilevato: true, funderMadre: maxSybilNode.funder, numeroWallet: maxSybilNode.count, supplyControllata: maxSybilNode.pct, inVendita: areSelling, testo: `🌳 SYBIL TREE: ${maxSybilNode.count} Top Holders (${maxSybilNode.pct.toFixed(1)}%) finanziati dallo stesso wallet padre. ${areSelling ? 'Iniziano a vendere! 🩸' : 'Stanno holdando 💎'}` };
-        return { rilevato: false, testo: "🌳 SYBIL TREE: I Top 20 Holders sembrano indipendenti." };
+        // 🔥 2. UUSI TIMING ANALYSIS: CEX / Mixer Sybil Cluster (Rahoitettu < 10 sekunnin sisällä toisistaan)
+        let syncedWallets = 0;
+        let syncedSupplyPct = 0;
+        if (creationTimestamps.length >= 3) {
+            creationTimestamps.sort((a, b) => a.time - b.time);
+            for (let i = 0; i < creationTimestamps.length - 1; i++) {
+                if (Math.abs(creationTimestamps[i + 1].time - creationTimestamps[i].time) <= 10) {
+                    syncedWallets++;
+                    syncedSupplyPct += creationTimestamps[i].pct;
+                }
+            }
+        }
+
+        if (maxSybilNode) {
+            return { 
+                rilevato: true, 
+                tipoCluster: "DIRECT_FUNDER",
+                funderMadre: maxSybilNode.funder, 
+                numeroWallet: maxSybilNode.count, 
+                supplyControllata: maxSybilNode.pct, 
+                inVendita: areSelling, 
+                testo: `🌳 SYBIL TREE: ${maxSybilNode.count} Top Holders (${maxSybilNode.pct.toFixed(1)}%) funded by same mother wallet. ${areSelling ? ' Distributing now!' : 'Holding floor 💎'}` 
+            };
+        }
+
+        if (syncedWallets >= 3) {
+            return {
+                rilevato: true,
+                tipoCluster: "CEX_TIMING_SYNC",
+                funderMadre: "CEX_OR_MIXER_SYNC",
+                numeroWallet: syncedWallets + 1,
+                supplyControllata: parseFloat(syncedSupplyPct.toFixed(1)),
+                inVendita: areSelling,
+                testo: `⏱️ CEX SYBIL SYNC: ${syncedWallets + 1} Top Holders (${syncedSupplyPct.toFixed(1)}%) funded within <10s via CEX/Mixer. ${areSelling ? 'Dumping active!' : 'Dev accumulating floor 💎'}`
+            };
+        }
+
+        return { 
+            rilevato: false, 
+            freshRetailDisguiseCount,
+            testo: freshRetailDisguiseCount >= 3 
+                ? `🕵️ STEALTH FLOOR: ${freshRetailDisguiseCount} fresh retail-disguised wallets holding top supply.` 
+                : "🌳 SYBIL TREE: Independent Top Holders." 
+        };
     } catch (error) { return null; }
 }
 // =====================================================================
@@ -1363,8 +1459,12 @@ function valutaInnescoPanicSell(mcAttuale, sogliaDump, microDumpData, orderFlowD
 
 function analizzaOrderFlow_Locale(txs) {
     if (!txs || txs.length === 0) return null;
-    let buyVolumeSol = 0; let sellVolumeSol = 0;
-    let maxTxSize = 0; let microTxCount = 0;
+    let buyVolumeSol = 0; 
+    let sellVolumeSol = 0;
+    let maxTxSize = 0; 
+    let microTxCount = 0;
+    let buySizes = [];
+    let buyTimestamps = [];
 
     txs.forEach(tx => {
         if (!tx || !tx.meta || tx.meta.err) return;
@@ -1378,6 +1478,10 @@ function analizzaOrderFlow_Locale(txs) {
 
         if (preSol > postSol) {
             buyVolumeSol += deltaSol;
+            if (deltaSol >= 0.08) {
+                buySizes.push(deltaSol);
+                if (tx.blockTime) buyTimestamps.push(tx.blockTime);
+            }
         } else {
             sellVolumeSol += deltaSol;
         }
@@ -1387,11 +1491,34 @@ function analizzaOrderFlow_Locale(txs) {
     const buyDeltaPct = totalVolume > 0 ? (buyVolumeSol / totalVolume) * 100 : 50;
     const volatilityIndex = (maxTxSize > 20 || (microTxCount / txs.length) > 0.8) ? "ESTREMA" : (maxTxSize > 5 ? "ALTA" : "NORMALE");
 
+    // 🔥 UUSI PARAMETRI: STEALTH DEV ACCUMULATION (Dev ostaa vaihtelevilla summilla "retail"-lompakoilla)
+    let stealthRetailPattern = false;
+    let sizeVarianceCV = 0;
+
+    if (buySizes.length >= 4) {
+        const mean = buySizes.reduce((a, b) => a + b, 0) / buySizes.length;
+        const variance = buySizes.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / buySizes.length;
+        const stdDev = Math.sqrt(variance);
+        sizeVarianceCV = mean > 0 ? (stdDev / mean) : 0;
+
+        // Tarkistetaan kuinka nopeasti nämä eri kokoiset ostot tehtiin
+        const timeSpan = buyTimestamps.length >= 2 
+            ? Math.abs(buyTimestamps[0] - buyTimestamps[buyTimestamps.length - 1]) 
+            : 999;
+
+        // Jos 4+ ostoa tulee eri kokoisina (CV 0.20 - 1.15, ei kiinteä bottikoko) alle 12 sekunnissa ja ostopaine > 65%
+        if (sizeVarianceCV >= 0.20 && sizeVarianceCV <= 1.15 && timeSpan <= 12 && buyDeltaPct >= 65) {
+            stealthRetailPattern = true;
+        }
+    }
+
     return {
         buyPressure: buyDeltaPct.toFixed(1),
         volumeTotaleRecente: totalVolume.toFixed(2),
         maxOrder: maxTxSize.toFixed(2),
-        volatilità: volatilityIndex
+        volatilità: volatilityIndex,
+        stealthRetailPattern: stealthRetailPattern,
+        sizeVarianceCV: sizeVarianceCV.toFixed(2)
     };
 }
 
@@ -1917,9 +2044,8 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             // Passiamo la Liquidità Reale (realLiqUsd) al Tribunale invece della vecchia stimaLiq
             const tacticalAdvice = await eseguiTribunaleHFT(
                 tokenMint, walletAgeHours, ubiData, earlyBotData.supplyBundledPct,
-                isFakeDev, sybilData, fedinaDev, orderFlowData, realLiqUsd, lingua
+                isFakeDev, sybilData, fedinaDev, orderFlowData, realLiqUsd, lingua, currentFdv
             );
-
             logAnalisi.push(earlyBotData.indicatoreTesto);
             logAnalisi.push(`✅ Heartbeat: ${txInLast60s} tx/min (Last: ${secondiDaUltimaTx}s ago)`);
             if (cabalaData && cabalaData.testo) logAnalisi.push(cabalaData.testo);
@@ -1976,13 +2102,21 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
 
             // 🔥 THE WASH-TRADING EXPLOITER (Cavalcare la manipolazione leggera)
+            // 🔥 THE PVP SCAMMER EXPLOITER: Jos dev pumppaa matalalla MC:llä eikä myy, nostamme Trust Scorea!
             const buyPress = orderFlowData ? parseFloat(orderFlowData.buyPressure) : 50;
-            if (currentFdv < 200000 && txInLast60s > 15 && buyPress >= 40 && buyPress <= 60 && (!ubiData || (ubiData.uniqueBuyers / ubiData.totalTx) > 0.30)) {
-                puntiRischio += 30; 
-                logAnalisi.push("⚠️ WASH TRADING: Manipolatore in fase di costruzione grafico.");
-                simulazione.azione = "SCALP (FAKE PUMP)";
-                simulazione.coloreAzione = "#ffaa00";
-                simulazione.simulatoreTesto = `OPPORTUNITÀ: Il dev sta simulando volumi per creare FOMO. Sfrutta il pump artificiale e anticipa il suo dump a $${(simulazione.targetMC/1000).toFixed(1)}k.`;
+            const priceChg5m = orderFlowData?.priceChangeM5 || 0;
+
+            if (tacticalAdvice.manipulatorPhase === "LOW_MC_DEV_ACCUMULATION") {
+                // Dev on sitonut pääomaa matalalla MC:llä ja rakentaa pohjaa -> Loistava paikka ratsastaa mukana!
+                puntiRischio = Math.max(15, puntiRischio - 35);
+                simulazione.azione = "RIDE (DEV PUMP)";
+                simulazione.coloreAzione = "#00e676";
+                simulazione.simulatoreTesto = `EXPLOIT SETUP: Dev is injecting capital via retail-sized wallets at low MC. Ride the artificial wave to $${(simulazione.targetMC/1000).toFixed(1)}k and front-run the dump.`;
+            } else if (priceChg5m <= -12 || buyPress < 35) {
+                // Markkina-arvo putoaa tai myyjät dominoivat -> Välitön varoitus!
+                puntiRischio = Math.min(100, puntiRischio + 45);
+                simulazione.azione = "AVOID (DUMPING)";
+                simulazione.coloreAzione = "#ff4d4d";
             }
 
             puntiRischio = Math.min(100, puntiRischio); // Cap a 100
