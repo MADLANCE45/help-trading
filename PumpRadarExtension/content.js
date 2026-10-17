@@ -922,7 +922,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             avviaLaboratorioGemini(tokenMint);
 
                             // 🔥 INNESTO AUTO-TRADING ALL'APERTURA DELL'ESTENSIONE
-                            chrome.storage.local.get(['autoTradeEnabled', 'burnerPrivateKey', 'step1Pct', 'takeProfitPct'], async (cfg) => {
+                            // 🔥 INNESTO AUTO-TRADING ALL'APERTURA DELL'ESTENSIONE
+                            chrome.storage.local.get(['userConfig'], async (resObj) => {
+                                const cfg = resObj.userConfig || {};
                                 // Parte in automatico solo se lo switch Auto-Trade è ON, la chiave è inserita e il token è valido
                                 if (cfg.autoTradeEnabled && cfg.burnerPrivateKey && data.score >= 55 && !data.azione.includes("AVOID")) {
                                     console.log("🤖 [AUTO-TRADER] Condizioni ottimali rilevate all'apertura! Avvio ciclo SQHK48...");
@@ -931,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({
-                                            tokenMint: tokenMint, // Corretto l'uso della variabile
+                                            tokenMint: tokenMint, 
                                             privateKey: cfg.burnerPrivateKey,
                                             probeSol: 0.06,                        // $6.25 (Tranche 1)
                                             scale1Sol: 0.12,                       // $12.51 (Tranche 2)
@@ -1143,28 +1145,34 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
 
-                        <!-- TRADING ROUTE & RISK MANAGEMENT -->
-                        <div style="margin-bottom: 15px; border: 1px dashed #a855f7; border-radius: 8px; padding: 12px; background: rgba(168, 85, 247, 0.05);">
-                            
-                            <div style="display: flex; justify-content: center; margin-bottom: 12px;">
-                                <span style="background: linear-gradient(90deg, #ff007f, #a855f7); color: #fff; font-size: 0.65em; font-weight: 900; padding: 4px 12px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(255,0,127,0.4); font-family: monospace;">
-                                    V2: AUTO-TRADING PENDING
-                                </span>
+                        <!-- TRADING ROUTE & AUTO-SNIPER -->
+                        <div style="margin-bottom: 15px; border: 1px solid #a855f7; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: linear-gradient(145deg, #11121a, #1a0f2e);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">Auto-Sniper HFT</strong>
+                                <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
+                                    <input type="checkbox" id="user-auto-trade-toggle" style="opacity: 0; width: 0; height: 0;">
+                                    <span id="auto-trade-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></span>
+                                    <span id="auto-trade-knob" style="position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></span>
+                                </label>
                             </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; opacity: 0.4; pointer-events: none; filter: grayscale(30%);">
-                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #4da6ff; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #4da6ff; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">Route Mode</strong>
-                                    <select disabled id="user-route-mode" class="select-modern" style="margin-top: 6px; border: 1px solid #4da6ff; background: rgba(77, 166, 255, 0.05);">
-                                        <option value="standard">Standard</option>
-                                    </select>
+
+                            <div style="margin-bottom: 10px;">
+                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Burner Wallet Private Key (Base58)</div>
+                                <input type="password" id="user-burner-key" placeholder="Incolla Private Key Phantom..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div>
+                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Scale-In Trigger (%)</div>
+                                    <input type="number" id="user-step1-pct" placeholder="6" value="6" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center;">
                                 </div>
-                                <div style="background: #161821; border: 1px solid #2d3142; border-top: 3px solid #ffaa00; border-radius: 6px; padding: 10px;">
-                                    <strong style="color: #ffaa00; font-size: 0.7em; text-transform: uppercase; font-family: monospace;">Risk Profile</strong>
-                                    <select disabled id="user-risk-profile" class="select-modern" style="margin-top: 6px; border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.05);">
-                                        <option value="safe">Safe</option>
-                                    </select>
+                                <div>
+                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Take Profit 100% (%)</div>
+                                    <input type="number" id="user-tp-pct" placeholder="28" value="28" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center;">
                                 </div>
+                            </div>
+                            <div style="margin-top: 8px; font-size: 0.65em; color: #888; line-height: 1.3;">
+                                ⚠️ Max Budget: $40. It will auto-burn & close accounts to recover rent. Do NOT use your main wallet!
                             </div>
                         </div>
 
@@ -1377,7 +1385,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const holoToggle = document.getElementById('user-holo-toggle');
                 const holoSlider = document.getElementById('holo-toggle-slider');
                 const holoKnob = document.getElementById('holo-toggle-knob');
-                
+                // Caricamento Dati Auto-Trading
+                const autoToggle = document.getElementById('user-auto-trade-toggle');
+                const autoSlider = document.getElementById('auto-trade-slider');
+                const autoKnob = document.getElementById('auto-trade-knob');
+                const keyInput = document.getElementById('user-burner-key');
+                const step1Input = document.getElementById('user-step1-pct');
+                const tpInput = document.getElementById('user-tp-pct');
+
+                if (autoToggle) {
+                    autoToggle.checked = res.userConfig.autoTradeEnabled === true;
+                    if (autoToggle.checked) {
+                        autoSlider.style.backgroundColor = '#ff007f';
+                        autoKnob.style.left = '22px';
+                    }
+                    if (keyInput && res.userConfig.burnerPrivateKey) keyInput.value = res.userConfig.burnerPrivateKey;
+                    if (step1Input && res.userConfig.step1Pct) step1Input.value = res.userConfig.step1Pct;
+                    if (tpInput && res.userConfig.takeProfitPct) tpInput.value = res.userConfig.takeProfitPct;
+
+                    autoToggle.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            autoSlider.style.backgroundColor = '#ff007f';
+                            autoKnob.style.left = '22px';
+                        } else {
+                            autoSlider.style.backgroundColor = '#444';
+                            autoKnob.style.left = '2px';
+                        }
+                    });
+                }
                 let isHoloEnabled = res.userConfig.holoEnabled !== false; // Default true
                 
                 if (holoToggle) {
@@ -1470,13 +1505,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
-            btnSaveConfig.addEventListener('click', () => {
-                const newConfig = {
+            const newConfig = {
                     avatarUrl: selectedAvatarUrl,
                     aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
-                    routeMode: document.getElementById('user-route-mode') ? document.getElementById('user-route-mode').value : "standard",
-                    riskProfile: document.getElementById('user-risk-profile') ? document.getElementById('user-risk-profile').value : "safe",
-                    holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true
+                    holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true,
+                    // 🔥 SALVATAGGIO CONFIGURAZIONE AUTO-TRADE
+                    autoTradeEnabled: document.getElementById('user-auto-trade-toggle') ? document.getElementById('user-auto-trade-toggle').checked : false,
+                    burnerPrivateKey: document.getElementById('user-burner-key') ? document.getElementById('user-burner-key').value.trim() : "",
+                    step1Pct: document.getElementById('user-step1-pct') ? document.getElementById('user-step1-pct').value : 6,
+                    takeProfitPct: document.getElementById('user-tp-pct') ? document.getElementById('user-tp-pct').value : 28
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
