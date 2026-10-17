@@ -853,7 +853,90 @@ document.addEventListener('DOMContentLoaded', () => {
         // Manteniamo solo il clearTimeout per pulizia della RAM, ma non inneschiamo nessun allarme.
         if (timerNoiaExtension) clearTimeout(timerNoiaExtension);
     }
+    function innescaModalitaParassita(data, tokenMint) {
+        const statusEl = document.getElementById('autotrade-status-text');
+        const mathRow = document.getElementById('parasite-math-row');
+        const scammerVal = document.getElementById('scammer-dump-val');
+        const ourExitVal = document.getElementById('our-exit-val');
+        const btnPanic = document.getElementById('btn-panic-burn');
 
+        chrome.storage.local.get(['userConfig'], async (resObj) => {
+            const cfg = resObj.userConfig || {};
+
+            if (btnPanic) {
+                btnPanic.onclick = async () => {
+                    if (!cfg.burnerPrivateKey) return alert("Inserisci prima la Private Key nelle impostazioni!");
+                    if (statusEl) {
+                        statusEl.innerText = "🚨 VENDITA 100% + AUTO-BURN IN CORSO...";
+                        statusEl.style.color = "#ffaa00";
+                    }
+                    await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ tokenMint, privateKey: cfg.burnerPrivateKey })
+                    });
+                    if (statusEl) {
+                        statusEl.innerText = "♻️ VENDUTO E CONTO CHIUSO (+0.002 SOL)";
+                        statusEl.style.color = "#00e676";
+                    }
+                };
+            }
+
+            if (!cfg.autoTradeEnabled || !cfg.burnerPrivateKey) {
+                if (statusEl) {
+                    statusEl.innerText = "OFF (Attivalo in Settings ⚙️)";
+                    statusEl.style.color = "#888";
+                }
+                return;
+            }
+
+            const baseSol = parseFloat(cfg.tradeSol) || 0.08;
+            const tpPct = parseFloat(cfg.takeProfitPct) || 18;
+
+            if (data.score < 50 || data.panicSellAttivo || (data.azione && data.azione.includes("AVOID"))) {
+                if (statusEl) {
+                    statusEl.innerText = `⛔ SCARTATO: Rischio Alto (Score ${data.score})`;
+                    statusEl.style.color = "#ff4d4d";
+                }
+                return;
+            }
+
+            if (statusEl) {
+                statusEl.innerText = `🦠 INGRESSO PARASSITA (${baseSol} SOL)...`;
+                statusEl.style.color = "#00ffcc";
+            }
+
+            try {
+                const res = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        tokenMint: tokenMint,
+                        privateKey: cfg.burnerPrivateKey,
+                        probeSol: baseSol,
+                        takeProfitPct: tpPct,
+                        stopLossPct: -3.8,
+                        timeStopSec: 14
+                    })
+                });
+                const tradeStatus = await res.json();
+                if (tradeStatus.success && statusEl) {
+                    statusEl.innerText = `⚡ ATTIVO (${baseSol} SOL) ➔ TP: +${tradeStatus.effectiveTpPct || tpPct}% + Burn`;
+                    statusEl.style.color = "#00e676";
+                    if (mathRow && tradeStatus.scammerDumpMC && tradeStatus.finalTargetMC) {
+                        mathRow.style.display = "flex";
+                        scammerVal.innerText = `$${(tradeStatus.scammerDumpMC / 1000).toFixed(1)}k MC`;
+                        ourExitVal.innerText = `$${(tradeStatus.finalTargetMC / 1000).toFixed(1)}k MC`;
+                    }
+                } else if (statusEl) {
+                    statusEl.innerText = `⚠️ Errore: ${tradeStatus.error || 'Fondi insufficienti'}`;
+                    statusEl.style.color = "#ffaa00";
+                }
+            } catch (err) {
+                if (statusEl) statusEl.innerText = "⚠️ Errore connessione server";
+            }
+        });
+    }
     function avviaRadar() {
         chrome.storage.local.get(['userLanguage'], (res) => {
             currentLang = res.userLanguage ? res.userLanguage : 'en'; 
@@ -895,17 +978,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Altrimenti, facciamo partire l'analisi API normale
                 chrome.storage.local.get(['ultimoTokenScansionato', 'ultimoRisultatoScan', 'ultimoScanLang', 'userConnectedWallet'], (memoria) => {
                     const userWallet = memoria.userConnectedWallet || "null";
 
                     if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan && memoria.ultimoScanLang === currentLang) {
                         popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
-                        avviaLaboratorioGemini(tokenMint); 
-                        
-                        fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
-                            headers: { "x-wallet-address": userWallet }
-                        }).catch(() => {});
+                        avviaLaboratorioGemini(tokenMint);
+                        innescaModalitaParassita(memoria.ultimoRisultatoScan, tokenMint); // 🔥 PARTE ANCHE SE IN CACHE!
                     } else {
                         fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
                             headers: { "x-wallet-address": userWallet }
@@ -920,35 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                             popolaInterfacciaStatica(data, tokenMint);
                             avviaLaboratorioGemini(tokenMint);
-
-                            // 🔥 INNESTO AUTO-TRADING ALL'APERTURA DELL'ESTENSIONE
-                            // 🔥 INNESTO AUTO-TRADING ALL'APERTURA DELL'ESTENSIONE
-                            chrome.storage.local.get(['userConfig'], async (resObj) => {
-                                const cfg = resObj.userConfig || {};
-                                // Parte in automatico solo se lo switch Auto-Trade è ON, la chiave è inserita e il token è valido
-                                if (cfg.autoTradeEnabled && cfg.burnerPrivateKey && data.score >= 55 && !data.azione.includes("AVOID")) {
-                                    console.log("🤖 [AUTO-TRADER] Condizioni ottimali rilevate all'apertura! Avvio ciclo SQHK48...");
-                                    
-                                    const res = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            tokenMint: tokenMint, 
-                                            privateKey: cfg.burnerPrivateKey,
-                                            probeSol: 0.06,                        // $6.25 (Tranche 1)
-                                            scale1Sol: 0.12,                       // $12.51 (Tranche 2)
-                                            scale2Sol: 0.16,                       // $16.68 (Tranche 3)
-                                            step1Pct: parseFloat(cfg.step1Pct) || 6,
-                                            step2Pct: 14,
-                                            takeProfitPct: parseFloat(cfg.takeProfitPct) || 28,
-                                            stopLossPct: -4.5,
-                                            timeStopSec: 12
-                                        })
-                                    });
-                                    const tradeStatus = await res.json();
-                                    console.log("⚡ Stato Auto-Trade:", tradeStatus);
-                                }
-                            });
+                            innescaModalitaParassita(data, tokenMint); // 🔥 PARTE SUI NUOVI TOKEN!
                         })
                         .catch(err => {
                             const staticBox = document.getElementById('static-analysis-box');
@@ -965,7 +1016,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const av2 = chrome.runtime.getURL("avatar2.png");
         const av3 = chrome.runtime.getURL("avatar3.png");
         const av4 = chrome.runtime.getURL("avatar4.png");
-
+        const autoTraderBannerHTML = `
+            <div id="autotrade-live-banner" style="background: linear-gradient(135deg, #160d24 0%, #0a0c10 100%); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff007f; box-shadow: 0 0 12px rgba(255, 0, 127, 0.15);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                        <span style="font-size: 0.7em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.5px;">🦠 PARASITE AUTO-SNIPER</span>
+                        <span id="autotrade-status-text" style="font-size: 0.75em; color: #e4e4e7; font-family: monospace; font-weight: bold;">Verifica trappola bundler...</span>
+                    </div>
+                    <button id="btn-panic-burn" style="background: linear-gradient(90deg, #ff4d4d, #cc0000); color: #fff; border: none; padding: 6px 10px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(255,77,77,0.4);">
+                        🔥 SELL & BURN
+                    </button>
+                </div>
+                <div id="parasite-math-row" style="display: none; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #2d3142; font-family: monospace; font-size: 0.7em; color: #aaa;">
+                    <span>Scammer Dump: <b id="scammer-dump-val" style="color:#ffaa00;">$0k</b></span>
+                    <span>Nostra Uscita: <b id="our-exit-val" style="color:#00e676;">$0k</b></span>
+                </div>
+            </div>`;
         const copilotHTML = `
             <div style="background: #0f1118; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142; position: relative; overflow: hidden;">
                 <div style="position: absolute; top: -20px; right: -20px; width: 60px; height: 60px; background: #b366ff; opacity: 0.15; filter: blur(20px); border-radius: 50%;"></div>
@@ -1148,31 +1214,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         <!-- TRADING ROUTE & AUTO-SNIPER -->
                         <div style="margin-bottom: 15px; border: 1px solid #a855f7; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: linear-gradient(145deg, #11121a, #1a0f2e);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">Auto-Sniper HFT</strong>
+                                <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">🦠 Parasite Auto-Trader</strong>
                                 <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
                                     <input type="checkbox" id="user-auto-trade-toggle" style="opacity: 0; width: 0; height: 0;">
-                                    <span id="auto-trade-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></span>
-                                    <span id="auto-trade-knob" style="position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></span>
+                                    <span id="auto-trade-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px;"></span>
+                                    <span id="auto-trade-knob" style="position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;"></span>
                                 </label>
                             </div>
 
                             <div style="margin-bottom: 10px;">
-                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Burner Wallet Private Key (Base58)</div>
-                                <input type="password" id="user-burner-key" placeholder="Incolla Private Key Phantom..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
+                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Chiave Privata Wallet Secondario (Base58)</div>
+                                <input type="password" id="user-burner-key" placeholder="Incolla Chiave Privata Phantom..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div>
-                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Scale-In Trigger (%)</div>
-                                    <input type="number" id="user-step1-pct" placeholder="6" value="6" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center;">
+                                    <div style="font-size: 0.65em; color: #00ffcc; text-transform: uppercase; margin-bottom: 4px; font-weight:bold;">Importo (SOL)</div>
+                                    <input type="number" step="0.01" id="user-trade-sol" placeholder="0.08" value="0.08" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #00ffcc; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
                                 <div>
-                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Take Profit 100% (%)</div>
-                                    <input type="number" id="user-tp-pct" placeholder="28" value="28" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center;">
+                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Take Profit (%)</div>
+                                    <input type="number" id="user-tp-pct" placeholder="18" value="18" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
                             </div>
-                            <div style="margin-top: 8px; font-size: 0.65em; color: #888; line-height: 1.3;">
-                                ⚠️ Max Budget: $40. It will auto-burn & close accounts to recover rent. Do NOT use your main wallet!
+                            <div style="margin-top: 8px; font-size: 0.65em; color: #aaa; line-height: 1.3;">
+                                💡 Entra quando il Bundler è bloccato sotto il suo punto di pareggio, vende prima della sua soglia di dump e chiude il conto recuperando i <b>+0.002 SOL ($0.21)</b> di cauzione.
                             </div>
                         </div>
 
@@ -1208,6 +1274,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                                 <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">Reload</button>
                             </div>
+                            ${autoTraderBannerHTML}
                             ${copilotHTML}
                             ${orderFlowHTML}
                             ${liveTapeHTML}
@@ -1378,19 +1445,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chrome.storage.local.get(['userConfig', 'userAuthToken'], (res) => {
             if (res.userConfig) {
-                if (document.getElementById('user-route-mode')) document.getElementById('user-route-mode').value = res.userConfig.routeMode || "standard";
-                if (document.getElementById('user-risk-profile')) document.getElementById('user-risk-profile').value = res.userConfig.riskProfile || "safe";
-                
-                // Carica stato Ologramma (Senza doppioni)
                 const holoToggle = document.getElementById('user-holo-toggle');
                 const holoSlider = document.getElementById('holo-toggle-slider');
                 const holoKnob = document.getElementById('holo-toggle-knob');
-                // Caricamento Dati Auto-Trading
+
                 const autoToggle = document.getElementById('user-auto-trade-toggle');
                 const autoSlider = document.getElementById('auto-trade-slider');
                 const autoKnob = document.getElementById('auto-trade-knob');
-                const keyInput = document.getElementById('user-burner-key');
-                const step1Input = document.getElementById('user-step1-pct');
+                const burnerInput = document.getElementById('user-burner-key');
+                const tradeSolInput = document.getElementById('user-trade-sol');
                 const tpInput = document.getElementById('user-tp-pct');
 
                 if (autoToggle) {
@@ -1399,8 +1462,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         autoSlider.style.backgroundColor = '#ff007f';
                         autoKnob.style.left = '22px';
                     }
-                    if (keyInput && res.userConfig.burnerPrivateKey) keyInput.value = res.userConfig.burnerPrivateKey;
-                    if (step1Input && res.userConfig.step1Pct) step1Input.value = res.userConfig.step1Pct;
+                    if (burnerInput && res.userConfig.burnerPrivateKey) burnerInput.value = res.userConfig.burnerPrivateKey;
+                    if (tradeSolInput && res.userConfig.tradeSol) tradeSolInput.value = res.userConfig.tradeSol;
                     if (tpInput && res.userConfig.takeProfitPct) tpInput.value = res.userConfig.takeProfitPct;
 
                     autoToggle.addEventListener('change', (e) => {
@@ -1413,26 +1476,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                 }
-                let isHoloEnabled = res.userConfig.holoEnabled !== false; // Default true
-                
+
+                let isHoloEnabled = res.userConfig.holoEnabled !== false;
                 if (holoToggle) {
                     holoToggle.checked = isHoloEnabled;
                     if (!isHoloEnabled) {
                         holoSlider.style.backgroundColor = '#444';
                         holoKnob.style.left = '2px';
                     }
-                    
                     holoToggle.addEventListener('change', (e) => {
                         const isChecked = e.target.checked;
-                        if (isChecked) {
-                            holoSlider.style.backgroundColor = '#00e676';
-                            holoKnob.style.left = '22px';
-                        } else {
-                            holoSlider.style.backgroundColor = '#444';
-                            holoKnob.style.left = '2px';
-                        }
-                        
-                        // 🔥 SALVATAGGIO ISTANTANEO! Non serve più premere "Save Settings"
+                        holoSlider.style.backgroundColor = isChecked ? '#00e676' : '#444';
+                        holoKnob.style.left = isChecked ? '22px' : '2px';
                         chrome.storage.local.get(['userConfig'], (configRes) => {
                             const newC = configRes.userConfig || {};
                             newC.holoEnabled = isChecked;
@@ -1450,14 +1505,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             } else {
-                avatarOptions[0].classList.add('active');
+                if (avatarOptions[0]) avatarOptions[0].classList.add('active');
             }
 
             const aiSelect = document.getElementById('user-ai-model');
             const aiBadge = document.getElementById('ai-premium-badge');
             const aiText = document.getElementById('ai-upgrade-text');
             const token = res.userAuthToken || "";
-
             const isPremium = token.includes('ms-premium-') || token.includes('admin');
 
             if (aiSelect) {
@@ -1467,67 +1521,43 @@ document.addEventListener('DOMContentLoaded', () => {
                     aiSelect.style.border = "1px solid #a855f7";
                     aiSelect.style.cursor = "pointer";
                     aiSelect.style.background = "#0a0c10";
-                    
                     aiBadge.innerText = "💎 PREMIUM";
                     aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
                     aiBadge.style.color = "#a855f7";
                     aiBadge.style.border = "1px solid #a855f7";
-                    
-                    aiText.style.display = "none"; 
+                    aiText.style.display = "none";
                 }
-
                 aiSelect.value = res.userConfig?.aiModel || "deepseek/deepseek-chat";
-
-                aiSelect.addEventListener('change', () => {
-                    chrome.storage.local.get(['userConfig'], (configRes) => {
-                        const newC = configRes.userConfig || {};
-                        newC.aiModel = aiSelect.value;
-                        
-                        chrome.storage.local.set({ userConfig: newC }, () => {
-                            if (aiBadge) { 
-                                aiBadge.innerText = "✓ SAVED";
-                                aiBadge.style.background = "rgba(0, 230, 118, 0.2)";
-                                aiBadge.style.color = "#00e676";
-                                aiBadge.style.border = "1px solid #00e676";
-                                
-                                setTimeout(() => { 
-                                    aiBadge.innerText = "💎 PREMIUM"; 
-                                    aiBadge.style.background = "rgba(168, 85, 247, 0.2)";
-                                    aiBadge.style.color = "#a855f7";
-                                    aiBadge.style.border = "1px solid #a855f7";
-                                }, 1500);
-                            }
-                        });
-                    });
-                });
             }
         });
 
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
-            btnSaveConfig.addEventListener('click', () => { // 🔥 FIX: Mancava l'evento di Click!
+            btnSaveConfig.addEventListener('click', () => {
                 const newConfig = {
                     avatarUrl: selectedAvatarUrl,
                     aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
                     holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true,
                     autoTradeEnabled: document.getElementById('user-auto-trade-toggle') ? document.getElementById('user-auto-trade-toggle').checked : false,
                     burnerPrivateKey: document.getElementById('user-burner-key') ? document.getElementById('user-burner-key').value.trim() : "",
-                    step1Pct: document.getElementById('user-step1-pct') ? document.getElementById('user-step1-pct').value : 6,
-                    takeProfitPct: document.getElementById('user-tp-pct') ? document.getElementById('user-tp-pct').value : 28
+                    tradeSol: document.getElementById('user-trade-sol') ? document.getElementById('user-trade-sol').value : 0.08,
+                    takeProfitPct: document.getElementById('user-tp-pct') ? document.getElementById('user-tp-pct').value : 18
                 };
 
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
                     btnSaveConfig.style.background = '#00e676';
-                    btnSaveConfig.innerHTML = "SAVED!"; 
-                    
+                    btnSaveConfig.innerHTML = "SAVED!";
                     setTimeout(() => {
                         btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
-                        btnSaveConfig.innerHTML = "SAVE SETTINGS"; 
+                        btnSaveConfig.innerHTML = "SAVE SETTINGS";
                         document.getElementById('tab-radar').click();
-                    }, 1000); 
+                        avviaRadar(); // Riavvia subito il controllo Auto-Trader con i nuovi parametri!
+                    }, 800);
                 });
             });
         }
+
+        
 
         const btnUpgrade = document.getElementById('btn-upgrade'); 
         if (btnUpgrade) {

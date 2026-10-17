@@ -3605,255 +3605,238 @@ app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
     }
 });
 // =====================================================================
-// 🤖 MOTORE AUTO-TRADING HFT (Piramidazione SQHK48 + Auto-Burn & Rent Reclaim)
+// 🦠 MOTORE "SCAMMER PARASITE" HFT (Exploit Costo Sommerso Bundler + Auto-Burn)
 // =====================================================================
 const bs58 = require('bs58');
-const { VersionedTransaction, Keypair, Transaction, sendAndConfirmTransaction, ComputeBudgetProgram } = require('@solana/web3.js');
+const { VersionedTransaction, Keypair, Transaction, ComputeBudgetProgram } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createBurnCheckedInstruction, createCloseAccountInstruction, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
 
-const activeAutoTrades = new Map(); // Traccia i cicli attivi per evitare doppi acquisti
+const activeAutoTrades = new Map();
 
-// 1. ESECUTORE SWAP ULTRA-ECONOMICO (Priority Fee fissa a 0.00001 SOL)
+// 1. CALCOLATORE DELLA FALLA: Trova se il Bundler è intrappolato e costretto a pompare
+function calcolaFallaBundler(currentFdv, bundledSupplyPct, microDumpPericolo, buyPressure, stealthRetail) {
+    const mc = parseFloat(currentFdv) || 0;
+    const bundlePct = parseFloat(bundledSupplyPct) || 0;
+    const bp = parseFloat(buyPressure) || 50;
+
+    // Stima matematica del Market Cap minimo di pareggio dello scammer (Sunk Cost Floor)
+    // Più alta è la % che ha comprato al lancio, più alto è il MC a cui DEVE arrivare per non perdere soldi in slippage e fee
+    const scammerBreakEvenMC = Math.floor(6500 + (bundlePct * 450)); 
+    
+    // Soglia dove lo scammer inizierà a scaricare sui retail (Dump Threshold)
+    const scammerDumpTargetMC = Math.floor(scammerBreakEvenMC * 1.65);
+
+    // 🔥 LA NOSTRA USCITA "PARASSITA": Vendiamo in faccia allo scammer al 20% PRIMA del suo target!
+    const ourFrontRunExitMC = Math.floor(scammerDumpTargetMC * 0.82);
+
+    let exploitAttivo = false;
+    let tipoFalla = "NESSUNA";
+    let margineStimatoPct = 0;
+
+    // CASO 1: BUNDLER INTRAPPOLATO (Ha supply in mano, 0 vendite, MC basso e sta iniziando a spingere il grafico)
+    if (mc >= 7500 && mc <= 24000 && bundlePct >= 10 && bundlePct <= 35 && !microDumpPericolo && (bp >= 55 || stealthRetail)) {
+        if (ourFrontRunExitMC > mc * 1.12) {
+            exploitAttivo = true;
+            tipoFalla = "BUNDLER_TRAPPED_FLOOR";
+            margineStimatoPct = Math.round(((ourFrontRunExitMC - mc) / mc) * 100);
+        }
+    }
+    // CASO 2: BOT TIME-STOP SHAKEOUT (I bot sniper hanno appena scaricato a 12s ma i Top Holders holdano e ricomprano)
+    else if (mc >= 8000 && mc <= 32000 && !microDumpPericolo && bp >= 62) {
+        exploitAttivo = true;
+        tipoFalla = "SNIPER_SHAKEOUT_REBOUND";
+        margineStimatoPct = 18;
+    }
+
+    return {
+        exploitAttivo,
+        tipoFalla,
+        scammerBreakEvenMC,
+        scammerDumpTargetMC,
+        ourFrontRunExitMC: exploitAttivo ? Math.max(Math.floor(mc * 1.16), ourFrontRunExitMC) : Math.floor(mc * 1.18),
+        margineStimatoPct: Math.min(45, Math.max(15, margineStimatoPct))
+    };
+}
+
+// 2. ESECUTORE SWAP CON FEE MINIMA (0.00001 SOL)
 async function eseguiSwapHFT(privateKeyBase58, tokenMint, action, amountSolOrPct, slippage = 5) {
     try {
-        const secretKey = bs58.default ? bs58.default.decode(privateKeyBase58) : bs58.decode(privateKeyBase58);
+        const cleanKey = privateKeyBase58.trim();
+        const secretKey = bs58.default ? bs58.default.decode(cleanKey) : bs58.decode(cleanKey);
         const signerKeypair = Keypair.fromSecretKey(secretKey);
 
-        // Costruisce la transazione locale tramite PumpPortal (non invia mai la chiave privata a terzi)
         const response = await fetch("https://pumpportal.fun/api/trade-local", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 publicKey: signerKeypair.publicKey.toBase58(),
-                action: action, // "buy" o "sell"
+                action: action,
                 mint: tokenMint,
                 denominatedInSol: action === "buy" ? "true" : "false",
-                amount: amountSolOrPct, // es. 0.06 per buy, oppure "100%" per sell
+                amount: amountSolOrPct,
                 slippage: slippage,
-                priorityFee: 0.00001, // 🔥 FEE MINIMA RICHIESTA: 0.00001 SOL
+                priorityFee: 0.00001, // 🔥 COMMISSIONE MINIMA: 0.00001 SOL
                 pool: "auto"
             })
         });
 
         if (response.status !== 200) {
-            throw new Error(`Errore creazione TX (${response.status}): ${await response.text()}`);
+            throw new Error(`PumpPortal (${response.status}): ${await response.text()}`);
         }
 
         const data = await response.arrayBuffer();
         const tx = VersionedTransaction.deserialize(new Uint8Array(data));
         tx.sign([signerKeypair]);
 
-        // Invia tramite il tuo Load Balancer Helius
-        const signature = await getRPC().sendTransaction(tx, {
-            skipPreflight: true,
-            maxRetries: 2
-        });
-
-        console.log(`⚡ [AUTO-TRADE] ${action.toUpperCase()} (${amountSolOrPct}) su ${tokenMint.substring(0,6)} | Fee: 0.00001 SOL | TX: ${signature}`);
-        return { success: true, signature, walletPubkey: signerKeypair.publicKey };
+        const signature = await getRPC().sendTransaction(tx, { skipPreflight: true, maxRetries: 2 });
+        console.log(`⚡ [PARASITE SWAP] ${action.toUpperCase()} (${amountSolOrPct}) su ${tokenMint.substring(0,6)} | TX: ${signature}`);
+        return { success: true, signature };
     } catch (error) {
-        console.error(`❌ [ERRORE SWAP HFT] ${action.toUpperCase()}:`, error.message);
+        console.error(`❌ [ERRORE SWAP] ${action.toUpperCase()}:`, error.message);
         return { success: false, error: error.message };
     }
 }
 
-// 🔥 2. IL SEGRETO SALVA-BUDGET: Brucia la "polvere" residua e CHIUDE l'account recuperando +0.002039 SOL!
+// 3. AUTO-BURN BRICIOLE & CHIUSURA CONTO (Rimborsa +0.002039 SOL = $0.21 sul tuo wallet)
 async function bruciaEChiudiTokenAccount(privateKeyBase58, tokenMint) {
     try {
-        const secretKey = bs58.default ? bs58.default.decode(privateKeyBase58) : bs58.decode(privateKeyBase58);
+        const cleanKey = privateKeyBase58.trim();
+        const secretKey = bs58.default ? bs58.default.decode(cleanKey) : bs58.decode(cleanKey);
         const payer = Keypair.fromSecretKey(secretKey);
         const mintPubkey = new PublicKey(tokenMint);
 
-        // Trova l'Associated Token Account (ATA) del tuo wallet per questo token
         const ata = await getAssociatedTokenAddress(mintPubkey, payer.publicKey);
         const accountInfo = await getRPC().getParsedAccountInfo(ata);
 
-        if (!accountInfo.value) {
-            return { closed: false, reason: "Account già chiuso o inesistente." };
-        }
+        if (!accountInfo.value) return { closed: false, reason: "Conto già chiuso." };
 
         const parsedData = accountInfo.value.data.parsed.info;
         const rawBalance = BigInt(parsedData.tokenAmount.amount);
         const decimals = parsedData.tokenAmount.decimals;
 
         const tx = new Transaction();
-
-        // Imposta la Priority Fee minima a 0.00001 SOL (10.000 microLamports/CU)
         tx.add(
             ComputeBudgetProgram.setComputeUnitLimit({ units: 45000 }),
-            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 220000 }) // Totale ~0.0000099 SOL
+            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 220000 }) // ~0.00001 SOL fee
         );
 
-        // Se è rimasta della "polvere" (dust) dopo la vendita o se il token è morto, la BRUCIA a zero
+        // Se sono rimaste frazioni invendibili (dust), le brucia per sbloccare la chiusura
         if (rawBalance > 0n) {
-            console.log(`🔥 [AUTO-BURN] Brucio ${parsedData.tokenAmount.uiAmount} token residui su ${tokenMint.substring(0,6)}...`);
-            tx.add(
-                createBurnCheckedInstruction(
-                    ata,
-                    mintPubkey,
-                    payer.publicKey,
-                    rawBalance,
-                    decimals,
-                    [],
-                    TOKEN_PROGRAM_ID
-                )
-            );
+            tx.add(createBurnCheckedInstruction(ata, mintPubkey, payer.publicKey, rawBalance, decimals, [], TOKEN_PROGRAM_ID));
         }
 
-        // Chiude l'account e rimborsa i ~0.00203928 SOL di Rent direttamente sul tuo wallet!
-        tx.add(
-            createCloseAccountInstruction(
-                ata,
-                payer.publicKey, // Destinazione del rimborso SOL
-                payer.publicKey, // Proprietario
-                [],
-                TOKEN_PROGRAM_ID
-            )
-        );
+        // Chiude la "scatola" ATA e accredita +0.00203928 SOL ($0.21) sul tuo wallet
+        tx.add(createCloseAccountInstruction(ata, payer.publicKey, payer.publicKey, [], TOKEN_PROGRAM_ID));
 
         const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
-        console.log(`♻️ [RENT RECUPERATO] Account chiuso! +0.002039 SOL rimborsati. TX: ${sig}`);
-        return { closed: true, signature: sig, rentRecoveredSol: 0.00203928 };
+        console.log(`♻️ [RENT INCASSATO] Conto chiuso su ${tokenMint.substring(0,6)}! +0.002039 SOL rimborsati. TX: ${sig}`);
+        return { closed: true, signature: sig };
     } catch (error) {
-        console.log(`⚠️ [BURN/CLOSE SKIP]: ${error.message}`);
         return { closed: false, error: error.message };
     }
 }
 
-// 🧠 3. MACCHINA A STATI SQHK48: Sonda -> Piramidazione su % -> One-Shot Exit + Auto-Burn
+// 4. ENDPOINT AVVIO PARASSITA: Entra sul pavimento dello Scammer e gli vende in faccia prima del suo target
 app.post('/api/autotrading/start', async (req, res) => {
     const {
         tokenMint,
         privateKey,
-        probeSol = 0.06,      // Tranche 1: ~$6.25
-        scale1Sol = 0.12,     // Tranche 2: ~$12.51 (a +6%)
-        scale2Sol = 0.16,     // Tranche 3: ~$16.68 (a +14%)
-        step1Pct = 6,         // % per attivare Tranche 2
-        step2Pct = 14,        // % per attivare Tranche 3
-        takeProfitPct = 28,   // % per scaricare il 100% in un colpo solo
-        stopLossPct = -4.5,   // Stop Loss stretto
-        timeStopSec = 12      // Se dopo 12s non è almeno a +1.5%, esce!
+        probeSol = 0.08,
+        takeProfitPct = 18,
+        stopLossPct = -3.8,
+        timeStopSec = 14
     } = req.body;
 
     if (!tokenMint || !privateKey) {
-        return res.status(400).json({ success: false, error: "Token Mint o Private Key mancanti." });
+        return res.status(400).json({ success: false, error: "Dati mancanti." });
     }
-
     if (activeAutoTrades.has(tokenMint)) {
-        return res.json({ success: true, status: "ALREADY_RUNNING", message: "Ciclo Auto-Trading già attivo su questo token." });
+        return res.json({ success: true, status: "ALREADY_ACTIVE", message: "Già in posizione su questo token." });
     }
 
     try {
-        // 1. Verifica che il prezzo sia leggibile prima di rischiare SOL
         const entryMC = await ottieniPrezzoToken(tokenMint);
         if (!entryMC || entryMC <= 0) {
-            return res.status(400).json({ success: false, error: "Impossibile leggere il Market Cap iniziale." });
+            return res.status(400).json({ success: false, error: "Prezzo non disponibile." });
         }
 
-        // 2. SPARA TRANCHE 1 (COLPO SONDA: 0.06 SOL)
-        const buy1 = await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(probeSol), 5);
-        if (!buy1.success) {
-            return res.status(500).json({ success: false, error: buy1.error });
+        // Recuperiamo i dati forensi da Redis per calcolare la soglia esatta dello scammer
+        const cached = (await redis.get(`scan_${tokenMint}_en`)) || (await redis.get(`scan_${tokenMint}_it`));
+        const bundlePct = cached?.data?.bundleShield?.supplyBundledPct || 15;
+        const falla = calcolaFallaBundler(entryMC, bundlePct, false, 60, true);
+
+        // Il nostro Take Profit è il minore tra la % scelta da te e la soglia di Front-Run dello Scammer!
+        const userTargetMC = Math.floor(entryMC * (1 + (parseFloat(takeProfitPct) / 100)));
+        const finalTargetMC = falla.exploitAttivo ? Math.min(userTargetMC, falla.ourFrontRunExitMC) : userTargetMC;
+        const effectiveTpPct = (((finalTargetMC - entryMC) / entryMC) * 100).toFixed(1);
+
+        // 1. ESEGUIAMO L'INGRESSO PARASSITA
+        const buyRes = await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(probeSol), 5);
+        if (!buyRes.success) {
+            return res.status(500).json({ success: false, error: buyRes.error });
         }
 
         const startTime = Date.now();
-        let state = {
-            entryMC,
-            peakMC: entryMC,
-            tranche2Fired: false,
-            tranche3Fired: false,
-            totalSolInvested: parseFloat(probeSol),
-            timer: null
-        };
+        const mintPubKey = new PublicKey(tokenMint);
+        let state = { entryMC, peakMC: entryMC, timer: null };
         activeAutoTrades.set(tokenMint, state);
 
-        io.emit('autotrade_update', {
-            mint: tokenMint,
-            fase: "PROBE_IN_CORSO",
-            messaggio: `🎯 Sonda entrata (${probeSol} SOL a $${(entryMC/1000).toFixed(1)}k MC). Time-Stop attivo a ${timeStopSec}s.`
-        });
-
-        // 3. LOOP DI MONITORAGGIO AD ALTA FREQUENZA (Ogni 2.5 secondi)
+        // 2. GUARDIANO HFT OGNI 2 SECONDI: Controlla Prezzo + Movimenti del Dev
         state.timer = setInterval(async () => {
             try {
-                const currentMC = await ottieniPrezzoToken(tokenMint);
+                const [currentMC, microDumpCheck] = await Promise.all([
+                    ottieniPrezzoToken(tokenMint),
+                    analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false }))
+                ]);
                 if (!currentMC) return;
-
                 if (currentMC > state.peakMC) state.peakMC = currentMC;
 
-                const changeFromEntryPct = ((currentMC - state.entryMC) / state.entryMC) * 100;
-                const drawdownFromPeakPct = ((currentMC - state.peakMC) / state.peakMC) * 100;
+                const changePct = ((currentMC - state.entryMC) / state.entryMC) * 100;
+                const dropFromPeakPct = ((currentMC - state.peakMC) / state.peakMC) * 100;
                 const elapsedSec = (Date.now() - startTime) / 1000;
 
-                // 🔴 REGOLA A: TIME-STOP DEI 12 SECONDI (Stile SQHK48)
-                // Se dopo 12 secondi il token non ha preso slancio (< +1.5%), chiudiamo subito!
-                const isTimeStopTriggered = (elapsedSec >= timeStopSec && !state.tranche2Fired && changeFromEntryPct < 1.5);
+                // 🚨 GRILLETTO 1: FRONT-RUN DELLO SCAMMER (Se i Top Holders iniziano a vendere, usciamo all'istante!)
+                const scammerStartedDumping = microDumpCheck && microDumpCheck.pericolo === true;
 
-                // 🔴 REGOLA B: HARD STOP-LOSS (-4.5%) O TRAILING STOP (-6% dal picco dopo aver piramidato)
-                const isStopLossTriggered = (changeFromEntryPct <= stopLossPct) || (state.tranche2Fired && drawdownFromPeakPct <= -6.0);
+                // ⏱️ GRILLETTO 2: TIME-STOP (Se dopo 14 secondi lo scammer non spinge il prezzo > +1.5%, usciamo subito)
+                const isTimeStop = (elapsedSec >= timeStopSec && changePct < 1.5);
 
-                // 🟢 REGOLA C: TAKE PROFIT ATOMICO (+28%) O TIMEOUT MASSIMO (95s)
-                const isTakeProfitTriggered = (changeFromEntryPct >= takeProfitPct) || (elapsedSec >= 95);
+                // 🛑 GRILLETTO 3: STOP LOSS (-3.8%) O TRAILING STOP (-4% dal picco massimo raggiunto)
+                const isStopLoss = (changePct <= stopLossPct) || (changePct >= 8 && dropFromPeakPct <= -4.0);
 
-                if (isTimeStopTriggered || isStopLossTriggered || isTakeProfitTriggered) {
+                // 🟢 GRILLETTO 4: TARGET PARASSITA RAGGIUNTO (Vendiamo prima che lo scammer arrivi al suo target!)
+                const isTakeProfit = (currentMC >= finalTargetMC) || (changePct >= parseFloat(takeProfitPct)) || (elapsedSec >= 75);
+
+                if (scammerStartedDumping || isTimeStop || isStopLoss || isTakeProfit) {
                     clearInterval(state.timer);
                     activeAutoTrades.delete(tokenMint);
 
-                    let motivoUscita = isTakeProfitTriggered ? `✅ TAKE PROFIT (+${changeFromEntryPct.toFixed(1)}%)` :
-                                       (isTimeStopTriggered ? `⏱️ TIME-STOP ${timeStopSec}s (${changeFromEntryPct.toFixed(1)}%)` : `🛑 STOP LOSS (${changeFromEntryPct.toFixed(1)}%)`);
+                    // SCARICO ATOMICO 100%
+                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 9);
 
-                    // 1. SCARICO ATOMICO DEL 100% IN UNA SOLA TX
-                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 8);
-
-                    // 2. Aspetta 3.5s per la conferma del blocco e BRUCIA + CHIUDE L'ACCOUNT (Recupera +0.002039 SOL)
+                    // AUTO-BURN + CHIUSURA CONTO DOPO 3.5s PER RIPRENDERE I +0.002039 SOL ($0.21)
                     setTimeout(async () => {
-                        const burnRes = await bruciaEChiudiTokenAccount(privateKey, tokenMint);
-                        io.emit('autotrade_update', {
-                            mint: tokenMint,
-                            fase: "CHIUSO_E_BRUCIATO",
-                            messaggio: `${motivoUscita} | Account bruciato e chiuso (+0.002 SOL Rent recuperato).`
-                        });
+                        await bruciaEChiudiTokenAccount(privateKey, tokenMint);
                     }, 3500);
-
-                    return;
                 }
+            } catch (e) {}
+        }, 2000);
 
-                // 🚀 REGOLA D: PIRAMIDAZIONE TRANCHE 2 (+6%)
-                if (!state.tranche2Fired && changeFromEntryPct >= step1Pct) {
-                    state.tranche2Fired = true;
-                    state.totalSolInvested += parseFloat(scale1Sol);
-                    await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(scale1Sol), 6);
-                    io.emit('autotrade_update', {
-                        mint: tokenMint,
-                        fase: "SCALE_IN_2",
-                        messaggio: `🔥 Momentum confermato (+${changeFromEntryPct.toFixed(1)}%)! Sparata Tranche 2 (+${scale1Sol} SOL).`
-                    });
-                }
-
-                // 🚀 REGOLA E: PIRAMIDAZIONE TRANCHE 3 (+14%)
-                if (state.tranche2Fired && !state.tranche3Fired && changeFromEntryPct >= step2Pct) {
-                    state.tranche3Fired = true;
-                    state.totalSolInvested += parseFloat(scale2Sol);
-                    await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(scale2Sol), 7);
-                    io.emit('autotrade_update', {
-                        mint: tokenMint,
-                        fase: "SCALE_IN_3",
-                        messaggio: `🚀 Impulso parabolico (+${changeFromEntryPct.toFixed(1)}%)! Sparata Tranche 3 (+${scale2Sol} SOL). Pronto allo scarico atomico.`
-                    });
-                }
-
-            } catch (loopErr) {}
-        }, 2500);
-
-        return res.json({ success: true, status: "STARTED", entryMC, probeSol });
-
+        return res.json({
+            success: true,
+            entryMC,
+            finalTargetMC,
+            effectiveTpPct,
+            scammerDumpMC: falla.scammerDumpTargetMC,
+            tipoFalla: falla.tipoFalla
+        });
     } catch (e) {
         activeAutoTrades.delete(tokenMint);
         return res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// Endpoint per forzare l'uscita e il Burn manuale in qualsiasi istante
+// 5. PULSANTE EMERGENZA: Vendi 100% + Brucia e recupera i 0.002 SOL manualmente
 app.post('/api/autotrading/panic-burn', async (req, res) => {
     const { tokenMint, privateKey } = req.body;
     if (activeAutoTrades.has(tokenMint)) {
@@ -3862,7 +3845,7 @@ app.post('/api/autotrading/panic-burn', async (req, res) => {
     }
     const sellRes = await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 15);
     setTimeout(() => bruciaEChiudiTokenAccount(privateKey, tokenMint), 3000);
-    return res.json({ success: sellRes.success, message: "Vendita 100% + Auto-Burn avviati." });
+    return res.json({ success: sellRes.success });
 });
 server.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
