@@ -250,6 +250,7 @@ function avviaAscoltoLive(tokenMint) {
                     
                     // 4. Creiamo il Pacchetto
                     const liveEvent = {
+                        mint: tokenMint, // 🔥 FIX: Specifica il token per evitare che i dati si mischino tra utenti
                         tipo: isBundle ? `BUNDLE ${tipoAzione}` : tipoAzione,
                         sol: deltaSol.toFixed(2),
                         wallet: feePayer,
@@ -302,6 +303,7 @@ function avviaAscoltoLive(tokenMint) {
                             console.log(`\n🚨 SPY ALERT: ${alertMsg}`);
                             
                             io.emit('spy_alert', {
+                                mint: tokenMint, // 🔥 FIX: Specifica il token per l'allarme Sybil
                                 timestamp: new Date().toLocaleTimeString('it-IT', { hour12: false }),
                                 messaggio: alertMsg,
                                 wallets: sellers.map(s => s.wallet)
@@ -3448,10 +3450,12 @@ app.post('/api/verify-payment', async (req, res) => {
         const lamportsRicevuti = postBalance - preBalance;
         const solRicevuti = lamportsRicevuti / 1e9;
 
-        // Se l'hacker ha inviato meno di 0.05 SOL (circa 7$), blocchiamo tutto.
-        if (solRicevuti < 0.05) {
-            console.error(`🚨 ZERO-VALUE ATTACK: L'utente ha inviato solo ${solRicevuti} SOL per avere il Premium!`);
-            return res.status(403).json({ error: 'Importo ricevuto troppo basso. Pagamento respinto.' });
+        // 🔥 FIX: Controllo dinamico dei prezzi (Cambia questi valori con i tuoi prezzi reali in SOL)
+        const minSolRequired = planType === 'premium' ? 0.35 : 0.05; 
+        
+        if (solRicevuti < minSolRequired) {
+            console.error(`🚨 PRICE EXPLOIT: L'utente ha inviato ${solRicevuti} SOL ma voleva il piano ${planType}!`);
+            return res.status(403).json({ error: `Importo insufficiente per il piano ${planType.toUpperCase()}.` });
         }
 
         console.log(`✅ Incassati con successo ${solRicevuti} SOL da ${walletAddress}`);
@@ -3461,13 +3465,14 @@ app.post('/api/verify-payment', async (req, res) => {
         const newSyncKey = `ms-${planType}-${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
         const expirationDate = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
 
-        // 2. 👇 AGGIUNTO 'affiliate_code' AL DATABASE
+        // 2. 👇 AGGIUNTO 'affiliate_code' e 'last_signature' AL DATABASE
         const { error } = await supabase.from('users').upsert({ 
             wallet_address: walletAddress, 
             plan_type: planType, 
             pro_expires_at: expirationDate, 
             sync_key: newSyncKey,
-            affiliate_code: affiliateCode || null // Salva il codice se c'è, altrimenti null
+            affiliate_code: affiliateCode || null,
+            last_payment_signature: signature // 🔥 FIX: Salviamo la firma per evitare Replay Attacks multipli
         }, { onConflict: 'wallet_address' });
 
         if (error) throw error;
@@ -3546,14 +3551,14 @@ app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
         }
 
         if (cachedVerdict && !cachedVerdict.isEVM) {
-            // Nota: Rischio <= 45 significa che non è una truffa palese
-            const isSafeToBuy = cachedVerdict.score <= 45; 
+            // 🔥 FIX LOGICA: Ora usiamo il Trust Score (100 = Sicuro, 0 = Truffa)
+            const isSafeToBuy = cachedVerdict.score >= 55 && !cachedVerdict.panicSellAttivo; 
             return res.json({
                 mint: tokenMint,
                 safe_to_buy: isSafeToBuy,
-                risk_score: cachedVerdict.score, // 0 = Safe, 100 = Rug
+                trust_score: cachedVerdict.score, // 100 = Safe, 0 = Rug
                 recommended_action: cachedVerdict.azione,
-                kill_signal: cachedVerdict.motivoPanic || (cachedVerdict.score >= 80 ? "HIGH_TRAP_RISK" : "CLEAN"),
+                kill_signal: cachedVerdict.motivoPanic || (cachedVerdict.score <= 38 ? "HIGH_TRAP_RISK" : "CLEAN"),
                 metrics: {
                     jito_bundle_risk: cachedVerdict.earlyRadar?.bundleSlot0 || false,
                     bundled_supply_pct: cachedVerdict.earlyRadar?.supplyBot || 0,
