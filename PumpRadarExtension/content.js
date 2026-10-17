@@ -920,6 +920,33 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                             popolaInterfacciaStatica(data, tokenMint);
                             avviaLaboratorioGemini(tokenMint);
+
+                            // 🔥 INNESTO AUTO-TRADING ALL'APERTURA DELL'ESTENSIONE
+                            chrome.storage.local.get(['autoTradeEnabled', 'burnerPrivateKey', 'step1Pct', 'takeProfitPct'], async (cfg) => {
+                                // Parte in automatico solo se lo switch Auto-Trade è ON, la chiave è inserita e il token è valido
+                                if (cfg.autoTradeEnabled && cfg.burnerPrivateKey && data.score >= 55 && !data.azione.includes("AVOID")) {
+                                    console.log("🤖 [AUTO-TRADER] Condizioni ottimali rilevate all'apertura! Avvio ciclo SQHK48...");
+                                    
+                                    const res = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                            tokenMint: tokenMint, // Corretto l'uso della variabile
+                                            privateKey: cfg.burnerPrivateKey,
+                                            probeSol: 0.06,                        // $6.25 (Tranche 1)
+                                            scale1Sol: 0.12,                       // $12.51 (Tranche 2)
+                                            scale2Sol: 0.16,                       // $16.68 (Tranche 3)
+                                            step1Pct: parseFloat(cfg.step1Pct) || 6,
+                                            step2Pct: 14,
+                                            takeProfitPct: parseFloat(cfg.takeProfitPct) || 28,
+                                            stopLossPct: -4.5,
+                                            timeStopSec: 12
+                                        })
+                                    });
+                                    const tradeStatus = await res.json();
+                                    console.log("⚡ Stato Auto-Trade:", tradeStatus);
+                                }
+                            });
                         })
                         .catch(err => {
                             const staticBox = document.getElementById('static-analysis-box');

@@ -3604,6 +3604,266 @@ app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
         return res.status(500).json({ safe_to_buy: false, error: "Oracle offline or rate limited." });
     }
 });
+// =====================================================================
+// 🤖 MOTORE AUTO-TRADING HFT (Piramidazione SQHK48 + Auto-Burn & Rent Reclaim)
+// =====================================================================
+const bs58 = require('bs58');
+const { VersionedTransaction, Keypair, Transaction, sendAndConfirmTransaction, ComputeBudgetProgram } = require('@solana/web3.js');
+const { getAssociatedTokenAddress, createBurnCheckedInstruction, createCloseAccountInstruction, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
+
+const activeAutoTrades = new Map(); // Traccia i cicli attivi per evitare doppi acquisti
+
+// 1. ESECUTORE SWAP ULTRA-ECONOMICO (Priority Fee fissa a 0.00001 SOL)
+async function eseguiSwapHFT(privateKeyBase58, tokenMint, action, amountSolOrPct, slippage = 5) {
+    try {
+        const secretKey = bs58.default ? bs58.default.decode(privateKeyBase58) : bs58.decode(privateKeyBase58);
+        const signerKeypair = Keypair.fromSecretKey(secretKey);
+
+        // Costruisce la transazione locale tramite PumpPortal (non invia mai la chiave privata a terzi)
+        const response = await fetch("https://pumpportal.fun/api/trade-local", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                publicKey: signerKeypair.publicKey.toBase58(),
+                action: action, // "buy" o "sell"
+                mint: tokenMint,
+                denominatedInSol: action === "buy" ? "true" : "false",
+                amount: amountSolOrPct, // es. 0.06 per buy, oppure "100%" per sell
+                slippage: slippage,
+                priorityFee: 0.00001, // 🔥 FEE MINIMA RICHIESTA: 0.00001 SOL
+                pool: "auto"
+            })
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`Errore creazione TX (${response.status}): ${await response.text()}`);
+        }
+
+        const data = await response.arrayBuffer();
+        const tx = VersionedTransaction.deserialize(new Uint8Array(data));
+        tx.sign([signerKeypair]);
+
+        // Invia tramite il tuo Load Balancer Helius
+        const signature = await getRPC().sendTransaction(tx, {
+            skipPreflight: true,
+            maxRetries: 2
+        });
+
+        console.log(`⚡ [AUTO-TRADE] ${action.toUpperCase()} (${amountSolOrPct}) su ${tokenMint.substring(0,6)} | Fee: 0.00001 SOL | TX: ${signature}`);
+        return { success: true, signature, walletPubkey: signerKeypair.publicKey };
+    } catch (error) {
+        console.error(`❌ [ERRORE SWAP HFT] ${action.toUpperCase()}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// 🔥 2. IL SEGRETO SALVA-BUDGET: Brucia la "polvere" residua e CHIUDE l'account recuperando +0.002039 SOL!
+async function bruciaEChiudiTokenAccount(privateKeyBase58, tokenMint) {
+    try {
+        const secretKey = bs58.default ? bs58.default.decode(privateKeyBase58) : bs58.decode(privateKeyBase58);
+        const payer = Keypair.fromSecretKey(secretKey);
+        const mintPubkey = new PublicKey(tokenMint);
+
+        // Trova l'Associated Token Account (ATA) del tuo wallet per questo token
+        const ata = await getAssociatedTokenAddress(mintPubkey, payer.publicKey);
+        const accountInfo = await getRPC().getParsedAccountInfo(ata);
+
+        if (!accountInfo.value) {
+            return { closed: false, reason: "Account già chiuso o inesistente." };
+        }
+
+        const parsedData = accountInfo.value.data.parsed.info;
+        const rawBalance = BigInt(parsedData.tokenAmount.amount);
+        const decimals = parsedData.tokenAmount.decimals;
+
+        const tx = new Transaction();
+
+        // Imposta la Priority Fee minima a 0.00001 SOL (10.000 microLamports/CU)
+        tx.add(
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 45000 }),
+            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 220000 }) // Totale ~0.0000099 SOL
+        );
+
+        // Se è rimasta della "polvere" (dust) dopo la vendita o se il token è morto, la BRUCIA a zero
+        if (rawBalance > 0n) {
+            console.log(`🔥 [AUTO-BURN] Brucio ${parsedData.tokenAmount.uiAmount} token residui su ${tokenMint.substring(0,6)}...`);
+            tx.add(
+                createBurnCheckedInstruction(
+                    ata,
+                    mintPubkey,
+                    payer.publicKey,
+                    rawBalance,
+                    decimals,
+                    [],
+                    TOKEN_PROGRAM_ID
+                )
+            );
+        }
+
+        // Chiude l'account e rimborsa i ~0.00203928 SOL di Rent direttamente sul tuo wallet!
+        tx.add(
+            createCloseAccountInstruction(
+                ata,
+                payer.publicKey, // Destinazione del rimborso SOL
+                payer.publicKey, // Proprietario
+                [],
+                TOKEN_PROGRAM_ID
+            )
+        );
+
+        const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
+        console.log(`♻️ [RENT RECUPERATO] Account chiuso! +0.002039 SOL rimborsati. TX: ${sig}`);
+        return { closed: true, signature: sig, rentRecoveredSol: 0.00203928 };
+    } catch (error) {
+        console.log(`⚠️ [BURN/CLOSE SKIP]: ${error.message}`);
+        return { closed: false, error: error.message };
+    }
+}
+
+// 🧠 3. MACCHINA A STATI SQHK48: Sonda -> Piramidazione su % -> One-Shot Exit + Auto-Burn
+app.post('/api/autotrading/start', async (req, res) => {
+    const {
+        tokenMint,
+        privateKey,
+        probeSol = 0.06,      // Tranche 1: ~$6.25
+        scale1Sol = 0.12,     // Tranche 2: ~$12.51 (a +6%)
+        scale2Sol = 0.16,     // Tranche 3: ~$16.68 (a +14%)
+        step1Pct = 6,         // % per attivare Tranche 2
+        step2Pct = 14,        // % per attivare Tranche 3
+        takeProfitPct = 28,   // % per scaricare il 100% in un colpo solo
+        stopLossPct = -4.5,   // Stop Loss stretto
+        timeStopSec = 12      // Se dopo 12s non è almeno a +1.5%, esce!
+    } = req.body;
+
+    if (!tokenMint || !privateKey) {
+        return res.status(400).json({ success: false, error: "Token Mint o Private Key mancanti." });
+    }
+
+    if (activeAutoTrades.has(tokenMint)) {
+        return res.json({ success: true, status: "ALREADY_RUNNING", message: "Ciclo Auto-Trading già attivo su questo token." });
+    }
+
+    try {
+        // 1. Verifica che il prezzo sia leggibile prima di rischiare SOL
+        const entryMC = await ottieniPrezzoToken(tokenMint);
+        if (!entryMC || entryMC <= 0) {
+            return res.status(400).json({ success: false, error: "Impossibile leggere il Market Cap iniziale." });
+        }
+
+        // 2. SPARA TRANCHE 1 (COLPO SONDA: 0.06 SOL)
+        const buy1 = await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(probeSol), 5);
+        if (!buy1.success) {
+            return res.status(500).json({ success: false, error: buy1.error });
+        }
+
+        const startTime = Date.now();
+        let state = {
+            entryMC,
+            peakMC: entryMC,
+            tranche2Fired: false,
+            tranche3Fired: false,
+            totalSolInvested: parseFloat(probeSol),
+            timer: null
+        };
+        activeAutoTrades.set(tokenMint, state);
+
+        io.emit('autotrade_update', {
+            mint: tokenMint,
+            fase: "PROBE_IN_CORSO",
+            messaggio: `🎯 Sonda entrata (${probeSol} SOL a $${(entryMC/1000).toFixed(1)}k MC). Time-Stop attivo a ${timeStopSec}s.`
+        });
+
+        // 3. LOOP DI MONITORAGGIO AD ALTA FREQUENZA (Ogni 2.5 secondi)
+        state.timer = setInterval(async () => {
+            try {
+                const currentMC = await ottieniPrezzoToken(tokenMint);
+                if (!currentMC) return;
+
+                if (currentMC > state.peakMC) state.peakMC = currentMC;
+
+                const changeFromEntryPct = ((currentMC - state.entryMC) / state.entryMC) * 100;
+                const drawdownFromPeakPct = ((currentMC - state.peakMC) / state.peakMC) * 100;
+                const elapsedSec = (Date.now() - startTime) / 1000;
+
+                // 🔴 REGOLA A: TIME-STOP DEI 12 SECONDI (Stile SQHK48)
+                // Se dopo 12 secondi il token non ha preso slancio (< +1.5%), chiudiamo subito!
+                const isTimeStopTriggered = (elapsedSec >= timeStopSec && !state.tranche2Fired && changeFromEntryPct < 1.5);
+
+                // 🔴 REGOLA B: HARD STOP-LOSS (-4.5%) O TRAILING STOP (-6% dal picco dopo aver piramidato)
+                const isStopLossTriggered = (changeFromEntryPct <= stopLossPct) || (state.tranche2Fired && drawdownFromPeakPct <= -6.0);
+
+                // 🟢 REGOLA C: TAKE PROFIT ATOMICO (+28%) O TIMEOUT MASSIMO (95s)
+                const isTakeProfitTriggered = (changeFromEntryPct >= takeProfitPct) || (elapsedSec >= 95);
+
+                if (isTimeStopTriggered || isStopLossTriggered || isTakeProfitTriggered) {
+                    clearInterval(state.timer);
+                    activeAutoTrades.delete(tokenMint);
+
+                    let motivoUscita = isTakeProfitTriggered ? `✅ TAKE PROFIT (+${changeFromEntryPct.toFixed(1)}%)` :
+                                       (isTimeStopTriggered ? `⏱️ TIME-STOP ${timeStopSec}s (${changeFromEntryPct.toFixed(1)}%)` : `🛑 STOP LOSS (${changeFromEntryPct.toFixed(1)}%)`);
+
+                    // 1. SCARICO ATOMICO DEL 100% IN UNA SOLA TX
+                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 8);
+
+                    // 2. Aspetta 3.5s per la conferma del blocco e BRUCIA + CHIUDE L'ACCOUNT (Recupera +0.002039 SOL)
+                    setTimeout(async () => {
+                        const burnRes = await bruciaEChiudiTokenAccount(privateKey, tokenMint);
+                        io.emit('autotrade_update', {
+                            mint: tokenMint,
+                            fase: "CHIUSO_E_BRUCIATO",
+                            messaggio: `${motivoUscita} | Account bruciato e chiuso (+0.002 SOL Rent recuperato).`
+                        });
+                    }, 3500);
+
+                    return;
+                }
+
+                // 🚀 REGOLA D: PIRAMIDAZIONE TRANCHE 2 (+6%)
+                if (!state.tranche2Fired && changeFromEntryPct >= step1Pct) {
+                    state.tranche2Fired = true;
+                    state.totalSolInvested += parseFloat(scale1Sol);
+                    await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(scale1Sol), 6);
+                    io.emit('autotrade_update', {
+                        mint: tokenMint,
+                        fase: "SCALE_IN_2",
+                        messaggio: `🔥 Momentum confermato (+${changeFromEntryPct.toFixed(1)}%)! Sparata Tranche 2 (+${scale1Sol} SOL).`
+                    });
+                }
+
+                // 🚀 REGOLA E: PIRAMIDAZIONE TRANCHE 3 (+14%)
+                if (state.tranche2Fired && !state.tranche3Fired && changeFromEntryPct >= step2Pct) {
+                    state.tranche3Fired = true;
+                    state.totalSolInvested += parseFloat(scale2Sol);
+                    await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(scale2Sol), 7);
+                    io.emit('autotrade_update', {
+                        mint: tokenMint,
+                        fase: "SCALE_IN_3",
+                        messaggio: `🚀 Impulso parabolico (+${changeFromEntryPct.toFixed(1)}%)! Sparata Tranche 3 (+${scale2Sol} SOL). Pronto allo scarico atomico.`
+                    });
+                }
+
+            } catch (loopErr) {}
+        }, 2500);
+
+        return res.json({ success: true, status: "STARTED", entryMC, probeSol });
+
+    } catch (e) {
+        activeAutoTrades.delete(tokenMint);
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Endpoint per forzare l'uscita e il Burn manuale in qualsiasi istante
+app.post('/api/autotrading/panic-burn', async (req, res) => {
+    const { tokenMint, privateKey } = req.body;
+    if (activeAutoTrades.has(tokenMint)) {
+        clearInterval(activeAutoTrades.get(tokenMint).timer);
+        activeAutoTrades.delete(tokenMint);
+    }
+    const sellRes = await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 15);
+    setTimeout(() => bruciaEChiudiTokenAccount(privateKey, tokenMint), 3000);
+    return res.json({ success: sellRes.success, message: "Vendita 100% + Auto-Burn avviati." });
+});
 server.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
     console.log(`🤖 Autopilota Innescato: In ascolto H24 su ${BALENE_AUTONOME.length} balene.`);
