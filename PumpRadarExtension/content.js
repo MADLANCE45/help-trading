@@ -1505,11 +1505,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnSaveConfig = document.getElementById('btn-save-config');
         if (btnSaveConfig) {
-            const newConfig = {
+            btnSaveConfig.addEventListener('click', () => { // 🔥 FIX: Mancava l'evento di Click!
+                const newConfig = {
                     avatarUrl: selectedAvatarUrl,
                     aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
                     holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true,
-                    // 🔥 SALVATAGGIO CONFIGURAZIONE AUTO-TRADE
                     autoTradeEnabled: document.getElementById('user-auto-trade-toggle') ? document.getElementById('user-auto-trade-toggle').checked : false,
                     burnerPrivateKey: document.getElementById('user-burner-key') ? document.getElementById('user-burner-key').value.trim() : "",
                     step1Pct: document.getElementById('user-step1-pct') ? document.getElementById('user-step1-pct').value : 6,
@@ -1523,7 +1523,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => {
                         btnSaveConfig.style.background = 'linear-gradient(90deg, #00ffcc, #00b38f)';
                         btnSaveConfig.innerHTML = "SAVE SETTINGS"; 
-                        
                         document.getElementById('tab-radar').click();
                     }, 1000); 
                 });
