@@ -3838,7 +3838,7 @@ app.post('/api/autotrading/wallet-info', async (req, res) => {
 
 // 🚀 6. ENDPOINT AVVIO AUTONOMO: Pesca i SOL dal wallet in base al Rischio, Compra, Monitora, Vende e Brucia
 app.post('/api/autotrading/start', async (req, res) => {
-    const { tokenMint, privateKey, score = 45, panicSellAttivo = false, forceManual = false } = req.body;
+    const { tokenMint, privateKey, score = 45, panicSellAttivo = false, forceManual = false, probeSol, takeProfitPct, stopLossPct, timeStopSec } = req.body;
 
     if (!tokenMint || !privateKey) {
         return res.status(400).json({ success: false, error: "Token o Private Key mancanti." });
@@ -3855,9 +3855,12 @@ app.post('/api/autotrading/start', async (req, res) => {
     }
 
     try {
-        // 1. Legge il saldo reale del wallet e calcola quanti SOL investire in base allo Score
+        console.log(`🤖 [AVVIO TRADE] Ricevuta richiesta per token: ${tokenMint.substring(0,6)}...`);
+        
+        // 1. Calcolo puntata intelligente
         const piano = await calcolaPuntataIntelligenteDalWallet(privateKey, forceManual ? Math.max(50, score) : score, panicSellAttivo);
         if (!piano.autorizzato) {
+            console.log(`⛔ [TRADE BLOCCATO] ${piano.motivo}`);
             return res.status(400).json({ success: false, error: piano.motivo, saldoTotaleSol: piano.saldoTotaleSol });
         }
 
@@ -3866,27 +3869,31 @@ app.post('/api/autotrading/start', async (req, res) => {
             return res.status(400).json({ success: false, error: "Impossibile leggere il Market Cap del token." });
         }
 
-        // 2. ESEGUE SUBITO IL BUY IN AUTOMATICO CON LA TAGLIA CALCOLATA DAL RISCHIO
-        const buyRes = await eseguiSwapHFT(privateKey, tokenMint, "buy", piano.solDaInvestire, 6);
+        const importoDaUsare = probeSol ? parseFloat(probeSol) : piano.solDaInvestire;
+
+        // 2. Esecuzione Swap
+        const buyRes = await eseguiSwapHFT(privateKey, tokenMint, "buy", importoDaUsare, 15);
         if (!buyRes.success) {
+            console.error(`❌ [SWAP FALLITO] Motivo:`, buyRes.error);
             return res.status(500).json({ success: false, error: buyRes.error });
         }
 
         const startTime = Date.now();
-        const mintPubKey = new PublicKey(tokenMint);
-        const finalTargetMC = Math.floor(entryMC * (1 + (piano.takeProfitDinamico / 100)));
+        const mintPubKey = new global.PublicKey(tokenMint); // Assicurati di usare global.PublicKey o di averlo importato
+        const tpScelto = takeProfitPct ? parseFloat(takeProfitPct) : piano.takeProfitDinamico;
+        const finalTargetMC = Math.floor(entryMC * (1 + (tpScelto / 100)));
 
         let state = {
             entryMC,
             peakMC: entryMC,
-            solInvestiti: piano.solDaInvestire,
-            usdStimati: piano.usdStimati,
-            tpPct: piano.takeProfitDinamico,
+            solInvestiti: importoDaUsare,
+            usdStimati: parseFloat((importoDaUsare * 104.23).toFixed(2)),
+            tpPct: tpScelto,
             timer: null
         };
         activeAutoTrades.set(tokenMint, state);
 
-        // 3. GUARDIANO AUTONOMO HFT (Controlla ogni 2 secondi Prezzo, Time-Stop e Vendite dei Vampiri)
+        // 3. Guardiano HFT
         state.timer = setInterval(async () => {
             try {
                 const [currentMC, microDumpCheck] = await Promise.all([
@@ -3900,23 +3907,18 @@ app.post('/api/autotrading/start', async (req, res) => {
                 const dropFromPeakPct = ((currentMC - state.peakMC) / state.peakMC) * 100;
                 const elapsedSec = (Date.now() - startTime) / 1000;
 
-                // Grilletto A: I Top Holders/Vampiri hanno iniziato a vendere
                 const vampireDumping = microDumpCheck && microDumpCheck.pericolo === true;
-                // Grilletto B: Time-Stop (Se dopo 12-16s il token è morto e non sale nemmeno di +1.2%, esce subito!)
-                const isTimeStop = (elapsedSec >= piano.timeStopDinamico && changePct < 1.2);
-                // Grilletto C: Stop Loss dinamico o Trailing Stop (-3.5% dal picco massimo dopo che era salito di +7%)
-                const isStopLoss = (changePct <= piano.stopLossDinamico) || (changePct >= 7 && dropFromPeakPct <= -3.5);
-                // Grilletto D: Take Profit raggiunto!
-                const isTakeProfit = (changePct >= piano.takeProfitDinamico) || (elapsedSec >= 75);
+                const timeStopVal = timeStopSec ? parseFloat(timeStopSec) : piano.timeStopDinamico;
+                const isTimeStop = (elapsedSec >= timeStopVal && changePct < 1.2);
+                const slScelto = stopLossPct ? parseFloat(stopLossPct) : piano.stopLossDinamico;
+                const isStopLoss = (changePct <= slScelto) || (changePct >= 7 && dropFromPeakPct <= -3.5);
+                const isTakeProfit = (changePct >= tpScelto) || (elapsedSec >= 75);
 
                 if (vampireDumping || isTimeStop || isStopLoss || isTakeProfit) {
                     clearInterval(state.timer);
                     activeAutoTrades.delete(tokenMint);
 
-                    // 1. Vende il 100% dei token
-                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 9);
-
-                    // 2. Dopo 3.5 secondi brucia la polvere residua e chiude il conto recuperando +0.002039 SOL ($0.21)
+                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 15);
                     setTimeout(() => bruciaEChiudiTokenAccount(privateKey, tokenMint), 3500);
                 }
             } catch (e) {}
@@ -3926,16 +3928,18 @@ app.post('/api/autotrading/start', async (req, res) => {
             success: true,
             walletAddress: piano.walletAddress,
             saldoTotaleSol: piano.saldoTotaleSol,
-            solInvestiti: piano.solDaInvestire,
-            usdStimati: piano.usdStimati,
+            solInvestiti: importoDaUsare,
+            usdStimati: parseFloat((importoDaUsare * 104.23).toFixed(2)),
             fasciaRischio: piano.fasciaRischio,
             entryMC,
             finalTargetMC,
-            effectiveTpPct: piano.takeProfitDinamico,
+            effectiveTpPct: tpScelto,
             txSignature: buyRes.signature
         });
+
     } catch (e) {
         activeAutoTrades.delete(tokenMint);
+        console.error("🔥 CRASH FATALE IN /api/autotrading/start:", e);
         return res.status(500).json({ success: false, error: e.message });
     }
 });
