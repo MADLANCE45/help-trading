@@ -3820,6 +3820,12 @@ app.post('/api/autotrading/start', async (req, res) => {
                     }, 3500);
                 }
             } catch (e) {}
+            // 🚀 GRILLETTO 5: PIRAMIDAZIONE SQHK48 (Se sale di +6% nei primi 35s e il dev non vende, spara il 2° BUY!)
+                if (!state.scaledIn && req.body.scale1Sol > 0 && changePct >= (req.body.step1Pct || 6) && elapsedSec <= 35 && !scammerStartedDumping) {
+                    state.scaledIn = true;
+                    console.log(`🚀 [SQHK48 PYRAMID] Token a +${changePct.toFixed(1)}%! Sparo 2° BUY da ${req.body.scale1Sol} SOL...`);
+                    await eseguiSwapHFT(privateKey, tokenMint, "buy", parseFloat(req.body.scale1Sol), 6);
+                }
         }, 2000);
 
         return res.json({

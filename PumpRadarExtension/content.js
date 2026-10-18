@@ -539,10 +539,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const solAmount = parseFloat(trade.sol) || 0;
         
         // 1. ORDER FLOW (Matematica in background)
+        // 1. ORDER FLOW + VOLUME SPEED REALE (Fix Timestamp numerico)
         if (typeof orderFlowWindow !== 'undefined') {
+            trade._ts = Date.now(); // 🔥 FIX CRITICO: Ora i 10 secondi funzionano davvero!
             orderFlowWindow.push(trade);
             const tenSecondsAgo = Date.now() - 10000;
-            orderFlowWindow = orderFlowWindow.filter(t => t.timestamp > tenSecondsAgo);
+            orderFlowWindow = orderFlowWindow.filter(t => t._ts > tenSecondsAgo);
+
+            // Rileva se il bot SQHK48 o un algoritmo HFT sta comprando a raffica
+            const botTarget = "SQHK48QT8SY1vYN44iXji7wQ6CJek8AjfX6mBp47TZq";
+            const botBought = orderFlowWindow.some(t => t.tipo.includes("BUY") && (t.wallet === botTarget || parseFloat(t.sol) >= 0.85));
+            window.botMomentumDetected = botBought;
 
             let buyVol = 0; let sellVol = 0;
             orderFlowWindow.forEach(t => { 
@@ -855,86 +862,175 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function innescaModalitaParassita(data, tokenMint) {
         const statusEl = document.getElementById('autotrade-status-text');
-        const mathRow = document.getElementById('parasite-math-row');
-        const scammerVal = document.getElementById('scammer-dump-val');
+        const speedEl = document.getElementById('live-vol-speed');
+        const vampEl = document.getElementById('live-vampire-status');
         const ourExitVal = document.getElementById('our-exit-val');
+        const btnBuy = document.getElementById('btn-manual-buy');
         const btnPanic = document.getElementById('btn-panic-burn');
 
-        chrome.storage.local.get(['userConfig'], async (resObj) => {
-            const cfg = resObj.userConfig || {};
+        if (window.hftBrainInterval) clearInterval(window.hftBrainInterval);
+        window.hftPositionState = { inPosition: false, scaledIn: false, entryTime: 0, lastPressure: 50 };
 
-            if (btnPanic) {
-                btnPanic.onclick = async () => {
-                    if (!cfg.burnerPrivateKey) return alert("Inserisci prima la Private Key nelle impostazioni!");
+        chrome.storage.local.get(['userConfig'], (resObj) => {
+            const cfg = resObj.userConfig || {};
+            const baseSol = parseFloat(cfg.tradeSol) || 0.06;
+            const tpPct = parseFloat(cfg.takeProfitPct) || 18;
+
+            // Funzione interna per sparare l'ordine di ACQUISTO (Automatico o Manuale)
+            const eseguiIngressoBot = async (motivoTrigger) => {
+                if (window.hftPositionState.inPosition) return;
+                if (!cfg.burnerPrivateKey) {
                     if (statusEl) {
-                        statusEl.innerText = "🚨 VENDITA 100% + AUTO-BURN IN CORSO...";
+                        statusEl.innerText = "⚠️ Inserisci la Private Key in Settings ⚙️!";
                         statusEl.style.color = "#ffaa00";
                     }
-                    await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
+                    return;
+                }
+
+                window.hftPositionState.inPosition = true;
+                window.hftPositionState.entryTime = Date.now();
+
+                if (statusEl) {
+                    statusEl.innerText = `🟢 BUY INVIATO (${baseSol} SOL) [${motivoTrigger}]`;
+                    statusEl.style.color = "#00ffcc";
+                }
+
+                try {
+                    const res = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ tokenMint, privateKey: cfg.burnerPrivateKey })
+                        body: JSON.stringify({
+                            tokenMint: tokenMint,
+                            privateKey: cfg.burnerPrivateKey,
+                            probeSol: baseSol,
+                            scale1Sol: parseFloat((baseSol * 1.25).toFixed(3)), // 2° Colpo stile SQHK48 (+6%)
+                            step1Pct: 6,
+                            takeProfitPct: tpPct,
+                            stopLossPct: -3.8,
+                            timeStopSec: 12
+                        })
                     });
-                    if (statusEl) {
-                        statusEl.innerText = "♻️ VENDUTO E CONTO CHIUSO (+0.002 SOL)";
+                    const tradeStatus = await res.json();
+                    if (tradeStatus.success && statusEl) {
+                        statusEl.innerText = `⚡ IN POSIZIONE (${baseSol} SOL) ➔ TP +${tradeStatus.effectiveTpPct || tpPct}%`;
                         statusEl.style.color = "#00e676";
+                        if (ourExitVal && tradeStatus.finalTargetMC) {
+                            ourExitVal.innerText = `$${(tradeStatus.finalTargetMC / 1000).toFixed(1)}k MC`;
+                        }
+                    } else {
+                        window.hftPositionState.inPosition = false;
+                        if (statusEl) {
+                            statusEl.innerText = `❌ Errore Buy: ${tradeStatus.error || 'Verifica saldo SOL'}`;
+                            statusEl.style.color = "#ff4d4d";
+                        }
                     }
-                };
+                } catch (err) {
+                    window.hftPositionState.inPosition = false;
+                    if (statusEl) statusEl.innerText = "⚠️ Errore connessione al Server";
+                }
+            };
+
+            // Funzione interna per sparare l'ordine di VENDITA 100% + AUTO-BURN
+            const eseguiUscitaEBurn = async (motivoUscita) => {
+                if (!cfg.burnerPrivateKey) return alert("Inserisci prima la Private Key in Settings!");
+                window.hftPositionState.inPosition = false;
+                if (statusEl) {
+                    statusEl.innerText = `🚨 ${motivoUscita} ➔ SELL 100% + BURN...`;
+                    statusEl.style.color = "#ffaa00";
+                }
+                await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ tokenMint, privateKey: cfg.burnerPrivateKey })
+                });
+                if (statusEl) {
+                    statusEl.innerText = `♻️ CHIUSO (${motivoUscita}) | +0.002 SOL Recuperati`;
+                    statusEl.style.color = "#00e676";
+                }
+            };
+
+            // 1. TASTO MANUALE "⚡ BUY" (Permette di comprare anche se Score è 40.16)
+            if (btnBuy) {
+                btnBuy.onclick = () => eseguiIngressoBot("MANUAL_OVERRIDE");
             }
 
+            // 2. TASTO MANUALE "🔥 SELL & BURN"
+            if (btnPanic) {
+                btnPanic.onclick = () => eseguiUscitaEBurn("PANIC_BUTTON");
+            }
+
+            // Se lo switch Auto-Trade è spento, lasciamo attivi i tasti manuali ma fermiamo l'automazione
             if (!cfg.autoTradeEnabled || !cfg.burnerPrivateKey) {
                 if (statusEl) {
-                    statusEl.innerText = "OFF (Attivalo in Settings ⚙️)";
-                    statusEl.style.color = "#888";
+                    statusEl.innerText = "MODALITÀ MANUALE (Attiva Auto in Settings ⚙️)";
+                    statusEl.style.color = "#aaa";
                 }
                 return;
             }
 
-            const baseSol = parseFloat(cfg.tradeSol) || 0.08;
-            const tpPct = parseFloat(cfg.takeProfitPct) || 18;
-
-            if (data.score < 50 || data.panicSellAttivo || (data.azione && data.azione.includes("AVOID"))) {
+            // Blocco solo se i Top Holders stanno GIA' svuotando la piscina (Rug conclamato)
+            if (data.panicSellAttivo === true || data.score < 20) {
                 if (statusEl) {
-                    statusEl.innerText = `⛔ SCARTATO: Rischio Alto (Score ${data.score})`;
+                    statusEl.innerText = `⛔ BLOCCO RUG: Top Holders in scarico attivo!`;
                     statusEl.style.color = "#ff4d4d";
                 }
                 return;
             }
 
-            if (statusEl) {
-                statusEl.innerText = `🦠 INGRESSO PARASSITA (${baseSol} SOL)...`;
-                statusEl.style.color = "#00ffcc";
-            }
+            // 🧠 3. IL CERVELLO AUTONOMO CONTINUO (Gira ogni 1.5 secondi leggendo la Blockchain Live)
+            window.hftBrainInterval = setInterval(() => {
+                const metrics = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
+                const buyVol10s = parseFloat(metrics.buyVol) || 0;
+                const sellVol10s = parseFloat(metrics.sellVol) || 0;
+                const pressure = parseFloat(metrics.buyPressure) || 50;
 
-            try {
-                const res = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        tokenMint: tokenMint,
-                        privateKey: cfg.burnerPrivateKey,
-                        probeSol: baseSol,
-                        takeProfitPct: tpPct,
-                        stopLossPct: -3.8,
-                        timeStopSec: 14
-                    })
-                });
-                const tradeStatus = await res.json();
-                if (tradeStatus.success && statusEl) {
-                    statusEl.innerText = `⚡ ATTIVO (${baseSol} SOL) ➔ TP: +${tradeStatus.effectiveTpPct || tpPct}% + Burn`;
-                    statusEl.style.color = "#00e676";
-                    if (mathRow && tradeStatus.scammerDumpMC && tradeStatus.finalTargetMC) {
-                        mathRow.style.display = "flex";
-                        scammerVal.innerText = `$${(tradeStatus.scammerDumpMC / 1000).toFixed(1)}k MC`;
-                        ourExitVal.innerText = `$${(tradeStatus.finalTargetMC / 1000).toFixed(1)}k MC`;
-                    }
-                } else if (statusEl) {
-                    statusEl.innerText = `⚠️ Errore: ${tradeStatus.error || 'Fondi insufficienti'}`;
-                    statusEl.style.color = "#ffaa00";
+                // Calcolo Vampire Bleed (Crollo improvviso della pressione d'acquisto o muro di vendite)
+                const pressureDrop = window.hftPositionState.lastPressure - pressure;
+                const isVampireSelling = (pressureDrop >= 18 && sellVol10s >= 0.6) || (sellVol10s > buyVol10s * 1.5 && sellVol10s >= 0.8);
+                window.hftPositionState.lastPressure = pressure;
+
+                // Aggiorna la barra della telemetria in tempo reale
+                if (speedEl) speedEl.innerText = `${buyVol10s.toFixed(1)} SOL/10s`;
+                if (vampEl) {
+                    vampEl.innerText = isVampireSelling ? "🧛 DUMPING!" : "CLEAN";
+                    vampEl.style.color = isVampireSelling ? "#ff4d4d" : "#00e676";
                 }
-            } catch (err) {
-                if (statusEl) statusEl.innerText = "⚠️ Errore connessione server";
-            }
+
+                // --- CASO A: NON SIAMO ANCORA ENTRATI (MODALITÀ STALKING) ---
+                if (!window.hftPositionState.inPosition) {
+                    // 1. Se i Vampiri stanno vendendo, il bot NON entra assolutamente!
+                    if (isVampireSelling) {
+                        if (statusEl) {
+                            statusEl.innerText = `🧛 VAMPIRE DETECTED (${sellVol10s.toFixed(1)} SOL Sell) ➔ Non entro!`;
+                            statusEl.style.color = "#ff4d4d";
+                        }
+                        return;
+                    }
+
+                    // 2. Se lo Score iniziale era alto (>= 55) e non ci sono vampiri, oppure
+                    //    se lo Score era basso (es. 40.16) MA la Volume Speed esplode (>= 1.0 SOL in 10s con >= 62% Buy)
+                    //    oppure se il bot SQHK48 ha appena comprato: ENTRIAMO A MERCATO!
+                    const isFastMomentum = (buyVol10s >= 1.0 && pressure >= 62);
+                    const isHighScoreClean = (data.score >= 55 && pressure >= 55 && sellVol10s < 0.5);
+
+                    if (isFastMomentum || isHighScoreClean || window.botMomentumDetected) {
+                        const triggerName = window.botMomentumDetected ? "SQHK48_SIGNAL" : (isFastMomentum ? "VOL_SPEED_SPIKE" : "CLEAN_SCORE");
+                        eseguiIngressoBot(triggerName);
+                    } else if (statusEl) {
+                        statusEl.innerText = `👁️ STALKING (Score ${data.score}) ➔ Attendo Speed >= 1.0 SOL`;
+                        statusEl.style.color = "#ffaa00";
+                    }
+                }
+                // --- CASO B: SIAMO DENTRO IL TRADE (PROTEZIONE ANTI-VAMPIRO LIVE) ---
+                else {
+                    const secInTrade = (Date.now() - window.hftPositionState.entryTime) / 1000;
+
+                    // Se i Vampiri iniziano a scaricare mentre siamo dentro, NON aspettiamo lo Stop Loss: usciamo subito!
+                    if (isVampireSelling && secInTrade >= 3) {
+                        eseguiUscitaEBurn("VAMPIRE_ESCAPE");
+                    }
+                }
+            }, 1500);
         });
     }
     function avviaRadar() {
@@ -1018,18 +1114,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const av4 = chrome.runtime.getURL("avatar4.png");
         const autoTraderBannerHTML = `
             <div id="autotrade-live-banner" style="background: linear-gradient(135deg, #160d24 0%, #0a0c10 100%); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff007f; box-shadow: 0 0 12px rgba(255, 0, 127, 0.15);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display:flex; flex-direction:column; gap:3px;">
-                        <span style="font-size: 0.7em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.5px;">🦠 PARASITE AUTO-SNIPER</span>
-                        <span id="autotrade-status-text" style="font-size: 0.75em; color: #e4e4e7; font-family: monospace; font-weight: bold;">Verifica trappola bundler...</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <div style="display:flex; flex-direction:column; gap:3px; flex-grow: 1;">
+                        <span style="font-size: 0.7em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.5px;">🤖 HFT AUTO-TRADER (SQHK48 ENGINE)</span>
+                        <span id="autotrade-status-text" style="font-size: 0.75em; color: #00ffcc; font-family: monospace; font-weight: bold;">👁️ In ascolto del nastro...</span>
                     </div>
-                    <button id="btn-panic-burn" style="background: linear-gradient(90deg, #ff4d4d, #cc0000); color: #fff; border: none; padding: 6px 10px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(255,77,77,0.4);">
-                        🔥 SELL & BURN
-                    </button>
+                    <div style="display: flex; gap: 5px; flex-shrink: 0;">
+                        <button id="btn-manual-buy" style="background: linear-gradient(90deg, #00e676, #00b38f); color: #000; border: none; padding: 6px 9px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(0,230,118,0.4);" title="Forza entrata immediata">
+                            ⚡ BUY
+                        </button>
+                        <button id="btn-panic-burn" style="background: linear-gradient(90deg, #ff4d4d, #cc0000); color: #fff; border: none; padding: 6px 9px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(255,77,77,0.4);" title="Vendi 100% e brucia conto">
+                            🔥 SELL & BURN
+                        </button>
+                    </div>
                 </div>
-                <div id="parasite-math-row" style="display: none; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #2d3142; font-family: monospace; font-size: 0.7em; color: #aaa;">
-                    <span>Scammer Dump: <b id="scammer-dump-val" style="color:#ffaa00;">$0k</b></span>
-                    <span>Nostra Uscita: <b id="our-exit-val" style="color:#00e676;">$0k</b></span>
+                <div id="parasite-math-row" style="display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #2d3142; font-family: monospace; font-size: 0.68em; color: #aaa;">
+                    <span>Speed: <b id="live-vol-speed" style="color:#00ffcc;">0.0 SOL/10s</b></span>
+                    <span>Vampire: <b id="live-vampire-status" style="color:#00e676;">CLEAN</b></span>
+                    <span>Target: <b id="our-exit-val" style="color:#ffaa00;">--</b></span>
                 </div>
             </div>`;
         const copilotHTML = `
