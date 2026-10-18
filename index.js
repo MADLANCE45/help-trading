@@ -3645,62 +3645,59 @@ function decodificaChiavePrivata(inputKey) {
     return Keypair.fromSecretKey(Uint8Array.from(bytes.reverse()));
 }
 
-// 💰 2. CALCOLATORE INTELLIGENTE DELLA PUNTATA (Pesca dal wallet in base al Rischio IA)
+// 💰 CALCOLATORE PUNTATA CALIBRATO SU BUDGET $30 (~0.288 SOL)
 async function calcolaPuntataIntelligenteDalWallet(privateKey, score, panicSellAttivo) {
     const keypair = decodificaChiavePrivata(privateKey);
     const walletAddress = keypair.publicKey.toBase58();
     const lamports = await getRPC().getBalance(keypair.publicKey);
     const saldoTotaleSol = lamports / 1e9;
 
-    // Riserva intoccabile (0.022 SOL = ~$2.30) per garantire SEMPRE l'anticipo dell'affitto ATA (0.002039 SOL) e le fee
-    const riservaTecnicaSol = 0.022;
+    // Riserva tecnica ridotta per budget da 30$ (0.018 SOL = ~$1.85 per affitto ATA rimborsabile + fee)
+    const riservaTecnicaSol = 0.018;
     const capitaleDisponibileSol = Math.max(0, saldoTotaleSol - riservaTecnicaSol);
+    const trustScore = parseFloat(score) || 42;
 
-    const trustScore = parseFloat(score) || 40;
-
-    // Se il token è una trappola conclamata (< 30) o i dev stanno già scaricando, investe ZERO
-    if (panicSellAttivo || trustScore < 30) {
+    if (panicSellAttivo || trustScore < 15) {
         return {
             autorizzato: false,
-            motivo: `Rischio estremo (Score ${trustScore.toFixed(1)}) - Capitale protetto`,
+            motivo: `Rug / Dump attivo (Score ${trustScore.toFixed(0)}) - Soldi protetti`,
             walletAddress,
-            saldoTotaleSol,
+            saldoTotaleSol: parseFloat(saldoTotaleSol.toFixed(4)),
             solDaInvestire: 0
         };
     }
 
-    let percentualeWallet = 0.22; // Default Fascia Gialla (~$8 su $40)
-    let fasciaRischio = "HIGH_RISK_PROBE (~$8)";
-    let takeProfitDinamico = 22;
+    let percentualeWallet = 0.20; // Score < 48 (es. 40.16): investe il 20% (~$5.60 su $30)
+    let fasciaRischio = "PROBE_20% (~$5.60)";
+    let takeProfitDinamico = 20;
     let stopLossDinamico = -3.5;
     let timeStopDinamico = 12;
 
     if (trustScore >= 65) {
-        percentualeWallet = 0.62; // Fascia Verde: Alta convinzione (~$23 su $40)
-        fasciaRischio = "HIGH_CONVICTION (~$23)";
-        takeProfitDinamico = 16;
+        percentualeWallet = 0.58; // Score >= 65: investe il 58% (~$16.25 su $30)
+        fasciaRischio = "HIGH_CONVICTION (~$16.25)";
+        takeProfitDinamico = 15;
         stopLossDinamico = -4.0;
         timeStopDinamico = 16;
-    } else if (trustScore >= 49) {
-        percentualeWallet = 0.40; // Fascia Media: Momentum confermato (~$15 su $40)
-        fasciaRischio = "MEDIUM_RISK (~$15)";
-        takeProfitDinamico = 18;
+    } else if (trustScore >= 48) {
+        percentualeWallet = 0.38; // Score 48-64: investe il 38% (~$10.60 su $30)
+        fasciaRischio = "MEDIUM_RISK (~$10.60)";
+        takeProfitDinamico = 17;
         stopLossDinamico = -3.8;
         timeStopDinamico = 14;
     }
 
-    // Calcola i SOL esatti da prelevare dal portafoglio (minimo 0.015 SOL per avere senso dopo le fee)
     let solDaInvestire = parseFloat((capitaleDisponibileSol * percentualeWallet).toFixed(4));
-    if (capitaleDisponibileSol >= 0.02 && solDaInvestire < 0.02) {
-        solDaInvestire = 0.02; // Puntata minima tecnica (~$2.08)
+    if (capitaleDisponibileSol >= 0.015 && solDaInvestire < 0.015) {
+        solDaInvestire = 0.015; // Minimo ~1.55$
     }
 
     if (solDaInvestire < 0.01) {
         return {
             autorizzato: false,
-            motivo: `Saldo Wallet insufficiente (${saldoTotaleSol.toFixed(4)} SOL). Servono almeno 0.035 SOL.`,
+            motivo: `Saldo troppo basso (${saldoTotaleSol.toFixed(3)} SOL). Deposita almeno 0.03 SOL.`,
             walletAddress,
-            saldoTotaleSol,
+            saldoTotaleSol: parseFloat(saldoTotaleSol.toFixed(4)),
             solDaInvestire: 0
         };
     }

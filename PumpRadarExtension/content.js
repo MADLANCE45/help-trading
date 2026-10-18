@@ -862,15 +862,93 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function innescaModalitaParassita(data, tokenMint) {
         const statusEl = document.getElementById('autotrade-status-text');
-        const mathRow = document.getElementById('parasite-math-row');
-        const scammerVal = document.getElementById('scammer-dump-val');
+        const speedEl = document.getElementById('live-vol-speed');
+        const vampEl = document.getElementById('live-vampire-status');
         const ourExitVal = document.getElementById('our-exit-val');
+        const btnBuy = document.getElementById('btn-manual-buy');
         const btnPanic = document.getElementById('btn-panic-burn');
+
+        if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
+
+        // Aggiorna la telemetria live (Speed & Vampiri) ogni secondo
+        if (window.parasiteTelemetryTimer) clearInterval(window.parasiteTelemetryTimer);
+        window.parasiteTelemetryTimer = setInterval(() => {
+            const m = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
+            const bVol = parseFloat(m.buyVol) || 0;
+            const sVol = parseFloat(m.sellVol) || 0;
+            const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
+            if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL/10s`;
+            if (vampEl) {
+                vampEl.innerText = isVamp ? "🧛 DUMP!" : "CLEAN";
+                vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
+            }
+        }, 1000);
 
         chrome.storage.local.get(['userConfig'], async (resObj) => {
             const cfg = resObj.userConfig || {};
+            const tokenScore = data && data.score ? parseFloat(data.score) : 42;
 
-            // Pulsante SELL & BURN (Sempre attivo se c'è la chiave)
+            // Funzione che esegue il BUY sul backend
+            const lanciaOrdineBuy = async (isManual = false) => {
+                if (!cfg.burnerPrivateKey) {
+                    if (statusEl) {
+                        statusEl.innerText = "⚠️ Incolla la Private Key in Settings ⚙️!";
+                        statusEl.style.color = "#ffaa00";
+                    }
+                    return;
+                }
+
+                // Controllo Anti-Vampiro prima di entrare in automatico
+                const m = window.liveMetrics || { buyVol: 0, sellVol: 0 };
+                if (!isManual && parseFloat(m.sellVol) > parseFloat(m.buyVol) * 1.5 && parseFloat(m.sellVol) >= 0.5) {
+                    if (statusEl) {
+                        statusEl.innerText = "🧛 VAMPIRE SELL RILEVATO: Entrata bloccata!";
+                        statusEl.style.color = "#ff4d4d";
+                    }
+                    return;
+                }
+
+                if (statusEl) {
+                    statusEl.innerText = "🚀 INVIO TRANSAZIONE BUY SULLA BLOCKCHAIN...";
+                    statusEl.style.color = "#00ffcc";
+                }
+
+                try {
+                    const startRes = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            tokenMint: tokenMint,
+                            privateKey: cfg.burnerPrivateKey,
+                            score: tokenScore,
+                            panicSellAttivo: data ? data.panicSellAttivo === true : false,
+                            forceManual: isManual
+                        })
+                    });
+                    const tradeStatus = await startRes.json();
+
+                    if (tradeStatus.success && statusEl) {
+                        statusEl.innerText = `⚡ COMPRATO: ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) ➔ TP +${tradeStatus.effectiveTpPct}%`;
+                        statusEl.style.color = "#00e676";
+                        if (ourExitVal) ourExitVal.innerText = `+${tradeStatus.effectiveTpPct}% (Auto-Burn)`;
+                    } else if (statusEl) {
+                        statusEl.innerText = `❌ ${tradeStatus.error || 'Swap fallito'}`;
+                        statusEl.style.color = "#ff4d4d";
+                    }
+                } catch (err) {
+                    if (statusEl) {
+                        statusEl.innerText = "⚠️ Server non aggiornato su Railway!";
+                        statusEl.style.color = "#ff4d4d";
+                    }
+                }
+            };
+
+            // 1. Collega subito il pulsante verde ⚡ BUY
+            if (btnBuy) {
+                btnBuy.onclick = () => lanciaOrdineBuy(true);
+            }
+
+            // 2. Collega subito il pulsante rosso 🔥 SELL & BURN
             if (btnPanic) {
                 btnPanic.onclick = async () => {
                     if (!cfg.burnerPrivateKey) return alert("Inserisci prima la Private Key in Settings!");
@@ -878,14 +956,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusEl.innerText = "🚨 VENDITA 100% + AUTO-BURN IN CORSO...";
                         statusEl.style.color = "#ffaa00";
                     }
-                    await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
+                    const r = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ tokenMint, privateKey: cfg.burnerPrivateKey })
                     });
+                    const d = await r.json();
                     if (statusEl) {
-                        statusEl.innerText = "♻️ VENDUTO E CONTO CHIUSO (+0.002 SOL)";
-                        statusEl.style.color = "#00e676";
+                        statusEl.innerText = d.success ? "♻️ VENDUTO + CONTO BRUCIATO (+0.002 SOL)" : `⚠️ ${d.error || 'Nessun token da vendere'}`;
+                        statusEl.style.color = d.success ? "#00e676" : "#ffaa00";
                     }
                 };
             }
@@ -898,9 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const tokenScore = parseFloat(data.score) || 40;
-
-            // 1. Verifica immediata del Wallet e calcolo della taglia intelligente (anche a bot spento ti mostra il saldo!)
+            // 3. Legge il saldo reale dal Wallet e mostra quanto investirà l'IA sui tuoi 30$
             try {
                 const walletRes = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/wallet-info`, {
                     method: "POST",
@@ -911,25 +988,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!walletInfo.success) {
                     if (statusEl) {
-                        statusEl.innerText = `❌ Errore Key: ${walletInfo.error}`;
+                        statusEl.innerText = `❌ Key Errata: ${walletInfo.error}`;
                         statusEl.style.color = "#ff4d4d";
                     }
                     return;
                 }
 
-                // Mostra in diretta Saldo Wallet e Puntata Calcolata dall'IA
-                if (mathRow && scammerVal && ourExitVal) {
-                    mathRow.style.display = "flex";
-                    scammerVal.innerText = `${walletInfo.saldoTotaleSol} SOL`;
-                    ourExitVal.innerText = `${walletInfo.solDaInvestire} SOL ($${walletInfo.usdStimati || 0})`;
-                    scammerVal.parentElement.innerHTML = `Wallet: <b style="color:#00ffcc;">${walletInfo.saldoTotaleSol} SOL</b>`;
-                    ourExitVal.parentElement.innerHTML = `AI Bet (Score ${tokenScore.toFixed(0)}): <b style="color:#00e676;">${walletInfo.solDaInvestire} SOL (~$${walletInfo.usdStimati || 0})</b>`;
+                if (ourExitVal) {
+                    ourExitVal.innerText = `Bet: ${walletInfo.solDaInvestire} SOL ($${walletInfo.usdStimati || 0})`;
                 }
 
                 if (!cfg.autoTradeEnabled) {
                     if (statusEl) {
-                        statusEl.innerText = `WALLET OK (${walletInfo.saldoTotaleSol} SOL) ➔ Attiva Switch in Settings ⚙️`;
-                        statusEl.style.color = "#aaa";
+                        statusEl.innerText = `Saldo: ${walletInfo.saldoTotaleSol} SOL | Premi ⚡ BUY o attiva Auto ⚙️`;
+                        statusEl.style.color = "#00ffcc";
                     }
                     return;
                 }
@@ -942,35 +1014,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // 2. AVVIO AUTOMATICO DEL TRADE CON LA TAGLIA CALCOLATA DALL'IA
-                if (statusEl) {
-                    statusEl.innerText = `🤖 BUY AUTOMATICO: ${walletInfo.solDaInvestire} SOL ($${walletInfo.usdStimati})...`;
-                    statusEl.style.color = "#00ffcc";
-                }
-
-                const startRes = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/start`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        tokenMint: tokenMint,
-                        privateKey: cfg.burnerPrivateKey,
-                        score: tokenScore,
-                        panicSellAttivo: data.panicSellAttivo === true
-                    })
-                });
-                const tradeStatus = await startRes.json();
-
-                if (tradeStatus.success && statusEl) {
-                    statusEl.innerText = `⚡ IN POSIZIONE: ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) ➔ TP +${tradeStatus.effectiveTpPct}%`;
-                    statusEl.style.color = "#00e676";
+                // Se abbiamo già i dati dello scan (non è la chiamata provvisoria), spara il BUY in automatico!
+                if (data && data.score !== undefined) {
+                    await lanciaOrdineBuy(false);
                 } else if (statusEl) {
-                    statusEl.innerText = `⚠️ ${tradeStatus.error || 'Errore esecuzione swap'}`;
-                    statusEl.style.color = "#ffaa00";
+                    statusEl.innerText = `Saldo: ${walletInfo.saldoTotaleSol} SOL ➔ Verifica Rischio Token...`;
                 }
 
             } catch (err) {
                 if (statusEl) {
-                    statusEl.innerText = "⚠️ Fai il Deploy di index.js su Railway!";
+                    statusEl.innerText = "⚠️ Fai git push di index.js su Railway!";
                     statusEl.style.color = "#ff4d4d";
                 }
             }
@@ -1374,6 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inizializzaTracker();
         loadSavedWallets();
         caricaStoricoSpyNelDOM();
+        innescaModalitaParassita(null, tokenMint); // 🔥 Attiva subito Wallet e tasti BUY/SELL!
     }
 
     function showPremiumModal(title, message, isConfirm, onConfirm) {
