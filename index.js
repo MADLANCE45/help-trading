@@ -3826,10 +3826,12 @@ async function bruciaEChiudiTokenAccount(privateKey, tokenMint) {
 // 🔍 5. ENDPOINT DIAGNOSTICA WALLET (Verifica subito se la Private Key funziona e quanti SOL ci sono)
 app.post('/api/autotrading/wallet-info', async (req, res) => {
     try {
+        console.log("📥 Ricevuta richiesta wallet-info dall'estensione:", req.body);
         const { privateKey, score = 45 } = req.body;
         const info = await calcolaPuntataIntelligenteDalWallet(privateKey, score, false);
         return res.json({ success: true, ...info });
     } catch (e) {
+        console.error("❌ Errore in wallet-info:", e.message);
         return res.status(400).json({ success: false, error: e.message });
     }
 });
