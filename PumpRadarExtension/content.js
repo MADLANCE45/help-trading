@@ -995,7 +995,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (ourExitVal) {
-                    ourExitVal.innerText = `Bet: ${walletInfo.solDaInvestire} SOL ($${walletInfo.usdStimati || 0})`;
+                    const shortWal = walletInfo.walletAddress ? `${walletInfo.walletAddress.substring(0,4)}..${walletInfo.walletAddress.slice(-4)}` : "??";
+                    ourExitVal.innerText = `${shortWal} (${walletInfo.saldoTotaleSol} SOL) | Bet: ${walletInfo.solDaInvestire} SOL`;
                 }
 
                 if (!cfg.autoTradeEnabled) {
@@ -2493,6 +2494,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // START SCRIPT
     // =========================================================
-    avviaRadar();
-    startSpyLoop();
+    // =========================================================
+    // START SCRIPT (Esegue il Radar solo dentro il Popup, evitando doppie chiamate e NS_BINDING_ABORTED)
+    // =========================================================
+    const isExtensionPopup = window.location.protocol.includes('extension') || (chrome?.runtime?.id && window.location.href.includes(chrome.runtime.id));
+    if (isExtensionPopup || document.getElementById('master-app')) {
+        avviaRadar();
+        startSpyLoop();
+    }
 });

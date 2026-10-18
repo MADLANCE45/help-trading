@@ -3715,41 +3715,62 @@ async function calcolaPuntataIntelligenteDalWallet(privateKey, score, panicSellA
     };
 }
 
-// ⚡ 3. ESECUTORE SWAP UNIVERSALE (Pump.fun + Raydium + Jupiter Fallback con Fee 0.00001 SOL)
-async function eseguiSwapHFT(privateKey, tokenMint, action, amountSolOrPct, slippage = 6) {
+// ⚡ 3. ESECUTORE SWAP UNIVERSALE (PumpPortal + Nuovo Jupiter V1 API + Controllo Saldo)
+async function eseguiSwapHFT(privateKey, tokenMint, action, amountSolOrPct, slippage = 15) {
     try {
         const signerKeypair = decodificaChiavePrivata(privateKey);
+        const walletPub = signerKeypair.publicKey.toBase58();
 
-        // Tentativo 1: PumpPortal Local Transaction (supporta curva Pump.fun e PumpSwap/Raydium con pool: "auto")
-        const response = await fetch("https://pumpportal.fun/api/trade-local", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                publicKey: signerKeypair.publicKey.toBase58(),
-                action: action,
-                mint: tokenMint,
-                denominatedInSol: action === "buy" ? "true" : "false",
-                amount: amountSolOrPct,
-                slippage: slippage,
-                priorityFee: 0.00001, // 🔥 COMMISSIONE MINIMA: 0.00001 SOL
-                pool: "auto"
-            })
-        });
-
-        if (response.status === 200) {
-            const data = await response.arrayBuffer();
-            const tx = VersionedTransaction.deserialize(new Uint8Array(data));
-            tx.sign([signerKeypair]);
-
-            const signature = await getRPC().sendTransaction(tx, { skipPreflight: true, maxRetries: 3 });
-            console.log(`⚡ [AUTO-TRADE ESEGUITO] ${action.toUpperCase()} (${amountSolOrPct}) su ${tokenMint.substring(0,6)} | TX: ${signature}`);
-            return { success: true, signature };
+        // Controllo preliminare saldo SOL per evitare errori 400/500 inutili
+        if (action === "buy") {
+            const balanceLamports = await getRPC().getBalance(signerKeypair.publicKey);
+            const balanceSol = balanceLamports / 1e9;
+            const requiredSol = parseFloat(amountSolOrPct) + 0.003; // Importo + cauzione ATA
+            if (balanceSol < requiredSol) {
+                return {
+                    success: false,
+                    error: `Saldo insufficiente nel wallet ${walletPub.substring(0,5)}.. (${balanceSol.toFixed(3)} SOL disponibili, servono ${requiredSol.toFixed(3)} SOL)`
+                };
+            }
         }
 
-        // Tentativo 2 (Fallback Universale Jupiter v6 se il token è su altri DEX Solana)
+        // TENTATIVO 1: PumpPortal (Curva Pump.fun + PumpSwap + Raydium)
+        try {
+            const response = await fetch("https://pumpportal.fun/api/trade-local", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    publicKey: walletPub,
+                    action: action,
+                    mint: tokenMint,
+                    denominatedInSol: action === "buy" ? "true" : "false",
+                    amount: amountSolOrPct,
+                    slippage: slippage,
+                    priorityFee: 0.00001, // Fee minima 0.00001 SOL
+                    pool: "auto"
+                })
+            });
+
+            if (response.status === 200) {
+                const data = await response.arrayBuffer();
+                const tx = VersionedTransaction.deserialize(new Uint8Array(data));
+                tx.sign([signerKeypair]);
+
+                const signature = await getRPC().sendTransaction(tx, { skipPreflight: true, maxRetries: 3 });
+                console.log(`⚡ [PUMP SWAP OK] ${action.toUpperCase()} su ${tokenMint.substring(0,6)} | TX: ${signature}`);
+                return { success: true, signature };
+            } else {
+                const errText = await response.text();
+                console.log(`⚠️ [PumpPortal Skip ${response.status}]: ${errText} -> Passo a Jupiter...`);
+            }
+        } catch (pumpErr) {
+            console.log(`⚠️ [PumpPortal Network Skip]: ${pumpErr.message} -> Passo a Jupiter...`);
+        }
+
+        // TENTATIVO 2: Nuovo Endpoint Ufficiale Jupiter (lite-api.jup.ag/swap/v1)
         const SOL_MINT = "So11111111111111111111111111111111111111112";
-        let inputMint = action === "buy" ? SOL_MINT : tokenMint;
-        let outputMint = action === "buy" ? tokenMint : SOL_MINT;
+        const inputMint = action === "buy" ? SOL_MINT : tokenMint;
+        const outputMint = action === "buy" ? tokenMint : SOL_MINT;
         let rawAmount = 0;
 
         if (action === "buy") {
@@ -3757,31 +3778,42 @@ async function eseguiSwapHFT(privateKey, tokenMint, action, amountSolOrPct, slip
         } else {
             const ata = await getAssociatedTokenAddress(new PublicKey(tokenMint), signerKeypair.publicKey);
             const acc = await getRPC().getParsedAccountInfo(ata);
-            if (!acc.value) throw new Error("Nessun token da vendere nel wallet.");
+            if (!acc.value) return { success: false, error: "Nessun token da vendere nel wallet." };
             rawAmount = parseInt(acc.value.data.parsed.info.tokenAmount.amount);
+            if (rawAmount <= 0) return { success: false, error: "Saldo token pari a zero." };
         }
 
-        const quoteRes = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rawAmount}&slippageBps=${slippage * 100}`);
+        const quoteUrl = `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rawAmount}&slippageBps=${slippage * 100}`;
+        const quoteRes = await fetch(quoteUrl);
+        if (!quoteRes.ok) {
+            return { success: false, error: `Pool non trovata per questo token (Status ${quoteRes.status}).` };
+        }
         const quoteData = await quoteRes.json();
-        if (!quoteData || quoteData.error) throw new Error("Pool non trovata né su Pump né su Jupiter.");
+        if (!quoteData || quoteData.error) {
+            return { success: false, error: quoteData?.error || "Impossibile calcolare rotta Jupiter." };
+        }
 
-        const swapRes = await fetch("https://quote-api.jup.ag/v6/swap", {
+        const swapRes = await fetch("https://lite-api.jup.ag/swap/v1/swap", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 quoteResponse: quoteData,
-                userPublicKey: signerKeypair.publicKey.toBase58(),
+                userPublicKey: walletPub,
                 wrapAndUnwrapSol: true,
                 prioritizationFeeLamports: 10000 // 0.00001 SOL
             })
         });
         const swapData = await swapRes.json();
+        if (!swapData || !swapData.swapTransaction) {
+            return { success: false, error: "Impossibile generare transazione su Jupiter." };
+        }
+
         const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
         const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
         transaction.sign([signerKeypair]);
 
         const signature = await getRPC().sendTransaction(transaction, { skipPreflight: true, maxRetries: 3 });
-        console.log(`⚡ [JUPITER SWAP ESEGUITO] ${action.toUpperCase()} su ${tokenMint.substring(0,6)} | TX: ${signature}`);
+        console.log(`⚡ [JUPITER V1 SWAP OK] ${action.toUpperCase()} su ${tokenMint.substring(0,6)} | TX: ${signature}`);
         return { success: true, signature };
 
     } catch (error) {
@@ -3789,7 +3821,6 @@ async function eseguiSwapHFT(privateKey, tokenMint, action, amountSolOrPct, slip
         return { success: false, error: error.message };
     }
 }
-
 // ♻️ 4. AUTO-BURN & CHIUSURA CONTO (Rimborsa i +0.002039 SOL = $0.21 di cauzione sul wallet)
 async function bruciaEChiudiTokenAccount(privateKey, tokenMint) {
     try {
