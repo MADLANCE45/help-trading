@@ -8,10 +8,7 @@
     "48": "icon128.png",
     "128": "icon128.png"
   },
-  "permissions": [
-    "activeTab",
-    "storage"
-  ],
+  "permissions": ["storage", "tabs", "activeTab", "alarms"],
   "host_permissions": [
     "https://help-trading-production.up.railway.app/*",
     "https://*.pump.fun/*",
