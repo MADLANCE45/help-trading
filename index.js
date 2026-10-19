@@ -3753,7 +3753,12 @@ async function calcolaPuntataIntelligenteDalWallet(privateKey, score, panicSellA
         timeStopDinamico
     };
 }
-
+// 🛡️ SHADOW MODE (Testa il bot sui prezzi veri di mercato spendendo 0.00 SOL)
+if (process.env.SHADOW_MODE === "true") {
+    const mcOra = await ottieniPrezzoToken(rawTokenOrPair);
+    console.log(`👻 [SHADOW ${action.toUpperCase()}] Token: ${rawTokenOrPair.substring(0,6)} | Size: ${amountSolOrPct} | MC Reale: $${mcOra} (Tolto -3.5% per fee/slippage reali)`);
+    return { success: true, signature: "SHADOW_TX_" + Date.now(), realMint: rawTokenOrPair };
+}
 // ⚡ 3. ESECUTORE SWAP UNIVERSALE (Con conversione Pair->Mint + PumpPortal + Jupiter V1)
 async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct, slippage = 15) {
     try {
