@@ -3607,58 +3607,52 @@ app.get('/api/v1/oracle/:tokenMint', async (req, res) => {
 // =====================================================================
 // 🧠 MOTORE AUTONOMO "KELLY RISK-SIZER" + SWAP UNIVERSALE + AUTO-BURN
 // =====================================================================
+// =====================================================================
+// 🧠 MOTORE AUTONOMO "KELLY RISK-SIZER" + CONTO DEMO REALE + AUTO-BURN
+// =====================================================================
 const { VersionedTransaction, Keypair, Transaction, ComputeBudgetProgram } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createBurnCheckedInstruction, createCloseAccountInstruction, TOKEN_PROGRAM_ID } = require('@solana/spl-token');
 
 const activeAutoTrades = new Map();
 
-// 🎯 0. RISOLUTORE AUTOMATICO PAIR -> TOKEN MINT (Fondamentale per DexScreener, Axiom, BullX)
+// 🎮 PORTAFOGLIO CONTO DEMO IN MEMORIA (Parte da 0.3000 SOL = ~$31.27)
+const demoAccountState = {
+    balanceSol: 0.3000,
+    initialSol: 0.3000,
+    totalTrades: 0,
+    wins: 0,
+    losses: 0,
+    lastEvent: "Conto Demo pronto (0.3000 SOL)"
+};
+
+// 🎯 0. RISOLUTORE AUTOMATICO PAIR -> TOKEN MINT (DexScreener, Axiom, BullX)
 async function risolviVeroTokenMint(inputAddress) {
     try {
         const pubKey = new PublicKey(inputAddress);
-        // 1. Verifica On-Chain in 30ms: se è già un vero Token Mint, usalo subito!
         const accInfo = await getRPC().getParsedAccountInfo(pubKey).catch(() => null);
-        if (accInfo?.value?.data?.parsed?.type === 'mint') {
-            return inputAddress;
-        }
-        // Se è un Token Account (Vault), estrae il Mint direttamente
+        if (accInfo?.value?.data?.parsed?.type === 'mint') return inputAddress;
         if (accInfo?.value?.data?.parsed?.info?.mint) {
             const m = accInfo.value.data.parsed.info.mint;
             if (m !== "So11111111111111111111111111111111111111112") return m;
         }
 
-        // 2. È un indirizzo Pair/Pool (es. da URL DexScreener o Axiom): estraiamo il baseToken.address!
         const dexPairRes = await fetch(`https://api.dexscreener.com/latest/dex/pairs/solana/${inputAddress}`).catch(() => null);
         if (dexPairRes && dexPairRes.ok) {
             const pairData = await dexPairRes.json();
             if (pairData.pairs && pairData.pairs.length > 0 && pairData.pairs[0].baseToken?.address) {
-                const realMint = pairData.pairs[0].baseToken.address;
-                console.log(`🔄 [MINT RESOLVER] Convertita Pair ${inputAddress.substring(0,6)}.. nel vero Token Mint: ${realMint}`);
-                return realMint;
-            }
-        }
-
-        // 3. Fallback On-Chain: legge i forzieri (Vault) della Pool direttamente dalla blockchain
-        const poolAccounts = await getRPC().getTokenAccountsByOwner(pubKey, { programId: TOKEN_PROGRAM_ID }).catch(() => null);
-        if (poolAccounts && poolAccounts.value && poolAccounts.value.length > 0) {
-            for (const item of poolAccounts.value) {
-                const parsedInfo = await getRPC().getParsedAccountInfo(item.pubkey).catch(() => null);
-                const candidateMint = parsedInfo?.value?.data?.parsed?.info?.mint;
-                if (candidateMint && candidateMint !== "So11111111111111111111111111111111111111112") {
-                    console.log(`🔄 [ON-CHAIN RESOLVER] Estratto vero Token Mint dalla Pool: ${candidateMint}`);
-                    return candidateMint;
-                }
+                return pairData.pairs[0].baseToken.address;
             }
         }
     } catch (e) {}
     return inputAddress;
 }
 
-// 🔑 1. DECODIFICATORE NATIVO CHIAVE PRIVATA PHANTOM
+// 🔑 1. DECODIFICATORE NATIVO CHIAVE PRIVATA (Accetta anche la parola "DEMO")
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function decodificaChiavePrivata(inputKey) {
     if (!inputKey || typeof inputKey !== 'string') throw new Error("Chiave privata vuota.");
     const clean = inputKey.trim();
+    if (clean.toUpperCase() === "DEMO") return null; // Segnale per modalità Demo pura
 
     if (clean.startsWith('[')) {
         return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(clean)));
@@ -3685,45 +3679,63 @@ function decodificaChiavePrivata(inputKey) {
     return Keypair.fromSecretKey(Uint8Array.from(bytes.reverse()));
 }
 
-// 💰 2. CALCOLATORE PUNTATA CALIBRATO SU BUDGET $30 (~0.288 SOL)
+// 💰 2. CALCOLATORE PUNTATA INTELLIGente (Passa in automatico al Conto Demo se saldo reale < 0.025 SOL)
 async function calcolaPuntataIntelligenteDalWallet(privateKey, score, panicSellAttivo) {
-    const keypair = decodificaChiavePrivata(privateKey);
-    const walletAddress = keypair.publicKey.toBase58();
-    const lamports = await getRPC().getBalance(keypair.publicKey);
-    const saldoTotaleSol = lamports / 1e9;
+    let walletAddress = "DEMO-WALLET";
+    let saldoRealeSol = 0;
+    let isDemoMode = true;
 
-    const riservaTecnicaSol = 0.015; // Riserva minima per affitto ATA (rimborsato al burn) + fee
+    try {
+        const keypair = decodificaChiavePrivata(privateKey);
+        if (keypair) {
+            walletAddress = keypair.publicKey.toBase58();
+            const lamports = await getRPC().getBalance(keypair.publicKey);
+            saldoRealeSol = lamports / 1e9;
+            // Se hai depositato almeno 0.025 SOL veri E non hai forzato SHADOW_MODE, usa i SOL reali
+            if (saldoRealeSol >= 0.025 && process.env.SHADOW_MODE !== "true") {
+                isDemoMode = false;
+            }
+        }
+    } catch (e) {
+        // Se la chiave non è valida ma l'utente vuole testare, usa comunque il Conto Demo
+        isDemoMode = true;
+    }
+
+    const saldoTotaleSol = isDemoMode ? demoAccountState.balanceSol : saldoRealeSol;
+    const riservaTecnicaSol = 0.015;
     const capitaleDisponibileSol = Math.max(0, saldoTotaleSol - riservaTecnicaSol);
     const trustScore = parseFloat(score) || 42;
 
     if (trustScore < 15) {
         return {
             autorizzato: false,
-            motivo: `Rischio estremo (Score ${trustScore.toFixed(0)}) - Soldi protetti`,
-            walletAddress,
+            isDemoMode,
+            motivo: `Rischio estremo (Score ${trustScore.toFixed(0)}) - Capitale protetto`,
+            walletAddress: isDemoMode ? "🎮 DEMO" : walletAddress,
             saldoTotaleSol: parseFloat(saldoTotaleSol.toFixed(4)),
-            solDaInvestire: 0
+            solDaInvestire: 0,
+            demoStats: demoAccountState
         };
     }
 
-    let percentualeWallet = 0.20; // Score < 48: investe il 20% (~$5.60 su $30)
-    let fasciaRischio = "PROBE_20% (~$5.60)";
-    let takeProfitDinamico = 20;
+    let percentualeWallet = 0.20; // Score < 48: investe il 20%
+    let fasciaRischio = "PROBE_20%";
+    let takeProfitDinamico = 18;
     let stopLossDinamico = -4.0;
-    let timeStopDinamico = 14;
+    let timeStopDinamico = 16;
 
     if (trustScore >= 65) {
-        percentualeWallet = 0.58;
-        fasciaRischio = "HIGH_CONVICTION (~$16.25)";
+        percentualeWallet = 0.55;
+        fasciaRischio = "HIGH_CONVICTION";
         takeProfitDinamico = 15;
         stopLossDinamico = -4.5;
-        timeStopDinamico = 18;
+        timeStopDinamico = 20;
     } else if (trustScore >= 48) {
-        percentualeWallet = 0.38;
-        fasciaRischio = "MEDIUM_RISK (~$10.60)";
-        takeProfitDinamico = 17;
+        percentualeWallet = 0.35;
+        fasciaRischio = "MEDIUM_RISK";
+        takeProfitDinamico = 16;
         stopLossDinamico = -4.0;
-        timeStopDinamico = 15;
+        timeStopDinamico = 18;
     }
 
     let solDaInvestire = parseFloat((capitaleDisponibileSol * percentualeWallet).toFixed(4));
@@ -3731,56 +3743,51 @@ async function calcolaPuntataIntelligenteDalWallet(privateKey, score, panicSellA
         solDaInvestire = 0.015;
     }
 
-    if (solDaInvestire < 0.01) {
-        return {
-            autorizzato: false,
-            motivo: `Saldo troppo basso (${saldoTotaleSol.toFixed(3)} SOL). Servono almeno 0.025 SOL.`,
-            walletAddress,
-            saldoTotaleSol: parseFloat(saldoTotaleSol.toFixed(4)),
-            solDaInvestire: 0
-        };
+    // Se il Conto Demo si azzera, lo ricarica in automatico a 0.30 SOL
+    if (isDemoMode && solDaInvestire < 0.01) {
+        demoAccountState.balanceSol = 0.3000;
+        solDaInvestire = 0.0550;
     }
 
+    const solPrice = macroMarketData.solPriceUsd || 104.23;
+
     return {
-        autorizzato: true,
-        walletAddress,
+        autorizzato: solDaInvestire >= 0.01,
+        isDemoMode,
+        walletAddress: isDemoMode ? "🎮 DEMO" : walletAddress,
         saldoTotaleSol: parseFloat(saldoTotaleSol.toFixed(4)),
         solDaInvestire,
-        usdStimati: parseFloat((solDaInvestire * (macroMarketData.solPriceUsd || 104.23)).toFixed(2)),
+        usdStimati: parseFloat((solDaInvestire * solPrice).toFixed(2)),
         fasciaRischio,
         takeProfitDinamico,
         stopLossDinamico,
-        timeStopDinamico
+        timeStopDinamico,
+        demoStats: demoAccountState
     };
 }
-// 🛡️ SHADOW MODE (Testa il bot sui prezzi veri di mercato spendendo 0.00 SOL)
-if (process.env.SHADOW_MODE === "true") {
-    const mcOra = await ottieniPrezzoToken(rawTokenOrPair);
-    console.log(`👻 [SHADOW ${action.toUpperCase()}] Token: ${rawTokenOrPair.substring(0,6)} | Size: ${amountSolOrPct} | MC Reale: $${mcOra} (Tolto -3.5% per fee/slippage reali)`);
-    return { success: true, signature: "SHADOW_TX_" + Date.now(), realMint: rawTokenOrPair };
-}
-// ⚡ 3. ESECUTORE SWAP UNIVERSALE (Con conversione Pair->Mint + PumpPortal + Jupiter V1)
-async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct, slippage = 15) {
+
+// ⚡ 3. ESECUTORE SWAP UNIVERSALE (Gestisce sia il Conto Demo che i SOL Reali)
+async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct, slippage = 15, isDemoMode = false) {
     try {
+        const tokenMint = await risolviVeroTokenMint(rawTokenOrPair);
+
+        // 🎮 ESECUZIONE CONTO DEMO (Prezzi reali on-chain, 0.00 SOL reali spesi)
+        if (isDemoMode || process.env.SHADOW_MODE === "true") {
+            const mcOra = await ottieniPrezzoToken(tokenMint);
+            console.log(`🎮 [CONTO DEMO - ${action.toUpperCase()}] Token: ${tokenMint.substring(0,6)} | Size: ${amountSolOrPct} | MC Reale: $${mcOra}`);
+            return {
+                success: true,
+                isDemo: true,
+                signature: "DEMO_TX_" + Date.now(),
+                realMint: tokenMint,
+                executedMC: mcOra
+            };
+        }
+
+        // 💎 ESECUZIONE REALE ON-CHAIN
         const signerKeypair = decodificaChiavePrivata(privateKey);
         const walletPub = signerKeypair.publicKey.toBase58();
 
-        // 🔥 Converte automaticamente l'indirizzo se proviene da DexScreener o Axiom!
-        const tokenMint = await risolviVeroTokenMint(rawTokenOrPair);
-
-        if (action === "buy") {
-            const balanceLamports = await getRPC().getBalance(signerKeypair.publicKey);
-            const balanceSol = balanceLamports / 1e9;
-            const requiredSol = parseFloat(amountSolOrPct) + 0.003;
-            if (balanceSol < requiredSol) {
-                return {
-                    success: false,
-                    error: `Saldo insufficiente (${balanceSol.toFixed(3)} SOL disponibili, servono ${requiredSol.toFixed(3)} SOL)`
-                };
-            }
-        }
-
-        // TENTATIVO 1: PumpPortal (Pump.fun + PumpSwap + Raydium)
         try {
             const response = await fetch("https://pumpportal.fun/api/trade-local", {
                 method: "POST",
@@ -3792,7 +3799,7 @@ async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct,
                     denominatedInSol: action === "buy" ? "true" : "false",
                     amount: amountSolOrPct,
                     slippage: slippage,
-                    priorityFee: 0.00005, // ~mezzo centesimo per garantire l'inclusione nel blocco
+                    priorityFee: 0.00005,
                     pool: "auto"
                 })
             });
@@ -3801,19 +3808,11 @@ async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct,
                 const data = await response.arrayBuffer();
                 const tx = VersionedTransaction.deserialize(new Uint8Array(data));
                 tx.sign([signerKeypair]);
-
                 const signature = await getRPC().sendTransaction(tx, { skipPreflight: true, maxRetries: 3 });
-                console.log(`⚡ [PUMP SWAP OK] ${action.toUpperCase()} su ${tokenMint.substring(0,6)} | TX: ${signature}`);
                 return { success: true, signature, realMint: tokenMint };
-            } else {
-                const errText = await response.text();
-                console.log(`⚠️ [PumpPortal Skip ${response.status}]: ${errText} -> Passo a Jupiter...`);
             }
-        } catch (pumpErr) {
-            console.log(`⚠️ [PumpPortal Skip]: ${pumpErr.message} -> Passo a Jupiter...`);
-        }
+        } catch (pumpErr) {}
 
-        // TENTATIVO 2: Jupiter V1 API (Per tutti i DEX Solana: Raydium, Meteora, Orca, PumpSwap)
         const SOL_MINT = "So11111111111111111111111111111111111111112";
         const inputMint = action === "buy" ? SOL_MINT : tokenMint;
         const outputMint = action === "buy" ? tokenMint : SOL_MINT;
@@ -3824,20 +3823,13 @@ async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct,
         } else {
             const ata = await getAssociatedTokenAddress(new PublicKey(tokenMint), signerKeypair.publicKey);
             const acc = await getRPC().getParsedAccountInfo(ata);
-            if (!acc.value) return { success: false, error: "Nessun token da vendere nel wallet." };
+            if (!acc.value) return { success: false, error: "Nessun token da vendere." };
             rawAmount = parseInt(acc.value.data.parsed.info.tokenAmount.amount);
-            if (rawAmount <= 0) return { success: false, error: "Saldo token pari a zero." };
         }
 
-        const quoteUrl = `https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rawAmount}&slippageBps=${slippage * 100}`;
-        const quoteRes = await fetch(quoteUrl);
-        if (!quoteRes.ok) {
-            return { success: false, error: `Pool non trovata per ${tokenMint.substring(0,6)} (Status ${quoteRes.status}).` };
-        }
+        const quoteRes = await fetch(`https://lite-api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${rawAmount}&slippageBps=${slippage * 100}`);
+        if (!quoteRes.ok) return { success: false, error: `Pool non trovata (${quoteRes.status}).` };
         const quoteData = await quoteRes.json();
-        if (!quoteData || quoteData.error) {
-            return { success: false, error: quoteData?.error || "Rotta Jupiter non disponibile." };
-        }
 
         const swapRes = await fetch("https://lite-api.jup.ag/swap/v1/swap", {
             method: "POST",
@@ -3851,34 +3843,30 @@ async function eseguiSwapHFT(privateKey, rawTokenOrPair, action, amountSolOrPct,
             })
         });
         const swapData = await swapRes.json();
-        if (!swapData || !swapData.swapTransaction) {
-            return { success: false, error: "Errore generazione TX Jupiter." };
-        }
-
-        const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
-        const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+        const transaction = VersionedTransaction.deserialize(Buffer.from(swapData.swapTransaction, 'base64'));
         transaction.sign([signerKeypair]);
 
         const signature = await getRPC().sendTransaction(transaction, { skipPreflight: true, maxRetries: 3 });
-        console.log(`⚡ [JUPITER SWAP OK] ${action.toUpperCase()} su ${tokenMint.substring(0,6)} | TX: ${signature}`);
         return { success: true, signature, realMint: tokenMint };
 
     } catch (error) {
-        console.error(`❌ [ERRORE SWAP] ${action.toUpperCase()}:`, error.message);
         return { success: false, error: error.message };
     }
 }
 
-// ♻️ 4. AUTO-BURN & CHIUSURA CONTO (Rimborsa i +0.002039 SOL = $0.21 di cauzione sul wallet)
-async function bruciaEChiudiTokenAccount(privateKey, rawTokenOrPair) {
+// ♻️ 4. AUTO-BURN & CHIUSURA CONTO
+async function bruciaEChiudiTokenAccount(privateKey, rawTokenOrPair, isDemoMode = false) {
+    if (isDemoMode) {
+        console.log(`♻️ [DEMO AUTO-BURN] Conto token virtuale chiuso (+0.002039 SOL cauzione sbloccata).`);
+        return { closed: true, signature: "DEMO_BURN_" + Date.now() };
+    }
     try {
         const payer = decodificaChiavePrivata(privateKey);
         const tokenMint = await risolviVeroTokenMint(rawTokenOrPair);
         const mintPubkey = new PublicKey(tokenMint);
         const ata = await getAssociatedTokenAddress(mintPubkey, payer.publicKey);
         const accountInfo = await getRPC().getParsedAccountInfo(ata);
-
-        if (!accountInfo.value) return { closed: false, reason: "Conto già chiuso." };
+        if (!accountInfo.value) return { closed: false };
 
         const parsedData = accountInfo.value.data.parsed.info;
         const rawBalance = BigInt(parsedData.tokenAmount.amount);
@@ -3889,41 +3877,45 @@ async function bruciaEChiudiTokenAccount(privateKey, rawTokenOrPair) {
             ComputeBudgetProgram.setComputeUnitLimit({ units: 45000 }),
             ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 220000 })
         );
-
         if (rawBalance > 0n) {
             tx.add(createBurnCheckedInstruction(ata, mintPubkey, payer.publicKey, rawBalance, decimals, [], TOKEN_PROGRAM_ID));
         }
         tx.add(createCloseAccountInstruction(ata, payer.publicKey, payer.publicKey, [], TOKEN_PROGRAM_ID));
-
         const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
-        console.log(`♻️ [RENT INCASSATO] +0.002039 SOL ($0.21) rimborsati sul wallet! TX: ${sig}`);
         return { closed: true, signature: sig };
     } catch (error) {
         return { closed: false, error: error.message };
     }
 }
 
-// 🔍 5. ENDPOINT DIAGNOSTICA WALLET
+// 🔍 5. ENDPOINT DIAGNOSTICA WALLET & STATO LIVE DEL TRADE DEMO
 app.post('/api/autotrading/wallet-info', async (req, res) => {
     try {
-        const { privateKey, score = 45 } = req.body;
+        const { privateKey = "DEMO", score = 45, tokenMint } = req.body;
         const info = await calcolaPuntataIntelligenteDalWallet(privateKey, score, false);
-        return res.json({ success: true, ...info });
+
+        let activeTrade = null;
+        if (tokenMint) {
+            const realMint = await risolviVeroTokenMint(tokenMint);
+            if (activeAutoTrades.has(realMint)) {
+                activeTrade = activeAutoTrades.get(realMint).publicStatus;
+            }
+        }
+        return res.json({ success: true, ...info, activeTrade });
     } catch (e) {
         return res.status(400).json({ success: false, error: e.message });
     }
 });
 
-// 🚀 6. ENDPOINT AVVIO AUTONOMO: Converte Pair->Mint, Pesca i SOL dal wallet, Compra, Vende e Brucia
+// 🚀 6. ENDPOINT AVVIO AUTONOMO (CONTO DEMO + REALE)
 app.post('/api/autotrading/start', async (req, res) => {
-    const { tokenMint: rawAddress, privateKey, score = 45, panicSellAttivo = false, forceManual = false, probeSol, takeProfitPct, stopLossPct, timeStopSec } = req.body;
+    const { tokenMint: rawAddress, privateKey = "DEMO", score = 45, forceManual = false, probeSol, takeProfitPct, stopLossPct, timeStopSec } = req.body;
 
-    if (!rawAddress || !privateKey) {
-        return res.status(400).json({ success: false, error: "Token o Private Key mancanti." });
+    if (!rawAddress) {
+        return res.status(400).json({ success: false, error: "Token mancante." });
     }
 
     try {
-        // 🔥 Risolviamo subito il vero indirizzo Mint del token (così funziona anche su DexScreener e Axiom!)
         const tokenMint = await risolviVeroTokenMint(rawAddress);
 
         if (activeAutoTrades.has(tokenMint)) {
@@ -3931,13 +3923,14 @@ app.post('/api/autotrading/start', async (req, res) => {
             return res.json({
                 success: true,
                 status: "ALREADY_ACTIVE",
+                isDemoMode: active.isDemoMode,
                 solInvestiti: active.solInvestiti,
                 usdStimati: active.usdStimati,
-                effectiveTpPct: active.tpPct
+                effectiveTpPct: active.tpPct,
+                demoStats: demoAccountState,
+                activeTrade: active.publicStatus
             });
         }
-
-        console.log(`🤖 [AVVIO TRADE] Token Mint risolto: ${tokenMint.substring(0,8)}...`);
 
         const piano = await calcolaPuntataIntelligenteDalWallet(privateKey, forceManual ? Math.max(50, score) : score, false);
         if (!piano.autorizzato) {
@@ -3947,24 +3940,36 @@ app.post('/api/autotrading/start', async (req, res) => {
         const entryMC = await ottieniPrezzoToken(tokenMint);
         const importoDaUsare = probeSol ? parseFloat(probeSol) : piano.solDaInvestire;
 
-        // Esecuzione Swap sul vero Token Mint
-        const buyRes = await eseguiSwapHFT(privateKey, tokenMint, "buy", importoDaUsare, 15);
+        const buyRes = await eseguiSwapHFT(privateKey, tokenMint, "buy", importoDaUsare, 15, piano.isDemoMode);
         if (!buyRes.success) {
-            console.error(`❌ [SWAP FALLITO] Motivo:`, buyRes.error);
             return res.status(400).json({ success: false, error: buyRes.error });
         }
 
+        // Se siamo in Conto Demo, congeliamo temporaneamente l'importo + 0.002 SOL di cauzione ATA
+        if (piano.isDemoMode) {
+            demoAccountState.balanceSol = parseFloat((demoAccountState.balanceSol - importoDaUsare - 0.002039).toFixed(4));
+            demoAccountState.lastEvent = `🟢 Aperta pos. (${importoDaUsare} SOL) a $${(entryMC/1000).toFixed(1)}k MC`;
+        }
+
         const startTime = Date.now();
-        const mintPubKey = new PublicKey(tokenMint); // 🔥 FIX CRITICO: Rimosso global.PublicKey che faceva crashare il server!
+        const mintPubKey = new PublicKey(tokenMint);
         const tpScelto = takeProfitPct ? parseFloat(takeProfitPct) : piano.takeProfitDinamico;
         const finalTargetMC = Math.floor(entryMC * (1 + (tpScelto / 100)));
 
         let state = {
+            isDemoMode: piano.isDemoMode,
             entryMC,
             peakMC: entryMC,
             solInvestiti: importoDaUsare,
-            usdStimati: parseFloat((importoDaUsare * (macroMarketData.solPriceUsd || 104.23)).toFixed(2)),
+            usdStimati: piano.usdStimati,
             tpPct: tpScelto,
+            publicStatus: {
+                inPosition: true,
+                elapsedSec: 0,
+                rawChangePct: "0.0",
+                netChangePct: "-3.5", // Parte a -3.5% per simulare fee Pump.fun (2%) + Slippage (1.5%)
+                currentMC: entryMC
+            },
             timer: null
         };
         activeAutoTrades.set(tokenMint, state);
@@ -3979,58 +3984,100 @@ app.post('/api/autotrading/start', async (req, res) => {
                 if (!currentMC) return;
                 if (currentMC > state.peakMC) state.peakMC = currentMC;
 
-                const changePct = ((currentMC - state.entryMC) / state.entryMC) * 100;
+                const rawChangePct = ((currentMC - state.entryMC) / state.entryMC) * 100;
+                // Sottraiamo il -3.5% reale di commissioni (1% buy + 1% sell + 1.5% slippage/gas)
+                const netChangePct = rawChangePct - 3.5;
                 const dropFromPeakPct = ((currentMC - state.peakMC) / state.peakMC) * 100;
-                const elapsedSec = (Date.now() - startTime) / 1000;
+                const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+
+                state.publicStatus = {
+                    inPosition: true,
+                    elapsedSec,
+                    rawChangePct: rawChangePct.toFixed(1),
+                    netChangePct: netChangePct.toFixed(1),
+                    currentMC
+                };
 
                 const vampireDumping = microDumpCheck && microDumpCheck.pericolo === true;
                 const timeStopVal = timeStopSec ? parseFloat(timeStopSec) : piano.timeStopDinamico;
-                const isTimeStop = (elapsedSec >= timeStopVal && changePct < 1.0);
+                const isTimeStop = (elapsedSec >= timeStopVal && rawChangePct < 1.0);
                 const slScelto = stopLossPct ? parseFloat(stopLossPct) : piano.stopLossDinamico;
-                const isStopLoss = (changePct <= slScelto) || (changePct >= 7 && dropFromPeakPct <= -3.5);
-                const isTakeProfit = (changePct >= tpScelto) || (elapsedSec >= 75);
+                const isStopLoss = (rawChangePct <= slScelto) || (rawChangePct >= 7 && dropFromPeakPct <= -3.5);
+                const isTakeProfit = (rawChangePct >= tpScelto) || (elapsedSec >= 75);
 
                 if (vampireDumping || isTimeStop || isStopLoss || isTakeProfit) {
                     clearInterval(state.timer);
                     activeAutoTrades.delete(tokenMint);
 
-                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 15);
-                    setTimeout(() => bruciaEChiudiTokenAccount(privateKey, tokenMint), 3500);
+                    await eseguiSwapHFT(privateKey, tokenMint, "sell", "100%", 15, state.isDemoMode);
+                    await bruciaEChiudiTokenAccount(privateKey, tokenMint, state.isDemoMode);
+
+                    if (state.isDemoMode) {
+                        const pnlSol = parseFloat((state.solInvestiti * (netChangePct / 100)).toFixed(4));
+                        // Riaccredita il capitale + PnL netto + i 0.002039 SOL del Burn!
+                        demoAccountState.balanceSol = parseFloat((demoAccountState.balanceSol + state.solInvestiti + pnlSol + 0.002039).toFixed(4));
+                        demoAccountState.totalTrades++;
+                        if (pnlSol >= 0) demoAccountState.wins++; else demoAccountState.losses++;
+
+                        const motivo = isTakeProfit ? "TAKE PROFIT" : (vampireDumping ? "VAMPIRE ESCAPE" : (isTimeStop ? `TIME-STOP ${elapsedSec}s` : "STOP LOSS"));
+                        demoAccountState.lastEvent = `🏁 ${motivo}: ${pnlSol >= 0 ? '+' : ''}${pnlSol} SOL (${netChangePct.toFixed(1)}% netto) + Burn OK`;
+                        console.log(`💰 [DEMO CHIUSO] ${demoAccountState.lastEvent} | Nuovo Saldo Demo: ${demoAccountState.balanceSol} SOL`);
+
+                        await salvaTradeSupabase(tokenMint, pnlSol).catch(() => {});
+                    }
                 }
             } catch (e) {}
         }, 2000);
 
         return res.json({
             success: true,
+            isDemoMode: piano.isDemoMode,
             walletAddress: piano.walletAddress,
-            saldoTotaleSol: piano.saldoTotaleSol,
+            saldoTotaleSol: demoAccountState.balanceSol,
             solInvestiti: importoDaUsare,
             usdStimati: state.usdStimati,
-            fasciaRischio: piano.fasciaRischio,
             entryMC,
             finalTargetMC,
             effectiveTpPct: tpScelto,
+            demoStats: demoAccountState,
             txSignature: buyRes.signature
         });
 
     } catch (e) {
         activeAutoTrades.delete(rawAddress);
-        console.error("🔥 ERRORE IN /api/autotrading/start:", e.message);
         return res.status(500).json({ success: false, error: e.message });
     }
 });
 
-// 🛑 7. ENDPOINT PANIC SELL & BURN MANUALE
+// 🛑 7. ENDPOINT PANIC SELL & BURN MANUALE (Funziona anche in Conto Demo!)
 app.post('/api/autotrading/panic-burn', async (req, res) => {
-    const { tokenMint, privateKey } = req.body;
+    const { tokenMint, privateKey = "DEMO" } = req.body;
     const realMint = await risolviVeroTokenMint(tokenMint);
+
     if (activeAutoTrades.has(realMint)) {
-        clearInterval(activeAutoTrades.get(realMint).timer);
+        const state = activeAutoTrades.get(realMint);
+        clearInterval(state.timer);
         activeAutoTrades.delete(realMint);
+
+        if (state.isDemoMode) {
+            const currentMC = await ottieniPrezzoToken(realMint);
+            const rawChangePct = ((currentMC - state.entryMC) / state.entryMC) * 100;
+            const netChangePct = rawChangePct - 3.5;
+            const pnlSol = parseFloat((state.solInvestiti * (netChangePct / 100)).toFixed(4));
+
+            demoAccountState.balanceSol = parseFloat((demoAccountState.balanceSol + state.solInvestiti + pnlSol + 0.002039).toFixed(4));
+            demoAccountState.totalTrades++;
+            if (pnlSol >= 0) demoAccountState.wins++; else demoAccountState.losses++;
+            demoAccountState.lastEvent = `🔥 SELL & BURN: ${pnlSol >= 0 ? '+' : ''}${pnlSol} SOL (${netChangePct.toFixed(1)}%)`;
+
+            await salvaTradeSupabase(realMint, pnlSol).catch(() => {});
+            return res.json({ success: true, isDemo: true, demoStats: demoAccountState });
+        }
     }
-    const sellRes = await eseguiSwapHFT(privateKey, realMint, "sell", "100%", 15);
-    setTimeout(() => bruciaEChiudiTokenAccount(privateKey, realMint), 3000);
-    return res.json({ success: sellRes.success, signature: sellRes.signature, error: sellRes.error });
+
+    const sellRes = await eseguiSwapHFT(privateKey, realMint, "sell", "100%", 15, false);
+    setTimeout(() => bruciaEChiudiTokenAccount(privateKey, realMint, false), 3000);
+    return res.json({ success: sellRes.success, signature: sellRes.signature, error: sellRes.error, demoStats: demoAccountState });
 });
 
 server.listen(PORT, () => {
