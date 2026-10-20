@@ -620,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let isBuy = cleanTipo.includes("BUY");
                 let color = isBuy ? "#00e676" : "#ff4d4d";
 
-                let svgIcon = ""; let tagColor = "#888"; let tooltipText = "Retail Flow";
+                let svgIcon = ""; let tagColor = "#888888"; let tooltipText = "Retail Flow";
                 
                 if (trade.zooIcon && (trade.zooIcon.includes("📦") || trade.tipo.includes("BUNDLE"))) { 
                     tagColor = "#c084fc"; tooltipText = "Jito Bundle / Multi-Tx";
@@ -1420,7 +1420,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inizializzaTracker();
         loadSavedWallets();
         caricaStoricoSpyNelDOM();
-        innescaModalitaParassita(null, tokenMint); // 🔥 Attiva subito Wallet e tasti BUY/SELL!
+        // 🔥 Attiva subito Wallet e tasti BUY/SELL!
     }
 
     function showPremiumModal(title, message, isConfirm, onConfirm) {

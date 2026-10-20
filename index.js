@@ -3078,38 +3078,65 @@ function avviaAscoltoBersaglio(walletAddress) {
     }, "confirmed");
 }
 // 📡 ORACOLO DEI PREZZI STEALTH (Bypassa Cloudflare Anti-Bot)
-async function ottieniPrezzoToken(mint) {
+// 📡 ORACOLO DEI PREZZI ON-CHAIN IN TEMPO REALE (Zero Cache, Legge la Curva su Blockchain + Jupiter AMM)
+const PUMP_PROGRAM_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfX91R3KzXFzH9g5cWg");
+
+async function ottieniPrezzoToken(rawMintOrPair) {
     try {
-        // 1. API Pump.fun travestita da normale Browser Google Chrome
-        const pumpResp = await fetch(`https://frontend-api.pump.fun/coins/${mint}`, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-                "Origin": "https://pump.fun",
-                "Referer": "https://pump.fun/"
+        const mint = await risolviVeroTokenMint(rawMintOrPair);
+        const mintPubKey = new PublicKey(mint);
+        const solPriceUsd = macroMarketData.solPriceUsd || 140;
+
+        // 🔥 1. LETTURA DIRETTA ON-CHAIN DELLA BONDING CURVE PUMP.FUN (Aggiornata a ogni blocco di 400ms!)
+        try {
+            const [bondingCurvePDA] = PublicKey.findProgramAddressSync(
+                [Buffer.from("bonding-curve"), mintPubKey.toBuffer()],
+                PUMP_PROGRAM_ID
+            );
+            const accInfo = await getRPC().getAccountInfo(bondingCurvePDA, "processed");
+            if (accInfo && accInfo.data && accInfo.data.length >= 24) {
+                const virtualTokenReserves = Number(accInfo.data.readBigUInt64LE(8)) / 1e6;
+                const virtualSolReserves = Number(accInfo.data.readBigUInt64LE(16)) / 1e9;
+                const isComplete = accInfo.data[48] === 1; // 1 = Migrato su Raydium/PumpSwap
+
+                if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
+                    const priceInSol = virtualSolReserves / virtualTokenReserves;
+                    const marketCapSol = priceInSol * 1_000_000_000; // Supply totale 1 Miliardo
+                    return parseFloat((marketCapSol * solPriceUsd).toFixed(2));
+                }
             }
-        });
-        
-        if (pumpResp.ok) {
-            const pumpData = await pumpResp.json();
-            if (pumpData && pumpData.usd_market_cap) return parseFloat(pumpData.usd_market_cap);
-        }
-        
-        // 2. Fallback su DexScreener se Pump.fun fa i capricci
-        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
+        } catch (curveErr) {}
+
+        // 🔥 2. QUOTAZIONE LIVE AMM JUPITER V1 (Per tutti i token su Raydium / PumpSwap / Meteora)
+        // Chiede al pool AMM quanti token escono con 0.1 SOL in questo preciso millisecondo (Zero Cache!)
+        try {
+            const jupUrl = `https://lite-api.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=100000000&slippageBps=50`;
+            const jupRes = await fetch(jupUrl);
+            if (jupRes.ok) {
+                const jupData = await jupRes.json();
+                if (jupData && jupData.outAmount) {
+                    const tokensPer01Sol = parseFloat(jupData.outAmount) / 1e6;
+                    if (tokensPer01Sol > 0) {
+                        const priceInSol = 0.1 / tokensPer01Sol;
+                        const marketCapUsd = priceInSol * 1_000_000_000 * solPriceUsd;
+                        return parseFloat(marketCapUsd.toFixed(2));
+                    }
+                }
+            }
+        } catch (jupErr) {}
+
+        // 3. Fallback d'emergenza su DexScreener con parametro anti-cache
+        const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}?_t=${Date.now()}`);
         if (dexResp.ok) {
             const dexData = await dexResp.json();
             if (dexData.pairs && dexData.pairs.length > 0) {
-                return parseFloat(dexData.pairs[0].fdv || dexData.pairs[0].marketCap);
+                return parseFloat(dexData.pairs[0].fdv || dexData.pairs[0].marketCap || 15000);
             }
         }
-        
-        // 3. Secondo Fallback: Se il token è nato da 1 millisecondo e le API non lo hanno,
-        // diamo un Market Cap base (tipico di lancio su pump) per non annullare il trade.
-        return 30000; // 30k $ MC (standard bonding curve start)
 
+        return 15000;
     } catch (e) {
-        return 30000;
+        return 15000;
     }
 }
 async function valutaEsplosivitaToken(tokenMint, walletTarget) {
