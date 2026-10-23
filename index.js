@@ -1,4 +1,4 @@
-require('dotenv').config(); // 🔥 FONDAMENTALE: Legge la tua chiave API dal file .env
+require('dotenv').config(); // 🔥 FONDAMENTALE: Legge la tua chiave API dal file .env //test
 const express = require('express');
 const cors = require('cors');
 const { Connection, PublicKey } = require('@solana/web3.js');
