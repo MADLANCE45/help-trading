@@ -3098,12 +3098,27 @@ async function ottieniPrezzoToken(rawMintOrPair) {
                 const virtualTokenReserves = Number(accInfo.data.readBigUInt64LE(8)) / 1e6;
                 const virtualSolReserves = Number(accInfo.data.readBigUInt64LE(16)) / 1e9;
                 const isComplete = accInfo.data[48] === 1; // 1 = Migrato su Raydium/PumpSwap
+// Memoria globale dello stato della curva per ogni token
+const curveStateMemory = new Map();
 
-                if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
-                    const priceInSol = virtualSolReserves / virtualTokenReserves;
-                    const marketCapSol = priceInSol * 1_000_000_000; // Supply totale 1 Miliardo
-                    return parseFloat((marketCapSol * solPriceUsd).toFixed(2));
-                }
+// Sostituisci il blocco interno "if (!isComplete && virtualTokenReserves > 0...)" dentro ottieniPrezzoToken con questo:
+if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
+    const priceInSol = virtualSolReserves / virtualTokenReserves;
+    const marketCapSol = priceInSol * 1_000_000_000;
+    const mcUsd = parseFloat((marketCapSol * solPriceUsd).toFixed(2));
+
+    // 🔥 CALCOLO MATEMATICO ESATTO DELLA % BONDING CURVE DAI BYTE ON-CHAIN
+    // La curva parte da 30 SOL virtuali e finisce a ~115 SOL virtuali (85 SOL reali versati)
+    const realSolInPool = Math.max(0, virtualSolReserves - 30);
+    const curvePct = Math.min(100, parseFloat(((realSolInPool / 85) * 100).toFixed(1)));
+
+    // Rilevamento "Buchi di Momento"
+    const isKothWindow = (curvePct >= 45.5 && curvePct <= 50.5); // Finestra pre-esplosione King of the Hill!
+    const isGraduationDumpZone = (curvePct >= 93.0);             // Zona pericolo prima del blocco migrazione!
+
+    curveStateMemory.set(mint, { curvePct, realSolInPool: realSolInPool.toFixed(2), isKothWindow, isGraduationDumpZone });
+    return mcUsd;
+}
             }
         } catch (curveErr) {}
 
@@ -4026,13 +4041,19 @@ app.post('/api/autotrading/start', async (req, res) => {
                 };
 
                 const vampireDumping = microDumpCheck && microDumpCheck.pericolo === true;
+                
+                // 🔥 AGGIUNTA: Controllo stato Bonding Curve (Pre-Graduation Exit al 93%)
+                const cState = curveStateMemory.get(tokenMint);
+                const isPreGraduationExit = (cState && cState.isGraduationDumpZone && rawChangePct > 0);
+
                 const timeStopVal = timeStopSec ? parseFloat(timeStopSec) : piano.timeStopDinamico;
                 const isTimeStop = (elapsedSec >= timeStopVal && rawChangePct < 1.0);
                 const slScelto = stopLossPct ? parseFloat(stopLossPct) : piano.stopLossDinamico;
                 const isStopLoss = (rawChangePct <= slScelto) || (rawChangePct >= 7 && dropFromPeakPct <= -3.5);
                 const isTakeProfit = (rawChangePct >= tpScelto) || (elapsedSec >= 75);
 
-                if (vampireDumping || isTimeStop || isStopLoss || isTakeProfit) {
+                // 🔥 AGGIUNTA `|| isPreGraduationExit` in fondo alle condizioni di uscita d'emergenza
+                if (vampireDumping || isTimeStop || isStopLoss || isTakeProfit || isPreGraduationExit) {
                     clearInterval(state.timer);
                     activeAutoTrades.delete(tokenMint);
 
@@ -4106,7 +4127,58 @@ app.post('/api/autotrading/panic-burn', async (req, res) => {
     setTimeout(() => bruciaEChiudiTokenAccount(privateKey, realMint, false), 3000);
     return res.json({ success: sellRes.success, signature: sellRes.signature, error: sellRes.error, demoStats: demoAccountState });
 });
+// 🧹 8. ASPIRAPOLVERE SOL ("VACUUM CLEANER"): Recupera tutti i 0.002039 SOL dimenticati nel wallet
+app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
+    try {
+        const { privateKey } = req.body;
+        const payer = decodificaChiavePrivata(privateKey);
+        if (!payer) return res.json({ success: false, error: "Modalità Demo attiva (nessun conto reale da pulire)." });
 
+        // Cerca tutti i conti token appartenenti al tuo wallet sulla blockchain
+        const tokenAccounts = await getRPC().getParsedTokenAccountsByOwner(payer.publicKey, {
+            programId: TOKEN_PROGRAM_ID
+        });
+
+        const contiVuoti = [];
+        for (const item of tokenAccounts.value) {
+            const info = item.account.data.parsed.info;
+            const amount = BigInt(info.tokenAmount.amount);
+            const mint = info.mint;
+            // Se il saldo è ZERO (o se è un conto Wrapped SOL rimasto aperto), possiamo chiuderlo e incassare l'affitto!
+            if (amount === 0n || mint === "So11111111111111111111111111111111111111112") {
+                contiVuoti.push(item.pubkey);
+            }
+        }
+
+        if (contiVuoti.length === 0) {
+            return res.json({ success: true, recuperatiSol: 0, contiChiusi: 0, message: "Wallet già pulito al 100%!" });
+        }
+
+        // Chiude fino a 12 conti vuoti in una singola transazione (costa 0.000005 SOL e ne incassa fino a +0.024 SOL!)
+        const batch = contiVuoti.slice(0, 12);
+        const tx = new Transaction().add(
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 35000 }),
+            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 })
+        );
+
+        for (const ataPubkey of batch) {
+            tx.add(createCloseAccountInstruction(ataPubkey, payer.publicKey, payer.publicKey, [], TOKEN_PROGRAM_ID));
+        }
+
+        const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
+        const solRecuperati = parseFloat((batch.length * 0.00203928).toFixed(4));
+
+        console.log(`🧹 [VACUUM COMPLETATO] Chiusi ${batch.length} conti morti! Incassati +${solRecuperati} SOL | TX: ${sig}`);
+        return res.json({
+            success: true,
+            contiChiusi: batch.length,
+            recuperatiSol: solRecuperati,
+            signature: sig
+        });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
 server.listen(PORT, () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
     console.log(`🤖 Autopilota Innescato: In ascolto H24 su ${BALENE_AUTONOME.length} balene.`);
