@@ -868,6 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ourExitVal = document.getElementById('our-exit-val');
         const btnBuy = document.getElementById('btn-manual-buy');
         const btnPanic = document.getElementById('btn-panic-burn');
+        const btnDemoToggle = document.getElementById('btn-toggle-demo');
 
         if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
 
@@ -879,16 +880,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
             if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL/10s`;
             if (vampEl) {
-                vampEl.innerText = isVamp ? "🧛 DUMP!" : "CLEAN";
+                vampEl.innerText = isVamp ? "BLEEDING" : "CLEAN";
                 vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
             }
         }, 1000);
 
         chrome.storage.local.get(['userConfig'], async (resObj) => {
             const cfg = resObj.userConfig || {};
-            // Se non hai messo una chiave o il wallet è vuoto, usa "DEMO" in automatico!
-            const activeKey = (cfg.burnerPrivateKey && cfg.burnerPrivateKey.trim() !== "") ? cfg.burnerPrivateKey.trim() : "DEMO";
+            let isDemoForced = cfg.demoModeEnabled !== false; // Attivo di default per sicurezza
+            const hasRealKey = Boolean(cfg.burnerPrivateKey && cfg.burnerPrivateKey.trim() !== "");
+            const activeKey = (!isDemoForced && hasRealKey) ? cfg.burnerPrivateKey.trim() : "DEMO";
             const tokenScore = data && data.score ? parseFloat(data.score) : 45;
+
+            const aggiornaBottoneDemoUI = () => {
+                if (!btnDemoToggle) return;
+                if (isDemoForced || !hasRealKey) {
+                    btnDemoToggle.innerText = "DEMO: ON";
+                    btnDemoToggle.style.color = "#00ffcc";
+                    btnDemoToggle.style.borderColor = "#00ffcc";
+                    btnDemoToggle.style.background = "rgba(0, 255, 204, 0.12)";
+                } else {
+                    btnDemoToggle.innerText = "LIVE: ON";
+                    btnDemoToggle.style.color = "#ff007f";
+                    btnDemoToggle.style.borderColor = "#ff007f";
+                    btnDemoToggle.style.background = "rgba(255, 0, 127, 0.15)";
+                }
+            };
+            aggiornaBottoneDemoUI();
+
+            if (btnDemoToggle) {
+                btnDemoToggle.onclick = () => {
+                    if (!hasRealKey && isDemoForced) {
+                        if (statusEl) {
+                            statusEl.innerText = "INSERT PRIVATE KEY IN SETTINGS TO ENABLE LIVE MODE";
+                            statusEl.style.color = "#ffaa00";
+                        }
+                        return;
+                    }
+                    isDemoForced = !isDemoForced;
+                    cfg.demoModeEnabled = isDemoForced;
+                    chrome.storage.local.set({ userConfig: cfg }, () => {
+                        aggiornaBottoneDemoUI();
+                        innescaModalitaParassita(data, tokenMint);
+                    });
+                };
+            }
 
             const aggiornaStatoDemoLive = () => {
                 if (window.demoPollTimer) clearInterval(window.demoPollTimer);
@@ -897,20 +933,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         const r = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/wallet-info`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ privateKey: activeKey, score: tokenScore, tokenMint })
+                            body: JSON.stringify({ privateKey: activeKey, score: tokenScore, tokenMint, forceDemo: isDemoForced })
                         });
                         const info = await r.json();
                         if (!info.success) return;
 
-                        if (ourExitVal && info.demoStats) {
+                        if (ourExitVal && info.demoStats && info.isDemoMode) {
                             const pnlTot = (info.demoStats.balanceSol - info.demoStats.initialSol).toFixed(3);
-                            ourExitVal.innerText = `🎮 ${info.demoStats.balanceSol} SOL (${pnlTot >= 0 ? '+' : ''}${pnlTot} SOL)`;
+                            ourExitVal.innerText = `DEMO ${info.demoStats.balanceSol} SOL (${pnlTot >= 0 ? '+' : ''}${pnlTot})`;
                         }
 
                         if (info.activeTrade && info.activeTrade.inPosition) {
                             const net = parseFloat(info.activeTrade.netChangePct);
                             if (statusEl) {
-                                statusEl.innerText = `📈 LIVE (${info.activeTrade.elapsedSec}s): Lordo ${info.activeTrade.rawChangePct}% | Netto ${net >= 0 ? '+' : ''}${net}%`;
+                                statusEl.innerText = `ACTIVE (${info.activeTrade.elapsedSec}s) | GROSS ${info.activeTrade.rawChangePct}% | NET ${net >= 0 ? '+' : ''}${net}%`;
                                 statusEl.style.color = net >= 0 ? "#00e676" : "#ffaa00";
                             }
                         } else if (info.demoStats && info.demoStats.lastEvent) {
@@ -928,14 +964,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const m = window.liveMetrics || { buyVol: 0, sellVol: 0 };
                 if (!isManual && parseFloat(m.sellVol) > parseFloat(m.buyVol) * 1.5 && parseFloat(m.sellVol) >= 0.5) {
                     if (statusEl) {
-                        statusEl.innerText = "🧛 VAMPIRE SELL RILEVATO: Entrata bloccata!";
+                        statusEl.innerText = "VAMPIRE DISTRIBUTION DETECTED - ENTRY BLOCKED";
                         statusEl.style.color = "#ff4d4d";
                     }
                     return;
                 }
 
                 if (statusEl) {
-                    statusEl.innerText = "🎮 APERTURA POSIZIONE DEMO SUL PREZZO REALE...";
+                    statusEl.innerText = isDemoForced ? "EXECUTING DEMO BUY ON LIVE PRICE..." : "BROADCASTING LIVE BUY TX...";
                     statusEl.style.color = "#00ffcc";
                 }
 
@@ -947,22 +983,23 @@ document.addEventListener('DOMContentLoaded', () => {
                             tokenMint: tokenMint,
                             privateKey: activeKey,
                             score: tokenScore,
-                            forceManual: isManual
+                            forceManual: isManual,
+                            forceDemo: isDemoForced
                         })
                     });
                     const tradeStatus = await startRes.json();
 
                     if (tradeStatus.success && statusEl) {
-                        const modeTag = tradeStatus.isDemoMode ? "🎮 DEMO BUY" : "⚡ REAL BUY";
-                        statusEl.innerText = `${modeTag}: ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) ➔ TP +${tradeStatus.effectiveTpPct}%`;
+                        const modeTag = tradeStatus.isDemoMode ? "[DEMO POS]" : "[LIVE POS]";
+                        statusEl.innerText = `${modeTag} ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) -> TP +${tradeStatus.effectiveTpPct}%`;
                         statusEl.style.color = "#00e676";
                         aggiornaStatoDemoLive();
                     } else if (statusEl) {
-                        statusEl.innerText = `❌ ${tradeStatus.error || 'Errore avvio'}`;
+                        statusEl.innerText = `ERROR: ${tradeStatus.error || 'EXECUTION FAILED'}`;
                         statusEl.style.color = "#ff4d4d";
                     }
                 } catch (err) {
-                    if (statusEl) statusEl.innerText = "⚠️ Fai git push di index.js su Railway!";
+                    if (statusEl) statusEl.innerText = "SERVER CONNECTION ERROR";
                 }
             };
 
@@ -971,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnPanic) {
                 btnPanic.onclick = async () => {
                     if (statusEl) {
-                        statusEl.innerText = "🚨 CHIUSURA 100% + AUTO-BURN...";
+                        statusEl.innerText = "EXECUTING 100% LIQUIDATION & ACCOUNT BURN...";
                         statusEl.style.color = "#ffaa00";
                     }
                     const r = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
@@ -981,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     const d = await r.json();
                     if (statusEl && d.demoStats) {
-                        statusEl.innerText = `${d.demoStats.lastEvent} | Saldo: ${d.demoStats.balanceSol} SOL`;
+                        statusEl.innerText = `${d.demoStats.lastEvent} | BAL: ${d.demoStats.balanceSol} SOL`;
                         statusEl.style.color = "#00e676";
                     }
                 };
@@ -991,14 +1028,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const walletRes = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/wallet-info`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ privateKey: activeKey, score: tokenScore, tokenMint })
+                    body: JSON.stringify({ privateKey: activeKey, score: tokenScore, tokenMint, forceDemo: isDemoForced })
                 });
                 const walletInfo = await walletRes.json();
                 if (!walletInfo.success) return;
 
                 if (ourExitVal) {
-                    const tag = walletInfo.isDemoMode ? "🎮 DEMO" : "💎 REAL";
-                    ourExitVal.innerText = `${tag}: ${walletInfo.saldoTotaleSol} SOL | Bet: ${walletInfo.solDaInvestire} SOL`;
+                    const tag = walletInfo.isDemoMode ? "DEMO" : "LIVE";
+                    ourExitVal.innerText = `${tag}: ${walletInfo.saldoTotaleSol} SOL | BET: ${walletInfo.solDaInvestire} SOL`;
                 }
 
                 if (walletInfo.activeTrade && walletInfo.activeTrade.inPosition) {
@@ -1008,7 +1045,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!cfg.autoTradeEnabled) {
                     if (statusEl) {
-                        statusEl.innerText = `🎮 Conto Demo (${walletInfo.saldoTotaleSol} SOL) | Premi ⚡ BUY o attiva Auto ⚙️`;
+                        const modeName = walletInfo.isDemoMode ? "DEMO READY" : "LIVE READY";
+                        statusEl.innerText = `${modeName} (${walletInfo.saldoTotaleSol} SOL) - CLICK BUY OR ENABLE AUTO`;
                         statusEl.style.color = "#00ffcc";
                     }
                     return;
@@ -1017,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (walletInfo.autorizzato) {
                     await lanciaOrdineBuy(false);
                 } else if (statusEl) {
-                    statusEl.innerText = `⛔ ${walletInfo.motivo}`;
+                    statusEl.innerText = `BLOCKED: ${walletInfo.motivo}`;
                     statusEl.style.color = "#ff4d4d";
                 }
             } catch (err) {}
@@ -1103,25 +1141,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const av3 = chrome.runtime.getURL("avatar3.png");
         const av4 = chrome.runtime.getURL("avatar4.png");
         const autoTraderBannerHTML = `
-            <div id="autotrade-live-banner" style="background: linear-gradient(135deg, #160d24 0%, #0a0c10 100%); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff007f; box-shadow: 0 0 12px rgba(255, 0, 127, 0.15);">
+            <div id="autotrade-live-banner" style="background: #0b0d13; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #2d3142; border-left: 3px solid #ff007f; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                    <div style="display:flex; flex-direction:column; gap:3px; flex-grow: 1;">
-                        <span style="font-size: 0.7em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.5px;">🤖 HFT AUTO-TRADER (SQHK48 ENGINE)</span>
-                        <span id="autotrade-status-text" style="font-size: 0.75em; color: #00ffcc; font-family: monospace; font-weight: bold;">👁️ In ascolto del nastro...</span>
+                    <div style="display:flex; flex-direction:column; gap:3px; flex-grow: 1; min-width: 0;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size: 0.65em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.8px; text-transform: uppercase;">[SYS.HFT] EXECUTION ENGINE</span>
+                            <button id="btn-toggle-demo" style="background: rgba(0, 255, 204, 0.12); color: #00ffcc; border: 1px solid #00ffcc; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 0.6em; font-weight: bold; cursor: pointer; text-transform: uppercase;" title="Switch between Demo Paper Account and Live Wallet">
+                                DEMO: ON
+                            </button>
+                        </div>
+                        <span id="autotrade-status-text" style="font-size: 0.72em; color: #e4e4e7; font-family: monospace; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">STANDBY - MONITORING ORDER FLOW</span>
                     </div>
                     <div style="display: flex; gap: 5px; flex-shrink: 0;">
-                        <button id="btn-manual-buy" style="background: linear-gradient(90deg, #00e676, #00b38f); color: #000; border: none; padding: 6px 9px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(0,230,118,0.4);" title="Forza entrata immediata">
-                            ⚡ BUY
+                        <button id="btn-manual-buy" style="background: #00e676; color: #000; border: none; padding: 6px 10px; border-radius: 3px; font-weight: 900; font-family: monospace; font-size: 0.68em; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase;">
+                            BUY
                         </button>
-                        <button id="btn-panic-burn" style="background: linear-gradient(90deg, #ff4d4d, #cc0000); color: #fff; border: none; padding: 6px 9px; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; box-shadow: 0 0 8px rgba(255,77,77,0.4);" title="Vendi 100% e brucia conto">
-                            🔥 SELL & BURN
+                        <button id="btn-panic-burn" style="background: #ff4d4d; color: #000; border: none; padding: 6px 10px; border-radius: 3px; font-weight: 900; font-family: monospace; font-size: 0.68em; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase;">
+                            SELL & BURN
                         </button>
                     </div>
                 </div>
-                <div id="parasite-math-row" style="display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #2d3142; font-family: monospace; font-size: 0.68em; color: #aaa;">
-                    <span>Speed: <b id="live-vol-speed" style="color:#00ffcc;">0.0 SOL/10s</b></span>
-                    <span>Vampire: <b id="live-vampire-status" style="color:#00e676;">CLEAN</b></span>
-                    <span>Target: <b id="our-exit-val" style="color:#ffaa00;">--</b></span>
+                <div id="parasite-math-row" style="display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1a1c29; font-family: monospace; font-size: 0.66em; color: #888;">
+                    <span>SPEED: <b id="live-vol-speed" style="color:#00ffcc;">0.0 SOL/10s</b></span>
+                    <span>FLOW: <b id="live-vampire-status" style="color:#00e676;">CLEAN</b></span>
+                    <span>ACCT: <b id="our-exit-val" style="color:#ffaa00;">--</b></span>
                 </div>
             </div>`;
         const copilotHTML = `
@@ -2087,7 +2130,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                document.getElementById('btn-refresh-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
+                document.getElementById('btn-refresh-judge').addEventListener('click', async () => {
+                    const btnRef = document.getElementById('btn-refresh-judge');
+                    if (btnRef) {
+                        btnRef.innerText = "RESCANNING...";
+                        btnRef.style.pointerEvents = "none";
+                    }
+                    try {
+                        // Forza una nuova scansione on-chain fresca (?force=true) per confrontare il Bundler attuale con lo storico!
+                        const freshScanRes = await fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=en&force=true`);
+                        const freshScanData = await freshScanRes.json();
+                        if (!freshScanData.error) {
+                            chrome.storage.local.set({
+                                ultimoTokenScansionato: tokenMint,
+                                ultimoRisultatoScan: freshScanData,
+                                ultimoScanLang: 'en'
+                            });
+                            popolaInterfacciaStatica(freshScanData, tokenMint);
+                        }
+                    } catch (e) {}
+                    avviaLaboratorioGemini(tokenMint);
+                });
                 
                 // 🔥 FIX: Funzione centralizzata per generare il testo dinamico per entrambi i pulsanti
                 const generaTestoCondivisione = async () => {
