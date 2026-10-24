@@ -960,31 +960,30 @@ JSON FORMAT:
   "puntoRottura": "Ultra-short-term prediction for the next 15-30 seconds...",
   "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;
-        } else {
+    } else {
             promptCopilot = `
-You are a ruthless High-Frequency Trading (HFT) Copilot for memecoins. YOU ARE NOT A FINANCIAL ADVISOR. 
-Your goal is to guide extreme scalping (trades lasting 10 seconds to 3 minutes). Exploit the scammers.
+You are a ruthless High-Frequency Trading (HFT) Copilot. YOU ARE NOT A FINANCIAL ADVISOR.
+Your singular goal is SHORT-TERM SCALPING (10 seconds to 3 minutes) in the Solana memecoin jungle. You must be shrewd, fast, and exploit rapid market movements.
+You must align your tactical execution with the Supreme Judge's underlying trust score (currently ${datiLive.staticScore || 50}/100), but focus entirely on immediate order flow timing.
 
 LIVE TAPE (Last 10 seconds):
+- Judge Trust Score: ${datiLive.staticScore || 50}/100
 - Buy Pressure: ${datiLive.buyPressure}%
 - Buy Vol: ${datiLive.buyVol} SOL
 - Sell Vol: ${datiLive.sellVol} SOL
 
-🔥 SCALPING RULES (THE JUNGLE):
-1. Dead Tape (Near zero vol): The manipulator is resting. Action: WAIT.
-2. The Ambush / Tape Painting: Sudden isolated buy spikes (e.g. exactly $300 or 2 SOL) with zero follow-up. The dev is "painting the chart" to create a fake bullish candle and trigger retail FOMO. Action: WAIT or AVOID.
-3. MEV Baiting: Micro-buys (< 0.01 SOL) on a dead tape. The dev is pinging the liquidity pool to map out Sandwich bots before executing a rug. Action: WAIT.
-4. Heavy Organic Buy Vol (0 Sells): The bundler is artificially pumping the chart with real capital. Action: RIDE (Surf the fake volume, but prepare to exit).
-5. Sell Vol matches/exceeds Buy Vol: Distribution phase. You are exit liquidity. Action: DUMP immediately.
+🔥 SCALPING RULES (LAW OF THE JUNGLE):
+1. If Judge score is LOW (<40) OR Sell Vol exceeds Buy Vol: You are exit liquidity. Action: DUMP immediately.
+2. If Buy Pressure is surging (>65%) and Volume is explosive: The manipulator is artificially pumping. Action: SCALP or RIDE to front-run retail FOMO.
+3. The Ambush / Tape Painting: Sudden isolated buy spikes with zero follow-up mean the dev is baiting retail. Action: WAIT.
+4. Dead Tape (< 0.1 SOL vol): Action: WAIT.
 
-🔥 LINGUISTIC RULE (CRITICAL):
-OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE MULTIPLE LANGUAGES YOU WILL BE TERMINATED.
-NO double quotes (") inside text strings, use ONLY single quotes (').
+OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
-  "tattica": "Tactical analysis of the 10-second order flow (Name the exact tactic: Tape Painting, MEV Baiting, Accumulation, Distribution)...",
-  "puntoRottura": "Prediction: what the manipulator will do in the next 30 seconds...",
+  "tattica": "Shrewd, rapid tactical analysis of the 10s order flow (e.g. 'Tape painting detected, riding the micro-pump')...",
+  "puntoRottura": "Ultra-short-term prediction for the next 15-30 seconds...",
   "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;
         }
@@ -2124,9 +2123,8 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 tradingFees: simulazione.raccomandazioneFees
             };
             // 🔥 GUARD CLAUSE REDIS: Non salviamo in cache se l'RPC ha avuto un blind spot totale
-            if (rawSignatures.length > 0 && !tacticalAdvice.errore) {
-                await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoFinale }, { ex: CACHE_TTL_SEC });
-            }
+            // 🔥 Salva sempre i dati matematici in Redis così il Laboratorio (Giudice) li trova sempre al 100%!
+            await redis.set(`scan_${cacheKey}`, { timestamp: Date.now(), data: risultatoFinale }, { ex: CACHE_TTL_SEC });
             return risultatoFinale;
         })();
 
@@ -2244,9 +2242,10 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
                 <div style="text-align:center; padding:20px; border:1px solid #ffaa00; border-radius:8px; background:rgba(255,170,0,0.1); font-family:monospace;">
                     <div style="color:#ffaa00; font-weight:900; font-size:1.1em; letter-spacing:1px; margin-bottom:8px;">INSUFFICIENT DATA</div>
                     <div style="color:#ccc; font-size:0.85em; margin-bottom:15px;">Please run a base scan first to generate the metrics array.</div>
-                    <button onclick="document.getElementById('btn-ricarica').click()" style="background:#ffaa00; color:#000; border:none; padding:8px 24px; border-radius:4px; font-weight:bold; cursor:pointer; text-transform:uppercase; font-family:monospace; font-size:0.9em; box-shadow:0 0 10px rgba(255,170,0,0.3); transition:0.2s;">RELOAD</button>
+                    <button id="btn-force-reload-lab" style="background:#ffaa00; color:#000; border:none; padding:8px 24px; border-radius:4px; font-weight:bold; cursor:pointer; text-transform:uppercase; font-family:monospace; font-size:0.9em; box-shadow:0 0 10px rgba(255,170,0,0.3); transition:0.2s;">RELOAD</button>
                 </div>`
             });
+        
         }
 
         const isChainEVM = datiIniziali?.isEVM === true;
@@ -3029,8 +3028,8 @@ function avviaAscoltoBersaglio(walletAddress) {
     }, "confirmed");
 }
 // 📡 ORACOLO DEI PREZZI STEALTH (Bypassa Cloudflare Anti-Bot)
-// 📡 ORACOLO DEI PREZZI ON-CHAIN IN TEMPO REALE (Zero Cache, Legge la Curva su Blockchain + Jupiter AMM)
 const PUMP_PROGRAM_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfX91R3KzXFzH9g5cWg");
+const curveStateMemory = new Map(); // 🔥 FUORI dalla funzione così il Guardiano HFT può leggerla!
 
 async function ottieniPrezzoToken(rawMintOrPair) {
     try {
@@ -3038,7 +3037,7 @@ async function ottieniPrezzoToken(rawMintOrPair) {
         const mintPubKey = new PublicKey(mint);
         const solPriceUsd = macroMarketData.solPriceUsd || 140;
 
-        // 🔥 1. LETTURA DIRETTA ON-CHAIN DELLA BONDING CURVE PUMP.FUN (Aggiornata a ogni blocco di 400ms!)
+        // 1. LETTURA DIRETTA ON-CHAIN DELLA BONDING CURVE PUMP.FUN
         try {
             const [bondingCurvePDA] = PublicKey.findProgramAddressSync(
                 [Buffer.from("bonding-curve"), mintPubKey.toBuffer()],
@@ -3048,33 +3047,25 @@ async function ottieniPrezzoToken(rawMintOrPair) {
             if (accInfo && accInfo.data && accInfo.data.length >= 24) {
                 const virtualTokenReserves = Number(accInfo.data.readBigUInt64LE(8)) / 1e6;
                 const virtualSolReserves = Number(accInfo.data.readBigUInt64LE(16)) / 1e9;
-                const isComplete = accInfo.data[48] === 1; // 1 = Migrato su Raydium/PumpSwap
-// Memoria globale dello stato della curva per ogni token
-const curveStateMemory = new Map();
+                const isComplete = accInfo.data[48] === 1;
 
-// Sostituisci il blocco interno "if (!isComplete && virtualTokenReserves > 0...)" dentro ottieniPrezzoToken con questo:
-if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
-    const priceInSol = virtualSolReserves / virtualTokenReserves;
-    const marketCapSol = priceInSol * 1_000_000_000;
-    const mcUsd = parseFloat((marketCapSol * solPriceUsd).toFixed(2));
+                if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
+                    const priceInSol = virtualSolReserves / virtualTokenReserves;
+                    const marketCapSol = priceInSol * 1_000_000_000;
+                    const mcUsd = parseFloat((marketCapSol * solPriceUsd).toFixed(2));
 
-    // 🔥 CALCOLO MATEMATICO ESATTO DELLA % BONDING CURVE DAI BYTE ON-CHAIN
-    // La curva parte da 30 SOL virtuali e finisce a ~115 SOL virtuali (85 SOL reali versati)
-    const realSolInPool = Math.max(0, virtualSolReserves - 30);
-    const curvePct = Math.min(100, parseFloat(((realSolInPool / 85) * 100).toFixed(1)));
+                    const realSolInPool = Math.max(0, virtualSolReserves - 30);
+                    const curvePct = Math.min(100, parseFloat(((realSolInPool / 85) * 100).toFixed(1)));
+                    const isKothWindow = (curvePct >= 45.5 && curvePct <= 50.5);
+                    const isGraduationDumpZone = (curvePct >= 93.0);
 
-    // Rilevamento "Buchi di Momento"
-    const isKothWindow = (curvePct >= 45.5 && curvePct <= 50.5); // Finestra pre-esplosione King of the Hill!
-    const isGraduationDumpZone = (curvePct >= 93.0);             // Zona pericolo prima del blocco migrazione!
-
-    curveStateMemory.set(mint, { curvePct, realSolInPool: realSolInPool.toFixed(2), isKothWindow, isGraduationDumpZone });
-    return mcUsd;
-}
+                    curveStateMemory.set(mint, { curvePct, realSolInPool: realSolInPool.toFixed(2), isKothWindow, isGraduationDumpZone });
+                    return mcUsd;
+                }
             }
         } catch (curveErr) {}
 
-        // 🔥 2. QUOTAZIONE LIVE AMM JUPITER V1 (Per tutti i token su Raydium / PumpSwap / Meteora)
-        // Chiede al pool AMM quanti token escono con 0.1 SOL in questo preciso millisecondo (Zero Cache!)
+        // 2. QUOTAZIONE LIVE AMM JUPITER V1
         try {
             const jupUrl = `https://lite-api.jup.ag/swap/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=100000000&slippageBps=50`;
             const jupRes = await fetch(jupUrl);
@@ -3091,7 +3082,7 @@ if (!isComplete && virtualTokenReserves > 0 && virtualSolReserves > 0) {
             }
         } catch (jupErr) {}
 
-        // 3. Fallback d'emergenza su DexScreener con parametro anti-cache
+        // 3. Fallback su DexScreener
         const dexResp = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}?_t=${Date.now()}`);
         if (dexResp.ok) {
             const dexData = await dexResp.json();

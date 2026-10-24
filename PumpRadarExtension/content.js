@@ -2213,8 +2213,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             </a>
                         </div>`;
                     } else {
-                        // Errori generici
-                        container.innerHTML = `<div style="color:#ff4d4d; padding:15px; text-align:center; border: 1px solid #ff4d4d; border-radius: 8px; background: rgba(255,77,77,0.1); font-weight:bold;">${cleanErrorHTML.trim() || "ANALYSIS FAILED"}</div>`;
+                        // Errori generici o Insufficient Data con pulsante RELOAD funzionante
+                        container.innerHTML = `<div style="color:#ff4d4d; padding:10px; text-align:center; border-radius: 8px; font-weight:bold;">${cleanErrorHTML.trim() || "ANALYSIS FAILED"}</div>`;
+                        const btnForceReload = document.getElementById('btn-force-reload-lab');
+                        if (btnForceReload) {
+                            btnForceReload.addEventListener('click', () => {
+                                chrome.storage.local.remove(['ultimoTokenScansionato', 'ultimoRisultatoScan'], () => {
+                                    avviaRadar();
+                                });
+                            });
+                        }
                     }
                 }
 
