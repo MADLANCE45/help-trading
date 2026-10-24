@@ -433,11 +433,11 @@ aggiornaMacroMercato(); // Prima esecuzione immediata all'avvio
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 500ms
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, Math.max(ms, 150)));// 1. ANALISI DEL BUNDLE INIZIALE E BOT
 // =====================================================================
-async function analizzaBotEarlyLaunch(mintPubKey, rawSignaturesPassate = null) {
+async function analizzaBotEarlyLaunch(mintPubKey, rawSignaturesPassate = null, largestAccsPassati = null) {
     try {
         const signatures = rawSignaturesPassate || await getRPC().getSignaturesForAddress(mintPubKey, { limit: 20 });
         if (!signatures || signatures.length === 0) {
-            return { potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: " Clean launch pattern (0% bundled)." };
+            return { potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Clean launch pattern (0% bundled)." };
         }
 
         let blockTimes = signatures.map(s => s.blockTime).filter(Boolean);
@@ -447,7 +447,6 @@ async function analizzaBotEarlyLaunch(mintPubKey, rawSignaturesPassate = null) {
             sameBlockTxCount = blockTimes.filter(t => Math.abs(t - ultimoTempo) <= 1).length;
         }
 
-        // 🔥 FIX ANTI-429: 1 sola chiamata batch per le prime 6 transazioni invece di 20 chiamate singole in loop!
         const oldestSigs = signatures.slice(-6).map(s => s.signature);
         const txs = await getRPC().getParsedTransactions(oldestSigs, { maxSupportedTransactionVersion: 0 }).catch(() => []);
         
@@ -467,42 +466,24 @@ async function analizzaBotEarlyLaunch(mintPubKey, rawSignaturesPassate = null) {
         }
 
         let supplyBundledPct = 0;
-        try {
-            const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
-            if (largestAccs.value && largestAccs.value.length > 1) {
-                let totalTop = 0;
-                for (let k = 1; k < Math.min(6, largestAccs.value.length); k++) {
-                    if (largestAccs.value[k]) totalTop += largestAccs.value[k].uiAmount;
-                }
-                supplyBundledPct = parseFloat(((totalTop / 1000000000) * 100).toFixed(1));
+        const largestAccs = largestAccsPassati || await getRPC().getTokenLargestAccounts(mintPubKey).catch(() => ({ value: [] }));
+        if (largestAccs.value && largestAccs.value.length > 1) {
+            let totalTop = 0;
+            for (let k = 1; k < Math.min(6, largestAccs.value.length); k++) {
+                if (largestAccs.value[k]) totalTop += largestAccs.value[k].uiAmount;
             }
-        } catch (e) {}
-
-        let punteggioBot = 0;
-        if (sameBlockTxCount >= 3) punteggioBot += 40; 
-        if (masterWallet) punteggioBot += 35;          
-        if (supplyBundledPct >= 18) punteggioBot += 25; 
-
-        let livelloVolume = "LOW";
-        let indicatore = `Clean supply distribution (${supplyBundledPct}% top 5 holders).`;
-
-        if (punteggioBot >= 70) {
-            livelloVolume = "VERY HIGH (SNIPE READY)";
-            indicatore = `🚀 BUNDLE DETECTED: ${sameBlockTxCount} synchronized buys (${supplyBundledPct}% supply controlled).`;
-        } else if (punteggioBot >= 40) {
-            livelloVolume = "MODERATE";
-            indicatore = `🟡 MODERATE BOTS: Grouped purchases (${supplyBundledPct}% top holders).`;
+            supplyBundledPct = parseFloat(((totalTop / 1000000000) * 100).toFixed(1));
         }
+
+        let punteggioBot = (sameBlockTxCount >= 3 ? 40 : 0) + (masterWallet ? 35 : 0) + (supplyBundledPct >= 18 ? 25 : 0);
+        let livelloVolume = punteggioBot >= 70 ? "VERY HIGH (SNIPE READY)" : (punteggioBot >= 40 ? "MODERATE" : "LOW");
+        let indicatore = punteggioBot >= 70 
+            ? `🚀 BUNDLE DETECTED: ${sameBlockTxCount} synchronized buys (${supplyBundledPct}% supply controlled).`
+            : (punteggioBot >= 40 ? `🟡 MODERATE BOTS: Grouped purchases (${supplyBundledPct}% top holders).` : `Clean supply distribution (${supplyBundledPct}% top 5 holders).`);
 
         return { potenzialeVolumeBot: livelloVolume, bundleSlot0: sameBlockTxCount >= 3, supplyBundledPct, funderComune: masterWallet, indicatoreTesto: indicatore };
     } catch (error) {
-        return {
-            bundleSlot0: false,
-            supplyBundledPct: 8.5,
-            funderComune: null,
-            potenzialeVolumeBot: "MODERATE",
-            indicatoreTesto: "Standard distribution pattern."
-        };
+        return { bundleSlot0: false, supplyBundledPct: 8.5, funderComune: null, potenzialeVolumeBot: "MODERATE", indicatoreTesto: "Standard distribution pattern." };
     }
 }
 // ⏱️ MOTORE TIME-SERIES RAG: Seuraa Ostopainetta, Volyymia JA Markkina-arvon suuntaa (Delta MC)
@@ -805,7 +786,7 @@ async function interrogaAgente(nomeAgente, prompt) {
                     "Content-Type": "application/json" 
                 },
                 body: JSON.stringify({
-                    model: "qwen/qwen3.8-27b", // 🔥 Modello d'élite per logica JSON ad altissima velocità
+                    model: "llama-3.3-70b-versatile", // ⚡ Modello ufficiale Groq JSON (~180ms di risposta)
                     messages: [{ role: "user", content: prompt }],
                     temperature: 0.1,
                     response_format: { type: "json_object" }
@@ -862,7 +843,7 @@ async function interrogaAgente(nomeAgente, prompt) {
 
 async function calcolaEtaWallet(walletAddress) {
     try {
-        const signatures = await getRPC().getSignaturesForAddress(new PublicKey(walletAddress), { limit: 1000 });
+        const signatures = await getRPC().getSignaturesForAddress(new PublicKey(walletAddress), { limit: 50 });
         if (signatures.length === 0) return 0; 
         const oldestTx = signatures[signatures.length - 1];
         if (oldestTx.blockTime) return (Date.now() - (oldestTx.blockTime * 1000)) / (1000 * 60 * 60 * 24);
@@ -955,31 +936,29 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
             const verdictInfo = cachedBase?.rawVerdict || "Active EVM Pool";
 
             promptCopilot = `
-You are a ruthless High-Frequency Trading (HFT) Copilot for memecoins. YOU ARE NOT A FINANCIAL ADVISOR. 
-Your goal is to guide extreme scalping on EVM chains (BNB, ETH, Base). Exploit the scammers.
+You are a ruthless High-Frequency Trading (HFT) Copilot. YOU ARE NOT A FINANCIAL ADVISOR.
+Your singular goal is SHORT-TERM SCALPING (10 seconds to 3 minutes) in the Solana memecoin jungle. You must be shrewd, fast, and exploit rapid market movements.
+You must align your tactical execution with the Supreme Judge's underlying trust score (currently ${datiLive.staticScore || 50}/100), but focus entirely on immediate order flow timing.
 
-LIVE EVM DATA (Thermal Vision):
-- 24h Volume: $${hudData.volume}M | 24h Change: ${hudData.change}%
-- Momentum Score: ${m_metrics.momentum}/100
-- Liquidity Health: ${m_metrics.liquidity}/100
-- Manipulator Control: ${m_metrics.manipulator}/100
-- System Assessment: ${verdictInfo}
+LIVE TAPE (Last 10 seconds):
+- Judge Trust Score: ${datiLive.staticScore || 50}/100
+- Buy Pressure: ${datiLive.buyPressure}%
+- Buy Vol: ${datiLive.buyVol} SOL
+- Sell Vol: ${datiLive.sellVol} SOL
 
-🔥 SCALPING RULES (THE JUNGLE):
-1. Wait/Idle (Low velocity): The manipulator is resting. Action: WAIT.
-2. High Momentum & Volume: The bundler is artificially pumping. Action: RIDE (Surf the fake volume, but prepare to exit).
-3. High Valuation but Dead Tape: You are exit liquidity. Action: AVOID or DUMP.
-4. Write like a cynical sniper. Short, brutal, actionable. No pleasantries. DO NOT claim volume is zero if 24h Volume exists.
+🔥 SCALPING RULES (LAW OF THE JUNGLE):
+1. If Judge score is LOW (<40) OR Sell Vol exceeds Buy Vol: You are exit liquidity. Action: DUMP immediately.
+2. If Buy Pressure is surging (>65%) and Volume is explosive: The manipulator is artificially pumping. Action: SCALP or RIDE to front-run retail FOMO.
+3. The Ambush / Tape Painting: Sudden isolated buy spikes with zero follow-up mean the dev is baiting retail. Action: WAIT.
+4. Dead Tape (< 0.1 SOL vol): Action: WAIT.
 
-🔥 LINGUISTIC RULE (CRITICAL):
-OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. IF YOU USE MULTIPLE LANGUAGES YOU WILL BE TERMINATED.
-NO double quotes (") inside text strings, use ONLY single quotes (').
+OUTPUT STRICTLY AND EXCLUSIVELY IN ${absoluteLang}. NO double quotes (") inside text strings, use ONLY single quotes (').
 
 JSON FORMAT:
 {
-  "tattica": "Tactical analysis of EVM momentum and manipulator behavior...",
-  "puntoRottura": "Prediction: what the manipulator will do next...",
-  "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or AVOID]"
+  "tattica": "Shrewd, rapid tactical analysis of the 10s order flow (e.g. 'Tape painting detected, riding the micro-pump')...",
+  "puntoRottura": "Ultra-short-term prediction for the next 15-30 seconds...",
+  "azione": "[EXACT ACTION: WAIT, RIDE, SCALP, or DUMP]"
 }`;
         } else {
             promptCopilot = `
@@ -1155,84 +1134,61 @@ async function analizzaCabalaSupply(mintPubKey) {
     } catch (error) { return null; }
 }
 
-async function analizzaMicroDumping(mintPubKey) {
+async function analizzaMicroDumping(mintPubKey, largestAccsPassati = null) {
     try {
-        const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
+        const largestAccs = largestAccsPassati || await getRPC().getTokenLargestAccounts(mintPubKey).catch(() => ({ value: [] }));
         if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
-        const topHolders = largestAccs.value.slice(1, 4); 
+        const topHolders = largestAccs.value.slice(1, 4).filter(acc => acc.uiAmount >= 10000000);
         let sanguisugheTrovate = 0; let totaleVenditeSanguisughe = 0;
 
-        for (let acc of topHolders) {
-            if (acc.uiAmount < 10000000) continue;
+        await Promise.all(topHolders.map(async (acc) => {
             try {
-                await delay(200);
                 const sigs = await getRPC().getSignaturesForAddress(new PublicKey(acc.address), { limit: 10 });
-                if (sigs.length < 3) continue; 
-
-          
+                if (sigs.length < 3) return;
                 const txs = await getRPC().getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
                 let vendite = 0;
-                
                 txs.forEach(tx => {
                     if (!tx || !tx.meta || !tx.transaction.message.accountKeys) return;
-                    const preToken = tx.meta.preTokenBalances.find(b => {
-                        const keyObj = tx.transaction.message.accountKeys[b.accountIndex];
-                        return keyObj && keyObj.pubkey.toString() === acc.address;
-                    });
-                    const postToken = tx.meta.postTokenBalances.find(b => {
-                        const keyObj = tx.transaction.message.accountKeys[b.accountIndex];
-                        return keyObj && keyObj.pubkey.toString() === acc.address;
-                    });
-                    if (preToken && postToken) {
-                        if (postToken.uiTokenAmount.uiAmount < preToken.uiTokenAmount.uiAmount) vendite++;
-                    }
+                    const preToken = tx.meta.preTokenBalances.find(b => tx.transaction.message.accountKeys[b.accountIndex]?.pubkey.toString() === acc.address);
+                    const postToken = tx.meta.postTokenBalances.find(b => tx.transaction.message.accountKeys[b.accountIndex]?.pubkey.toString() === acc.address);
+                    if (preToken && postToken && postToken.uiTokenAmount.uiAmount < preToken.uiTokenAmount.uiAmount) vendite++;
                 });
-
                 if (vendite >= 3) { sanguisugheTrovate++; totaleVenditeSanguisughe += vendite; }
-            } catch (e) { continue; }
-        }
+            } catch (e) {}
+        }));
 
         if (sanguisugheTrovate > 0) return { pericolo: true, scoreAggiuntivo: 35, testo: `🩸 SCUDO SANGUISUGA: Rilevato Micro-Dumping (${totaleVenditeSanguisughe} vendite).` };
         return { pericolo: false, scoreAggiuntivo: 0, testo: `✅ SCUDO SANGUISUGA: I Top Holders holdano pulito.` };
     } catch (error) { return null; }
 }
 
-async function analizzaGrafoSybil(mintPubKey) {
+async function analizzaGrafoSybil(mintPubKey, largestAccsPassati = null) {
     try {
-        const largestAccs = await getRPC().getTokenLargestAccounts(mintPubKey);
+        const largestAccs = largestAccsPassati || await getRPC().getTokenLargestAccounts(mintPubKey).catch(() => ({ value: [] }));
         if (!largestAccs.value || largestAccs.value.length < 2) return null;
 
-        const topHolders = largestAccs.value.slice(1, 11);
-        let funderMap = {}; 
-        let areSelling = false;
-        let creationTimestamps = []; // 🔥 Tallentaa lompakoiden luontihetket (Timing Analysis)
-        let freshRetailDisguiseCount = 0; // 🔥 Laskee tuoreet lompakot, joilla dev teeskentelee retailia
+        const topHolders = largestAccs.value.slice(1, 11).filter(acc => acc.uiAmount >= 1000000);
+        let funderMap = {}; let areSelling = false; let creationTimestamps = []; let freshRetailDisguiseCount = 0;
 
-        for (let acc of topHolders) {
-            if (acc.uiAmount < 1000000) continue; 
-            const pct = (acc.uiAmount / 1000000000) * 100;
+        const tokenAccPubkeys = topHolders.map(a => new PublicKey(a.address));
+        const accInfos = await getRPC().getMultipleParsedAccounts(tokenAccPubkeys).catch(() => ({ value: [] }));
+
+        await Promise.all(topHolders.map(async (acc, idx) => {
             try {
-                await delay(150);
-                const accInfo = await getRPC().getParsedAccountInfo(new PublicKey(acc.address));
-                if (!accInfo.value) continue;
-                const owner = accInfo.value.data.parsed.info.owner;
+                const pct = (acc.uiAmount / 1000000000) * 100;
+                const owner = accInfos.value?.[idx]?.data?.parsed?.info?.owner;
+                if (!owner) return;
 
-                await delay(150);
                 const sigs = await getRPC().getSignaturesForAddress(new PublicKey(owner), { limit: 15 });
-                if (sigs.length === 0 || sigs.length >= 15) continue; 
-
-                // Jos top-omistajalla on vain 2-8 transaktiota, se on todennäköisesti devin sivu-lompakko
+                if (sigs.length === 0 || sigs.length >= 15) return;
                 if (sigs.length <= 8) freshRetailDisguiseCount++;
+                if (sigs.length > 4) areSelling = true;
 
                 const oldestTx = sigs[sigs.length - 1];
-                if (oldestTx.blockTime) {
-                    creationTimestamps.push({ time: oldestTx.blockTime, pct: pct });
-                }
+                if (oldestTx.blockTime) creationTimestamps.push({ time: oldestTx.blockTime, pct });
 
-                await delay(150);
                 const txDetails = await getRPC().getParsedTransaction(oldestTx.signature, { maxSupportedTransactionVersion: 0 });
-                
                 let funder = "Sconosciuto";
                 if (txDetails && txDetails.transaction.message.accountKeys.length > 1) {
                     funder = txDetails.transaction.message.accountKeys[0].pubkey.toString();
@@ -1244,11 +1200,9 @@ async function analizzaGrafoSybil(mintPubKey) {
                     funderMap[funder].count++; 
                     funderMap[funder].pct += pct;
                 }
-                if (sigs.length > 4) areSelling = true;
-            } catch (e) { continue; }
-        }
+            } catch (e) {}
+        }));
 
-        // 1. Klassinen tarkistus: sama emolompakko
         let maxSybilNode = null;
         for (const [funder, data] of Object.entries(funderMap)) {
             if (data.count >= 3) {
@@ -1256,9 +1210,7 @@ async function analizzaGrafoSybil(mintPubKey) {
             }
         }
 
-        // 🔥 2. UUSI TIMING ANALYSIS: CEX / Mixer Sybil Cluster (Rahoitettu < 10 sekunnin sisällä toisistaan)
-        let syncedWallets = 0;
-        let syncedSupplyPct = 0;
+        let syncedWallets = 0; let syncedSupplyPct = 0;
         if (creationTimestamps.length >= 3) {
             creationTimestamps.sort((a, b) => a.time - b.time);
             for (let i = 0; i < creationTimestamps.length - 1; i++) {
@@ -1271,34 +1223,23 @@ async function analizzaGrafoSybil(mintPubKey) {
 
         if (maxSybilNode) {
             return { 
-                rilevato: true, 
-                tipoCluster: "DIRECT_FUNDER",
-                funderMadre: maxSybilNode.funder, 
-                numeroWallet: maxSybilNode.count, 
-                supplyControllata: maxSybilNode.pct, 
-                inVendita: areSelling, 
+                rilevato: true, tipoCluster: "DIRECT_FUNDER", funderMadre: maxSybilNode.funder, 
+                numeroWallet: maxSybilNode.count, supplyControllata: maxSybilNode.pct, inVendita: areSelling, 
                 testo: `🌳 SYBIL TREE: ${maxSybilNode.count} Top Holders (${maxSybilNode.pct.toFixed(1)}%) funded by same mother wallet. ${areSelling ? ' Distributing now!' : 'Holding floor 💎'}` 
             };
         }
 
         if (syncedWallets >= 3) {
             return {
-                rilevato: true,
-                tipoCluster: "CEX_TIMING_SYNC",
-                funderMadre: "CEX_OR_MIXER_SYNC",
-                numeroWallet: syncedWallets + 1,
-                supplyControllata: parseFloat(syncedSupplyPct.toFixed(1)),
-                inVendita: areSelling,
+                rilevato: true, tipoCluster: "CEX_TIMING_SYNC", funderMadre: "CEX_OR_MIXER_SYNC",
+                numeroWallet: syncedWallets + 1, supplyControllata: parseFloat(syncedSupplyPct.toFixed(1)), inVendita: areSelling,
                 testo: `⏱️ CEX SYBIL SYNC: ${syncedWallets + 1} Top Holders (${syncedSupplyPct.toFixed(1)}%) funded within <10s via CEX/Mixer. ${areSelling ? 'Dumping active!' : 'Dev accumulating floor 💎'}`
             };
         }
 
         return { 
-            rilevato: false, 
-            freshRetailDisguiseCount,
-            testo: freshRetailDisguiseCount >= 3 
-                ? `🕵️ STEALTH FLOOR: ${freshRetailDisguiseCount} fresh retail-disguised wallets holding top supply.` 
-                : "🌳 SYBIL TREE: Independent Top Holders." 
+            rilevato: false, freshRetailDisguiseCount,
+            testo: freshRetailDisguiseCount >= 3 ? `🕵️ STEALTH FLOOR: ${freshRetailDisguiseCount} fresh retail-disguised wallets holding top supply.` : "🌳 SYBIL TREE: Independent Top Holders." 
         };
     } catch (error) { return null; }
 }
@@ -1960,13 +1901,15 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
             }
 
             const recentSigs = rawSignatures.slice(0, 10).map(s => s.signature);
+            // ⚡ 1 SOLA CHIAMATA PER TUTTI I MODULI INVECE DI 4!
+            const sharedLargestAccs = await getRPC().getTokenLargestAccounts(mintPubKey).catch(() => ({ value: [] }));
             
             const [earlyBotData, parsedTxs, microDumpData, sybilData, cabalaData] = await Promise.all([
-                analizzaBotEarlyLaunch(mintPubKey).catch(() => ({ potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Analisi bot base." })),
+                analizzaBotEarlyLaunch(mintPubKey, rawSignatures, sharedLargestAccs).catch(() => ({ potenzialeVolumeBot: "LOW", bundleSlot0: false, supplyBundledPct: 0, funderComune: null, indicatoreTesto: "Clean launch pattern." })),
                 recentSigs.length > 0 ? getRPC().getParsedTransactions(recentSigs, { maxSupportedTransactionVersion: 0 }).catch(() => []) : Promise.resolve([]),
-                analizzaMicroDumping(mintPubKey).catch(() => ({ pericolo: false, scoreAggiuntivo: 0, testo: "Nessun dump" })),
-                analizzaGrafoSybil(mintPubKey).catch(() => ({ rilevato: false, testo: "Pulito" })),
-                analizzaCabalaSupply(mintPubKey).catch(() => null)
+                analizzaMicroDumping(mintPubKey, sharedLargestAccs).catch(() => ({ pericolo: false, scoreAggiuntivo: 0, testo: "Clean holding" })),
+                analizzaGrafoSybil(mintPubKey, sharedLargestAccs).catch(() => ({ rilevato: false, testo: "Clean" })),
+                Promise.resolve(null) // Già coperto da analizzaGrafoSybil in parallelo!
             ]);
 
             const ubiData = analizzaUBI_Locale(parsedTxs);
@@ -2295,7 +2238,15 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
             datiIniziali = fallbackScan.data;
         }
         if (!datiIniziali) {
-            return res.json({ success: false, verdetto: "Insufficient data. Please run a base scan first." });
+            return res.json({ 
+                success: false, 
+                verdetto: `
+                <div style="text-align:center; padding:20px; border:1px solid #ffaa00; border-radius:8px; background:rgba(255,170,0,0.1); font-family:monospace;">
+                    <div style="color:#ffaa00; font-weight:900; font-size:1.1em; letter-spacing:1px; margin-bottom:8px;">INSUFFICIENT DATA</div>
+                    <div style="color:#ccc; font-size:0.85em; margin-bottom:15px;">Please run a base scan first to generate the metrics array.</div>
+                    <button onclick="document.getElementById('btn-ricarica').click()" style="background:#ffaa00; color:#000; border:none; padding:8px 24px; border-radius:4px; font-weight:bold; cursor:pointer; text-transform:uppercase; font-family:monospace; font-size:0.9em; box-shadow:0 0 10px rgba(255,170,0,0.3); transition:0.2s;">RELOAD</button>
+                </div>`
+            });
         }
 
         const isChainEVM = datiIniziali?.isEVM === true;

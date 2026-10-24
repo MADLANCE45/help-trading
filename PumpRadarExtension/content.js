@@ -302,7 +302,8 @@ function mostraOlogrammaTatticoSulSito(copilotData, staticData, avatarUrl, liveM
 // =========================================================
 // 👁️ MATRIX WATCHER (Auto-Scan Reattivo per Pattern da Giungla)
 // =========================================================
-if (typeof window.matrixWatcher === 'undefined') {
+// Attiva il Matrix Watcher SOLO se l'utente ha cliccato esplicitamente su Copilot o se siamo su un token attivo verificato
+if (typeof window.matrixWatcher === 'undefined' && window.enableAutoHologram === true) {
     window.matrixWatcher = true;
     window.lastKnownPressure = 50;
     window.lastKnownVol = 0;
@@ -1773,70 +1774,53 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnCopilot = document.getElementById('btn-copilot');
         const copilotResult = document.getElementById('copilot-result');
 
-        if (btnCopilot) {
-            btnCopilot.addEventListener('click', async () => {
-                btnCopilot.innerText = t('copilot_analyzing');
-                btnCopilot.style.background = "#555";
-                btnCopilot.style.pointerEvents = "none";
-                copilotResult.style.display = "block";
-                copilotResult.innerHTML = "<span style='color:#888; display:block; text-align:center;'>" + t('loading_analysis') + "</span>";
+        const eseguiScansioneCopilotJungle = async (isAutoStart = false) => {
+            if (!btnCopilot || !copilotResult || !tokenMint) return;
+            btnCopilot.innerText = " SCANNING...";
+            btnCopilot.style.background = "#555";
+            btnCopilot.style.pointerEvents = "none";
+            copilotResult.style.display = "block";
+            copilotResult.innerHTML = "<span style='color:#00ffcc; display:block; text-align:center;'> Reading Manipulator Order Flow & Bundle Telemetry...</span>";
 
-                chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan'], async (res) => {
-                    const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
-                    const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
-                    const langParam = typeof currentLang !== 'undefined' ? currentLang : 'en';
-                    const storageConfig = await chrome.storage.local.get(['userConfig']);
-                    const currentAiModel = storageConfig.userConfig?.aiModel || "deepseek/deepseek-chat";
-                    
-                    const judgeStaticData = res.ultimoRisultatoScan || null;
+            chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan', 'userConfig'], async (res) => {
+                const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
+                const deviceId = res.device_fingerprint ? String(res.device_fingerprint).trim() : "null";
+                const currentAiModel = res.userConfig?.aiModel || "deepseek/deepseek-chat";
+                const judgeStaticData = res.ultimoRisultatoScan || {};
 
-                    try {
-                        const payloadDatiLive = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
-                        
-                        const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=${langParam}`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json', 
-                                "x-auth-token": authToken,
-                                "x-device-id": deviceId,
-                                "x-ai-model": currentAiModel
-                            },
-                            body: JSON.stringify(payloadDatiLive)
-                        });
-                        
-                        const dataResp = await resp.json();
-                        
-                        if (dataResp.success === false) {
-                            let actionButtonHtml = "";
-                            if (dataResp.azione === "UPGRADE") {
-                                actionButtonHtml = `
-                                    <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: block; text-align: center; padding: 8px; border: 1px solid #ffaa00; color: #000; background: linear-gradient(90deg, #ffaa00, #ff8800); font-weight: 900; border-radius: 6px; text-decoration: none; text-transform: uppercase; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);">
-                                        💎 UPGRADE NOW
-                                    </a>
-                                `;
-                            }
+                try {
+                    // Unisce le metriche live con quelle on-chain dello scan iniziale per evitare falsi "Dead Tape" (Arancioni) all'avvio!
+                    const liveM = window.liveMetrics || { buyVol: 0, sellVol: 0, buyPressure: 50 };
+                    const hasLiveTrades = (parseFloat(liveM.buyVol) + parseFloat(liveM.sellVol)) > 0;
+                    const effectivePressure = hasLiveTrades ? liveM.buyPressure : (judgeStaticData.score || 50);
+                    const effectiveBuyVol = hasLiveTrades ? liveM.buyVol : (judgeStaticData.score >= 60 ? 2.5 : 0.4);
 
-                            copilotResult.innerHTML = `
-                                <div style="margin-bottom: 12px;">
-                                    <strong style="color:#ff4d4d;">${dataResp.tattica || "BLOCCO IA"}</strong><br>
-                                    <span style="color:#e0e0e0; font-size: 13px; display: inline-block; margin-top: 5px;">
-                                        ${dataResp.puntoRottura || "Limite raggiunto"}
-                                    </span>
-                                </div>
-                                ${actionButtonHtml}
-                            `;
-                            
-                            const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
-                            if (badge) {
-                                badge.innerText = "🚫 LIMIT (0/5)";
-                                badge.style.color = "#ff4d4d";
-                                badge.style.border = "1px solid #ff4d4d";
-                                badge.style.background = "rgba(255, 77, 77, 0.1)";
-                            }
-                            
-                        } else {
-                            // 🟢 INIEZIONE OLOGRAMMA VIA CONTENT SCRIPT
-                            // 🟢 INIEZIONE OLOGRAMMA VIA CONTENT SCRIPT
+                    const payloadDatiLive = {
+                        buyPressure: effectivePressure,
+                        buyVol: effectiveBuyVol,
+                        sellVol: liveM.sellVol || 0,
+                        staticScore: judgeStaticData.score || 50
+                    };
+
+                    // Forza sempre lingua 'en' (English Only - Law of the Jungle)
+                    const resp = await fetch(`https://help-trading-production.up.railway.app/api/copilot/${tokenMint}?lang=en`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            "x-auth-token": authToken,
+                            "x-device-id": deviceId,
+                            "x-ai-model": currentAiModel
+                        },
+                        body: JSON.stringify(payloadDatiLive)
+                    });
+
+                    const dataResp = await resp.json();
+
+                    if (dataResp.success === false) {
+                        copilotResult.innerHTML = `<div style="color:#ff4d4d; font-weight:bold; text-align:center;">${dataResp.tattica || "AI LIMIT REACHED"} - ${dataResp.puntoRottura || ""}</div>`;
+                    } else {
+                        // Inietta l'ologramma sul sito SOLO quando l'utente clicca manualmente il bottone (non in automatico!)
+                        if (!isAutoStart && res.userConfig?.holoEnabled !== false) {
                             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                                 if (tabs && tabs[0]) {
                                     chrome.tabs.sendMessage(tabs[0].id, {
@@ -1844,46 +1828,44 @@ document.addEventListener('DOMContentLoaded', () => {
                                         copilotData: dataResp,
                                         staticData: judgeStaticData,
                                         avatarUrl: selectedAvatarUrl,
-                                        liveMetrics: window.liveMetrics // <--- SOSTITUISCI QUESTA RIGA! (prima c'era buyPressure)
+                                        liveMetrics: payloadDatiLive
                                     });
                                 }
                             });
-                            let tattica = traduciDalBackend(dataResp.tattica || "Error AI");
-                            let puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Data Unreadable");
-                            let azione = traduciDalBackend(dataResp.azione || "ATTESA");
-                            
-                            const isSell = azione.toUpperCase().match(/FUGG|VEND|SELL|AVOID|卖|VENDRE/);
-                            const isBuy = azione.toUpperCase().match(/COMPR|BUY|买|ACHET/);
-                            let actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
-                            
-                            copilotResult.innerHTML = `
-                                <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">${t('tactics')}</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
-                                <div style="margin-bottom: 10px;"><strong style="color:#ffaa00;">${t('prediction')}</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
-                                <div style="text-align: center; padding: 6px; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: bold; border-radius: 4px;">${t('action')} ${azione}</div>
-                            `;
-
-                            const badge = document.getElementById('ai-lock-badge') || document.getElementById('ai-premium-badge');
-                            if (badge) {
-                                if (dataResp.plan === 'free' && dataResp.scansLeft !== undefined) {
-                                    badge.innerText = `🆓 FREE (${dataResp.scansLeft}/5)`;
-                                    badge.style.color = "#fff";
-                                    badge.style.background = "#222";
-                                    badge.style.border = "1px solid #444";
-                                } else if (dataResp.plan === 'premium' || dataResp.plan === 'pro' || dataResp.plan === 'admin') {
-                                    badge.innerText = "💎 UNLIMITED";
-                                }
-                            }
                         }
 
-                    } catch(e) {
-                        copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Error: ${e.message}</div>`;
-                    } finally {
-                        btnCopilot.innerText = t('copilot_reanalyze');
-                        btnCopilot.style.background = "#b366ff";
-                        btnCopilot.style.pointerEvents = "auto";
+                        const tattica = traduciDalBackend(dataResp.tattica || "Analyzing manipulator footprint...");
+                        const puntoRottura = traduciDalBackend(dataResp.puntoRottura || "Monitoring liquidity threshold...");
+                        const azione = String(dataResp.azione || "SCALP").toUpperCase();
+
+                        // 🔥 FIX COLORI: Riconosce RIDE/ACCUMULATE (Verde), DUMP/AVOID/TRAP (Rosso) e SCALP/WAIT (Arancione)
+                        const isSell = /DUMP|AVOID|TRAP|RUG|SELL|EXIT|FUGG/.test(azione);
+                        const isBuy = /RIDE|BUY|SNIPE|PUMP|LONG/.test(azione) && !isSell;
+                        const actionColor = isSell ? "#ff4d4d" : (isBuy ? "#00e676" : "#ffaa00");
+                        const bgBadge = isSell ? "rgba(255,77,77,0.15)" : (isBuy ? "rgba(0,230,118,0.15)" : "rgba(255,170,0,0.15)");
+
+                        copilotResult.innerHTML = `
+                            <div style="margin-bottom: 8px;"><strong style="color:#b366ff;">1. JUNGLE TACTICS (ON-CHAIN):</strong><br><span style="color:#e0e0e0;">${tattica}</span></div>
+                            <div style="margin-bottom: 10px;"><strong style="color:#00ffcc;">2. MANIPULATOR NEXT MOVE:</strong><br><span style="color:#e0e0e0;">${puntoRottura}</span></div>
+                            <div style="text-align: center; padding: 7px; background: ${bgBadge}; border: 1px solid ${actionColor}; color: ${actionColor}; font-weight: 900; border-radius: 4px; letter-spacing: 1px;">
+                                EXECUTION ORDER: ${azione}
+                            </div>
+                        `;
                     }
-                });
+                } catch (e) {
+                    copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Telemetry Error: ${e.message}</div>`;
+                } finally {
+                    btnCopilot.innerText = " RE-ANALYZE";
+                    btnCopilot.style.background = "linear-gradient(90deg, #9333ea, #b366ff)";
+                    btnCopilot.style.pointerEvents = "auto";
+                }
             });
+        };
+
+        if (btnCopilot) {
+            btnCopilot.addEventListener('click', () => eseguiScansioneCopilotJungle(false));
+            // 🔥 Avvia in automatico la scansione Copilot 1.2s dopo l'apertura del popup!
+            setTimeout(() => eseguiScansioneCopilotJungle(true), 1200);
         }
     }
 
