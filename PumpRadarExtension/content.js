@@ -862,6 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timerNoiaExtension) clearTimeout(timerNoiaExtension);
     }
     function innescaModalitaParassita(data, tokenMint) {
+        const bannerEl = document.getElementById('autotrade-live-banner');
         const statusEl = document.getElementById('autotrade-status-text');
         const speedEl = document.getElementById('live-vol-speed');
         const vampEl = document.getElementById('live-vampire-status');
@@ -872,22 +873,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
 
+        // Timer che mantiene sincronizzati in tempo reale 10S ORDER FLOW e SPEED dell'Auto-Trader
         if (window.parasiteTelemetryTimer) clearInterval(window.parasiteTelemetryTimer);
         window.parasiteTelemetryTimer = setInterval(() => {
-            const m = window.liveMetrics || { buyVol: 0, sellVol: 0 };
-            const bVol = parseFloat(m.buyVol) || 0;
-            const sVol = parseFloat(m.sellVol) || 0;
-            const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
-            if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL/10s`;
-            if (vampEl) {
-                vampEl.innerText = isVamp ? "BLEEDING" : "CLEAN";
-                vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
+            if (typeof orderFlowWindow !== 'undefined') {
+                const tenSecAgo = Date.now() - 10000;
+                orderFlowWindow = orderFlowWindow.filter(t => t._ts > tenSecAgo);
+                let bVol = 0, sVol = 0;
+                orderFlowWindow.forEach(t => {
+                    if (t.tipo && t.tipo.includes("BUY")) bVol += parseFloat(t.sol) || 0;
+                    else sVol += parseFloat(t.sol) || 0;
+                });
+                const tot = bVol + sVol;
+                const bp = tot > 0 ? (bVol / tot) * 100 : 50;
+                window.liveMetrics = { history: window.liveMetrics?.history || [], buyVol: bVol, sellVol: sVol, buyPressure: bp };
+
+                // Aggiorna la barra 10S ORDER FLOW anche quando non arrivano nuovi trade
+                const barGreen = document.getElementById('flow-bar-green');
+                const pctText = document.getElementById('flow-percentage');
+                const volBuyEl = document.getElementById('flow-vol-buy');
+                const volSellEl = document.getElementById('flow-vol-sell');
+                if (barGreen && pctText && volBuyEl && volSellEl) {
+                    barGreen.style.width = `${bp}%`;
+                    pctText.innerText = tot > 0 ? `${bp.toFixed(1)}% BUY` : `IDLE (0 TX)`;
+                    pctText.style.color = tot === 0 ? "#888" : (bp >= 50 ? "#00e676" : "#ff4d4d");
+                    volBuyEl.innerText = `${bVol.toFixed(1)} SOL`;
+                    volSellEl.innerText = `${sVol.toFixed(1)} SOL`;
+                }
+
+                const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
+                if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL`;
+                if (vampEl) {
+                    vampEl.innerText = isVamp ? "BLEEDING" : "CLEAN";
+                    vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
+                }
             }
         }, 1000);
 
         chrome.storage.local.get(['userConfig'], async (resObj) => {
             const cfg = resObj.userConfig || {};
-            let isDemoForced = cfg.demoModeEnabled !== false; // Attivo di default per sicurezza
+
+            // MOSTRA O NASCONDE IL BANNER NELLA HOME IN BASE ALLA LINGUETTA NELLE IMPOSTAZIONI
+            if (!cfg.autoTradeEnabled) {
+                if (bannerEl) bannerEl.style.display = "none";
+                if (window.demoPollTimer) clearInterval(window.demoPollTimer);
+                return;
+            }
+            if (bannerEl) bannerEl.style.display = "block";
+
+            let isDemoForced = cfg.demoModeEnabled !== false;
             const hasRealKey = Boolean(cfg.burnerPrivateKey && cfg.burnerPrivateKey.trim() !== "");
             const activeKey = (!isDemoForced && hasRealKey) ? cfg.burnerPrivateKey.trim() : "DEMO";
             const tokenScore = data && data.score ? parseFloat(data.score) : 45;
@@ -898,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnDemoToggle.innerText = "DEMO: ON";
                     btnDemoToggle.style.color = "#00ffcc";
                     btnDemoToggle.style.borderColor = "#00ffcc";
-                    btnDemoToggle.style.background = "rgba(0, 255, 204, 0.12)";
+                    btnDemoToggle.style.background = "rgba(0, 255, 204, 0.1)";
                 } else {
                     btnDemoToggle.innerText = "LIVE: ON";
                     btnDemoToggle.style.color = "#ff007f";
@@ -912,7 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnDemoToggle.onclick = () => {
                     if (!hasRealKey && isDemoForced) {
                         if (statusEl) {
-                            statusEl.innerText = "INSERT PRIVATE KEY IN SETTINGS TO ENABLE LIVE MODE";
+                            statusEl.innerText = "NO PRIVATE KEY FOUND // ADD KEY IN SETTINGS FOR LIVE MODE";
                             statusEl.style.color = "#ffaa00";
                         }
                         return;
@@ -940,13 +974,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (ourExitVal && info.demoStats && info.isDemoMode) {
                             const pnlTot = (info.demoStats.balanceSol - info.demoStats.initialSol).toFixed(3);
-                            ourExitVal.innerText = `DEMO ${info.demoStats.balanceSol} SOL (${pnlTot >= 0 ? '+' : ''}${pnlTot})`;
+                            ourExitVal.innerText = `${info.demoStats.balanceSol} SOL (${pnlTot >= 0 ? '+' : ''}${pnlTot})`;
                         }
 
                         if (info.activeTrade && info.activeTrade.inPosition) {
                             const net = parseFloat(info.activeTrade.netChangePct);
                             if (statusEl) {
-                                statusEl.innerText = `ACTIVE (${info.activeTrade.elapsedSec}s) | GROSS ${info.activeTrade.rawChangePct}% | NET ${net >= 0 ? '+' : ''}${net}%`;
+                                statusEl.innerText = `OPEN (${info.activeTrade.elapsedSec}s) // GROSS ${info.activeTrade.rawChangePct}% | NET ${net >= 0 ? '+' : ''}${net}%`;
                                 statusEl.style.color = net >= 0 ? "#00e676" : "#ffaa00";
                             }
                         } else if (info.demoStats && info.demoStats.lastEvent) {
@@ -964,14 +998,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const m = window.liveMetrics || { buyVol: 0, sellVol: 0 };
                 if (!isManual && parseFloat(m.sellVol) > parseFloat(m.buyVol) * 1.5 && parseFloat(m.sellVol) >= 0.5) {
                     if (statusEl) {
-                        statusEl.innerText = "VAMPIRE DISTRIBUTION DETECTED - ENTRY BLOCKED";
+                        statusEl.innerText = "VAMPIRE DISTRIBUTION DETECTED // ENTRY VETOED";
                         statusEl.style.color = "#ff4d4d";
                     }
                     return;
                 }
 
                 if (statusEl) {
-                    statusEl.innerText = isDemoForced ? "EXECUTING DEMO BUY ON LIVE PRICE..." : "BROADCASTING LIVE BUY TX...";
+                    statusEl.innerText = isDemoForced ? "OPENING DEMO POSITION ON LIVE ON-CHAIN PRICE..." : "BROADCASTING LIVE SWAP TRANSACTION...";
                     statusEl.style.color = "#00ffcc";
                 }
 
@@ -984,22 +1018,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             privateKey: activeKey,
                             score: tokenScore,
                             forceManual: isManual,
-                            forceDemo: isDemoForced
+                            forceDemo: isDemoForced,
+                            probeSol: cfg.tradeSol,
+                            takeProfitPct: cfg.takeProfitPct
                         })
                     });
                     const tradeStatus = await startRes.json();
 
                     if (tradeStatus.success && statusEl) {
-                        const modeTag = tradeStatus.isDemoMode ? "[DEMO POS]" : "[LIVE POS]";
-                        statusEl.innerText = `${modeTag} ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) -> TP +${tradeStatus.effectiveTpPct}%`;
+                        const modeTag = tradeStatus.isDemoMode ? "[DEMO]" : "[LIVE]";
+                        statusEl.innerText = `${modeTag} ENTRY: ${tradeStatus.solInvestiti} SOL ($${tradeStatus.usdStimati}) // TARGET +${tradeStatus.effectiveTpPct}%`;
                         statusEl.style.color = "#00e676";
                         aggiornaStatoDemoLive();
                     } else if (statusEl) {
-                        statusEl.innerText = `ERROR: ${tradeStatus.error || 'EXECUTION FAILED'}`;
+                        statusEl.innerText = `REJECTED // ${tradeStatus.error || 'EXECUTION ERROR'}`;
                         statusEl.style.color = "#ff4d4d";
                     }
                 } catch (err) {
-                    if (statusEl) statusEl.innerText = "SERVER CONNECTION ERROR";
+                    if (statusEl) statusEl.innerText = "NETWORK ERROR // UNABLE TO REACH EXECUTION ENGINE";
                 }
             };
 
@@ -1008,7 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnPanic) {
                 btnPanic.onclick = async () => {
                     if (statusEl) {
-                        statusEl.innerText = "EXECUTING 100% LIQUIDATION & ACCOUNT BURN...";
+                        statusEl.innerText = "LIQUIDATING 100% POSITION & RECLAIMING ACCOUNT RENT...";
                         statusEl.style.color = "#ffaa00";
                     }
                     const r = await fetch(`https://help-trading-production.up.railway.app/api/autotrading/panic-burn`, {
@@ -1018,8 +1054,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     const d = await r.json();
                     if (statusEl && d.demoStats) {
-                        statusEl.innerText = `${d.demoStats.lastEvent} | BAL: ${d.demoStats.balanceSol} SOL`;
+                        statusEl.innerText = `${d.demoStats.lastEvent}`;
                         statusEl.style.color = "#00e676";
+                        if (ourExitVal) {
+                            const pnlTot = (d.demoStats.balanceSol - d.demoStats.initialSol).toFixed(3);
+                            ourExitVal.innerText = `${d.demoStats.balanceSol} SOL (${pnlTot >= 0 ? '+' : ''}${pnlTot})`;
+                        }
                     }
                 };
             }
@@ -1035,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (ourExitVal) {
                     const tag = walletInfo.isDemoMode ? "DEMO" : "LIVE";
-                    ourExitVal.innerText = `${tag}: ${walletInfo.saldoTotaleSol} SOL | BET: ${walletInfo.solDaInvestire} SOL`;
+                    ourExitVal.innerText = `${tag} ${walletInfo.saldoTotaleSol} SOL`;
                 }
 
                 if (walletInfo.activeTrade && walletInfo.activeTrade.inPosition) {
@@ -1043,20 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                if (!cfg.autoTradeEnabled) {
-                    if (statusEl) {
-                        const modeName = walletInfo.isDemoMode ? "DEMO READY" : "LIVE READY";
-                        statusEl.innerText = `${modeName} (${walletInfo.saldoTotaleSol} SOL) - CLICK BUY OR ENABLE AUTO`;
-                        statusEl.style.color = "#00ffcc";
-                    }
-                    return;
-                }
-
                 if (walletInfo.autorizzato) {
                     await lanciaOrdineBuy(false);
                 } else if (statusEl) {
-                    statusEl.innerText = `BLOCKED: ${walletInfo.motivo}`;
-                    statusEl.style.color = "#ff4d4d";
+                    statusEl.innerText = `STANDBY // ${walletInfo.motivo}`;
+                    statusEl.style.color = "#ffaa00";
                 }
             } catch (err) {}
         });
@@ -1141,72 +1172,100 @@ document.addEventListener('DOMContentLoaded', () => {
         const av3 = chrome.runtime.getURL("avatar3.png");
         const av4 = chrome.runtime.getURL("avatar4.png");
         const autoTraderBannerHTML = `
-            <div id="autotrade-live-banner" style="background: #0b0d13; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #2d3142; border-left: 3px solid #ff007f; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                    <div style="display:flex; flex-direction:column; gap:3px; flex-grow: 1; min-width: 0;">
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="font-size: 0.65em; color: #ff007f; font-weight: 900; font-family: monospace; letter-spacing: 0.8px; text-transform: uppercase;">[SYS.HFT] EXECUTION ENGINE</span>
-                            <button id="btn-toggle-demo" style="background: rgba(0, 255, 204, 0.12); color: #00ffcc; border: 1px solid #00ffcc; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 0.6em; font-weight: bold; cursor: pointer; text-transform: uppercase;" title="Switch between Demo Paper Account and Live Wallet">
-                                DEMO: ON
-                            </button>
-                        </div>
-                        <span id="autotrade-status-text" style="font-size: 0.72em; color: #e4e4e7; font-family: monospace; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">STANDBY - MONITORING ORDER FLOW</span>
+            <div id="autotrade-live-banner" style="display: none; background: #0b0d13; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #2d3142; border-top: 2px solid #ff007f; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6); font-family: monospace;">
+                
+                <!-- ROW 1: HEADER & MODE SWITCH -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 6px; height: 6px; background: #ff007f; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #ff007f;"></span>
+                        <span style="font-size: 0.7em; color: #e4e4e7; font-weight: 900; letter-spacing: 1px;">[SYS.HFT] EXECUTION ENGINE</span>
                     </div>
-                    <div style="display: flex; gap: 5px; flex-shrink: 0;">
-                        <button id="btn-manual-buy" style="background: #00e676; color: #000; border: none; padding: 6px 10px; border-radius: 3px; font-weight: 900; font-family: monospace; font-size: 0.68em; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase;">
-                            BUY
-                        </button>
-                        <button id="btn-panic-burn" style="background: #ff4d4d; color: #000; border: none; padding: 6px 10px; border-radius: 3px; font-weight: 900; font-family: monospace; font-size: 0.68em; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase;">
-                            SELL & BURN
-                        </button>
+                    <button id="btn-toggle-demo" style="background: rgba(0, 255, 204, 0.1); color: #00ffcc; border: 1px solid #00ffcc; padding: 2px 8px; border-radius: 3px; font-family: monospace; font-size: 0.65em; font-weight: 900; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase; transition: 0.2s;">
+                        DEMO: ON
+                    </button>
+                </div>
+
+                <!-- ROW 2: DEDICATED TERMINAL STATUS SCREEN -->
+                <div style="background: #050608; border: 1px solid #1a1c29; border-left: 2px solid #00ffcc; border-radius: 4px; padding: 7px 10px; margin-bottom: 8px;">
+                    <div id="autotrade-status-text" style="font-size: 0.72em; color: #00ffcc; font-weight: bold; line-height: 1.3; word-break: break-word;">
+                        STANDBY // MONITORING ORDER FLOW
                     </div>
                 </div>
-                <div id="parasite-math-row" style="display: flex; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1a1c29; font-family: monospace; font-size: 0.66em; color: #888;">
-                    <span>SPEED: <b id="live-vol-speed" style="color:#00ffcc;">0.0 SOL/10s</b></span>
-                    <span>FLOW: <b id="live-vampire-status" style="color:#00e676;">CLEAN</b></span>
-                    <span>ACCT: <b id="our-exit-val" style="color:#ffaa00;">--</b></span>
+
+                <!-- ROW 3: 3-COLUMN TELEMETRY METRICS -->
+                <div id="parasite-math-row" style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px; margin-bottom: 10px;">
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px 6px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666; text-transform: uppercase; margin-bottom: 2px;">SPEED (10S)</div>
+                        <b id="live-vol-speed" style="font-size: 0.72em; color: #00ffcc;">0.0 SOL</b>
+                    </div>
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px 6px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666; text-transform: uppercase; margin-bottom: 2px;">TAPE FLOW</div>
+                        <b id="live-vampire-status" style="font-size: 0.72em; color: #00e676;">CLEAN</b>
+                    </div>
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px 6px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666; text-transform: uppercase; margin-bottom: 2px;">ACCOUNT</div>
+                        <b id="our-exit-val" style="font-size: 0.72em; color: #ffaa00;">--</b>
+                    </div>
+                </div>
+
+                <!-- ROW 4: SYMMETRICAL ACTION BUTTONS -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button id="btn-manual-buy" style="background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid #00e676; padding: 7px 0; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.72em; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; transition: 0.2s;">
+                        EXECUTE BUY
+                    </button>
+                    <button id="btn-panic-burn" style="background: rgba(255, 77, 77, 0.15); color: #ff4d4d; border: 1px solid #ff4d4d; padding: 7px 0; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.72em; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; transition: 0.2s;">
+                        SELL & BURN
+                    </button>
                 </div>
             </div>`;
         const copilotHTML = `
-            <div style="background: #0f1118; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: -20px; right: -20px; width: 60px; height: 60px; background: #b366ff; opacity: 0.15; filter: blur(20px); border-radius: 50%;"></div>
-                
+            <div style="background: #0f1118; padding: 14px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2d3142; position: relative; overflow: hidden;">
                 <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.2em;">🧠</span>
-                        <span style="font-size: 0.8em; color: #e4e4e7; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">${t('copilot_title')}</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b366ff" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        <span style="font-size: 0.75em; color: #e4e4e7; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; font-family: monospace;">[SYS.AI] TACTICAL COPILOT</span>
                     </div>
-                    <button id="btn-copilot" style="background: linear-gradient(90deg, #9333ea, #b366ff); color: #fff; border: none; padding: 6px 14px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.7em; text-transform: uppercase; letter-spacing: 0.5px; transition: transform 0.1s; box-shadow: 0 2px 10px rgba(179, 102, 255, 0.3);">
-                        ${t('copilot_btn')}
+                    <button id="btn-copilot" style="background: rgba(179, 102, 255, 0.15); color: #c084fc; border: 1px solid #9333ea; padding: 5px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.68em; font-family: monospace; text-transform: uppercase; letter-spacing: 0.8px; transition: 0.2s;">
+                        SCAN TAPE
                     </button>
                 </div>
-                <div id="copilot-result" style="font-family: monospace; font-size: 0.85em; color: #ccc; display: none; margin-top: 12px; position: relative; z-index: 2;"></div>
+                <div id="copilot-result" style="font-family: monospace; font-size: 0.82em; color: #ccc; display: none; margin-top: 12px; position: relative; z-index: 2;"></div>
             </div>`;
 
         const orderFlowHTML = `
-            <div style="background: #0f1118; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 0.75em; color: #888; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">${t('orderflow_title')}</span>
-                    <span id="flow-percentage" style="color: #00ffcc; font-weight: 900; font-family: monospace; background: rgba(0, 255, 204, 0.1); padding: 2px 6px; border-radius: 4px;">${t('orderflow_waiting')}</span>
+            <div id="live-radar-telemetry-box" style="background: #0f1118; padding: 14px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
+                <!-- PARTE 1: 10S ORDER FLOW -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <span style="font-size: 0.72em; color: #e4e4e7; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; font-family: monospace;">10S ORDER FLOW</span>
+                    </div>
+                    <span id="flow-percentage" style="color: #00ffcc; font-weight: 900; font-size: 0.72em; font-family: monospace; background: rgba(0, 255, 204, 0.08); border: 1px solid rgba(0, 255, 204, 0.25); padding: 2px 6px; border-radius: 3px;">SYNCING...</span>
                 </div>
                 
-                <div style="width: 100%; height: 8px; background: #2a1111; border-radius: 4px; overflow: hidden; display: flex;">
-                    <div id="flow-bar-green" style="width: 50%; height: 100%; background: linear-gradient(90deg, #00b38f, #00e676); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div>
-                    <div style="flex-grow: 1; height: 100%; background: linear-gradient(90deg, #ff4d4d, #cc0000);"></div>
+                <div style="width: 100%; height: 6px; background: #2a1111; border-radius: 3px; overflow: hidden; display: flex;">
+                    <div id="flow-bar-green" style="width: 50%; height: 100%; background: #00e676; transition: width 0.3s ease;"></div>
+                    <div style="flex-grow: 1; height: 100%; background: #ff4d4d;"></div>
                 </div>
                 
-                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-family: monospace; font-size: 0.75em; font-weight: bold;">
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="color:#00e676;">IN:</span>
-                        <span id="flow-vol-buy" style="color: #fff;">0.0 SOL</span>
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid #1a1c29; font-family: monospace; font-size: 0.72em; font-weight: bold;">
+                    <div><span style="color:#666;">BUY VOL:</span> <span id="flow-vol-buy" style="color: #00e676;">0.0 SOL</span></div>
+                    <div><span style="color:#666;">SELL VOL:</span> <span id="flow-vol-sell" style="color: #ff4d4d;">0.0 SOL</span></div>
+                </div>
+
+                <!-- PARTE 2: LIVE TAPE STREAM -->
+                <div style="font-size: 0.7em; color: #888; text-transform: uppercase; margin-bottom: 8px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; font-family: monospace;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="display:inline-block; width:6px; height:6px; background:#00e676; border-radius:50%; animation: pulseGlow 1s infinite;"></span>
+                        <span style="color:#ccc;">LIVE BLOCKCHAIN TAPE</span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <span style="color:#ff4d4d;">OUT:</span>
-                        <span id="flow-vol-sell" style="color: #fff;">0.0 SOL</span>
-                    </div>
+                    <span style="color: #666; font-size: 0.85em;">WSS STREAM</span>
+                </div>
+                
+                <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 4px; height: 150px; overflow-y: auto; padding-right: 4px; scroll-behavior: smooth;">
+                    <div style="text-align:center; color:#555; font-family:monospace; font-size:0.75em; margin-top:45px; letter-spacing:0.5px;">[LISTENING TO ON-CHAIN TRANSACTIONS...]</div>
                 </div>
             </div>`;
-
         const liveTapeHTML = `
             <div style="background: #0f1118; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
                 <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
@@ -1347,9 +1406,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
 
                         <!-- TRADING ROUTE & AUTO-SNIPER -->
-                        <div style="margin-bottom: 15px; border: 1px solid #a855f7; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: linear-gradient(145deg, #11121a, #1a0f2e);">
+                        <div style="margin-bottom: 15px; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: #11121a;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <strong style="color: #ff007f; font-size: 0.8em; text-transform: uppercase; font-family: monospace;">🦠 Parasite Auto-Trader</strong>
+                                <strong style="color: #ff007f; font-size: 0.78em; text-transform: uppercase; font-family: monospace; letter-spacing: 0.5px;">[SYS.HFT] PARASITE AUTO-TRADER</strong>
                                 <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
                                     <input type="checkbox" id="user-auto-trade-toggle" style="opacity: 0; width: 0; height: 0;">
                                     <span id="auto-trade-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px;"></span>
@@ -1358,22 +1417,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             <div style="margin-bottom: 10px;">
-                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Chiave Privata Wallet Secondario (Base58)</div>
-                                <input type="password" id="user-burner-key" placeholder="Incolla Chiave Privata Phantom..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
+                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px; font-family: monospace;">Burner Wallet Private Key (Base58)</div>
+                                <input type="password" id="user-burner-key" placeholder="Leave empty for Demo Mode or paste key..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #333; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div>
-                                    <div style="font-size: 0.65em; color: #00ffcc; text-transform: uppercase; margin-bottom: 4px; font-weight:bold;">Importo (SOL)</div>
+                                    <div style="font-size: 0.65em; color: #00ffcc; text-transform: uppercase; margin-bottom: 4px; font-weight:bold; font-family: monospace;">Trade Size (SOL)</div>
                                     <input type="number" step="0.01" id="user-trade-sol" placeholder="0.08" value="0.08" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #00ffcc; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
                                 <div>
-                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px;">Take Profit (%)</div>
-                                    <input type="number" id="user-tp-pct" placeholder="18" value="18" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #444; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
+                                    <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px; font-family: monospace;">Take Profit (%)</div>
+                                    <input type="number" id="user-tp-pct" placeholder="18" value="18" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #333; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
                             </div>
-                            <div style="margin-top: 8px; font-size: 0.65em; color: #aaa; line-height: 1.3;">
-                                💡 Entra quando il Bundler è bloccato sotto il suo punto di pareggio, vende prima della sua soglia di dump e chiude il conto recuperando i <b>+0.002 SOL ($0.21)</b> di cauzione.
+                            <div style="margin-top: 8px; font-size: 0.65em; color: #777; line-height: 1.3; font-family: monospace;">
+                                When enabled, displays the HFT Execution Engine on the Radar home tab and reclaims +0.002 SOL rent on exit.
                             </div>
                         </div>
 
@@ -1445,16 +1504,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <!-- BOTTOM TABS -->
-                <div id="bottom-tabs-nav" style="display: flex; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(5px); border-top: 1px solid #1a1c29; height: 55px; flex-shrink: 0; z-index: 10;">
-                    <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Radar</span>
+                <!-- BOTTOM TABS CON ICONE VETTORIALI SVG -->
+                <div id="bottom-tabs-nav" style="display: flex; background: #080a0f; border-top: 1px solid #1a1c29; height: 56px; flex-shrink: 0; z-index: 10; user-select: none;">
+                    <div id="tab-radar" class="nav-tab active-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: #00ffcc; border-top: 2px solid #00ffcc; background: rgba(0, 255, 204, 0.05); transition: all 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
+                        <span style="font-size: 0.68em; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">RADAR</span>
                     </div>
-                    <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Tracker</span>
+                    <div id="tab-tracker" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: #666; border-top: 2px solid transparent; transition: all 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="17" cy="15" r="1.5"/></svg>
+                        <span style="font-size: 0.68em; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">TRACKER</span>
                     </div>
-                    <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: #777; border-top: 2px solid transparent; transition: all 0.2s;">
-                        <span style="font-size: 0.8em; font-weight: 900; text-transform: uppercase; font-family: monospace;">Spy</span>
+                    <div id="tab-spy" class="nav-tab" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: #666; border-top: 2px solid transparent; transition: all 0.2s;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span style="font-size: 0.68em; font-weight: 900; text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">SPY</span>
                     </div>
                 </div>
             </div>
@@ -1603,13 +1665,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (tpInput && res.userConfig.takeProfitPct) tpInput.value = res.userConfig.takeProfitPct;
 
                     autoToggle.addEventListener('change', (e) => {
-                        if (e.target.checked) {
-                            autoSlider.style.backgroundColor = '#ff007f';
-                            autoKnob.style.left = '22px';
-                        } else {
-                            autoSlider.style.backgroundColor = '#444';
-                            autoKnob.style.left = '2px';
-                        }
+                        const isChecked = e.target.checked;
+                        autoSlider.style.backgroundColor = isChecked ? '#ff007f' : '#444';
+                        autoKnob.style.left = isChecked ? '22px' : '2px';
+                        chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (cRes) => {
+                            const updatedCfg = cRes.userConfig || {};
+                            updatedCfg.autoTradeEnabled = isChecked;
+                            chrome.storage.local.set({ userConfig: updatedCfg }, () => {
+                                innescaModalitaParassita(cRes.ultimoRisultatoScan, tokenMint);
+                            });
+                        });
                     });
                 }
 
@@ -1819,11 +1884,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const eseguiScansioneCopilotJungle = async (isAutoStart = false) => {
             if (!btnCopilot || !copilotResult || !tokenMint) return;
-            btnCopilot.innerText = " SCANNING...";
-            btnCopilot.style.background = "#555";
+            btnCopilot.innerText = "SCANNING...";
+            btnCopilot.style.background = "#1a1c29";
+            btnCopilot.style.color = "#888";
             btnCopilot.style.pointerEvents = "none";
             copilotResult.style.display = "block";
-            copilotResult.innerHTML = "<span style='color:#00ffcc; display:block; text-align:center;'> Reading Manipulator Order Flow & Bundle Telemetry...</span>";
+            
+            // DESIGN LOADER ISTITUZIONALE SENZA EMOJI
+            copilotResult.innerHTML = `
+                <div style="background: #080a0f; border: 1px solid #1f2230; border-left: 2px solid #b366ff; border-radius: 4px; padding: 10px 12px; font-family: monospace;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="color: #c084fc; font-size: 0.75em; font-weight: 900; letter-spacing: 0.8px;">[TELEMETRY_SYNC] INGESTING ORDER FLOW</span>
+                        <span style="color: #00ffcc; font-size: 0.7em; animation: pulseGlow 1s infinite;">ACTIVE</span>
+                    </div>
+                    <div style="width: 100%; height: 3px; background: #161821; border-radius: 2px; overflow: hidden; margin-bottom: 6px;">
+                        <div style="width: 65%; height: 100%; background: linear-gradient(90deg, #9333ea, #00ffcc); animation: pulseGlow 0.8s infinite;"></div>
+                    </div>
+                    <div style="color: #666; font-size: 0.7em; letter-spacing: 0.4px;">
+                        Decoding manipulator footprint & 10s bundle velocity...
+                    </div>
+                </div>
+            `;
 
             chrome.storage.local.get(['userAuthToken', 'device_fingerprint', 'ultimoRisultatoScan', 'userConfig'], async (res) => {
                 const authToken = res.userAuthToken ? String(res.userAuthToken).trim() : "null";
@@ -1898,8 +1979,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {
                     copilotResult.innerHTML = `<div style="text-align:center; color:#ff4d4d; font-weight:bold;">⚠️ Telemetry Error: ${e.message}</div>`;
                 } finally {
-                    btnCopilot.innerText = " RE-ANALYZE";
-                    btnCopilot.style.background = "linear-gradient(90deg, #9333ea, #b366ff)";
+                    btnCopilot.innerText = "RE-SCAN";
+                    btnCopilot.style.background = "rgba(179, 102, 255, 0.15)";
+                    btnCopilot.style.color = "#c084fc";
                     btnCopilot.style.pointerEvents = "auto";
                 }
             });
