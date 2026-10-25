@@ -352,7 +352,7 @@ function avviaAscoltoLive(tokenMint) {
 //const app = express();
 //app.use(cors()); // Sblocca le protezioni del browser
 // Permette di leggere i body delle richieste POST
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 // 🕵️ LOG GLOBALE E ANTI-CACHE: Impedisce al browser di salvare gli errori
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -1492,16 +1492,15 @@ function analizzaOrderFlow_Locale(txs) {
 const ipUsageCache = new Map();
 
 // 🛡️ THE SMART GATEKEEPER: Auto-Healing Device Lock (Zero Support Tickets) + IP Binding Anti-Multiaccount
+const SUPPORT_FOOTER_HTML = `<br><br><span style="color:#aaa; font-size:0.85em;">Having trouble with your key or extension? Contact <b>HelpTrading@proton.me</b> or open a support ticket on our <a href="https://discord.gg/J9wsre2Mz" target="_blank" style="color:#00ffcc; text-decoration:underline;">Discord Server</a>.</span>`;
+
 async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     const cleanToken = (authToken && authToken !== 'null' && authToken !== 'undefined') ? authToken.trim() : null;
     const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : "dev_default";
-    // Prende il vero IP anche dietro proxy Railway/Cloudflare
     const rawIp = String(clientIp || "unknown").split(',')[0].trim();
 
     try {
-        // =================================================================
-        // 🟢 CASO 1: UTENTE PRO / PREMIUM (Auto-Switch se reinstalla!)
-        // =================================================================
+        // 1. UTENTE CON CHIAVE PRO / PREMIUM
         if (cleanToken) {
             const { data: user, error } = await supabase
                 .from('users')
@@ -1510,110 +1509,82 @@ async function checkAuthAndLimits(authToken, deviceId, clientIp) {
                 .maybeSingle();
 
             if (error) throw error;
-            if (!user) return { authorized: false, message: "Sync Key not found or invalid." };
+            if (!user) {
+                return {
+                    authorized: false,
+                    message: `Invalid or unrecognized Sync Key.${SUPPORT_FOOTER_HTML}`
+                };
+            }
 
-            // Controllo scadenza abbonamento
             if (user.pro_expires_at && new Date(user.pro_expires_at) < new Date()) {
-                return { authorized: false, message: "Your PRO/PREMIUM license has expired. Please renew on the dashboard." };
+                return {
+                    authorized: false,
+                    message: `Your PRO/PREMIUM license has expired.${SUPPORT_FOOTER_HTML}`
+                };
             }
 
             if (user.plan_type === 'pro' || user.plan_type === 'premium' || user.plan_type === 'admin') {
                 const activeSessionKey = `active_dev_${cleanToken}`;
                 const activeDeviceInLast15m = await redis.get(activeSessionKey).catch(() => null);
 
-                // Se il device_id è nuovo (es. ha reinstallato l'estensione o cambiato browser)
                 if (user.device_id && user.device_id !== cleanDevice) {
-                    // Controlliamo se il VECCHIO dispositivo sta usando la chiave in questo stesso momento (ultimi 15 min)
                     if (activeDeviceInLast15m && activeDeviceInLast15m !== cleanDevice) {
                         return {
                             authorized: false,
-                            message: "Simultaneous use detected on another active device. Please wait 15 minutes after closing the other session before switching devices."
+                            message: `This Sync Key is currently active on another device. Wait 15 minutes after closing the other session to switch PC automatically.${SUPPORT_FOOTER_HTML}`
                         };
                     }
-                    // Il vecchio dispositivo è spento: trasferiamo in AUTOMATICO la licenza sul nuovo device_id!
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('id', user.id);
-                    console.log(`🔄 [AUTO-RELOCK] Licenza ${cleanToken} migrata automaticamente al nuovo device: ${cleanDevice}`);
                 } else if (!user.device_id) {
                     await supabase.from('users').update({ device_id: cleanDevice }).eq('id', user.id);
                 }
 
-                // Segna questo dispositivo come attivo per i prossimi 15 minuti (900 secondi)
                 await redis.set(activeSessionKey, cleanDevice, { ex: 900 }).catch(() => {});
-
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             }
         }
 
-        // =================================================================
-        // ⚪ CASO 2: UTENTE FREE (Legato all'IP -> Inutile reinstallare!)
-        // =================================================================
-        const currentData = new Date();
-        currentData.setHours(currentData.getHours() + 2);
-        const today = currentData.toISOString().split('T')[0];
+        // 2. UTENTE FREE: CONTATORE GIORNALIERO AUTO-RESETTANTE SU REDIS (24H) + SUPABASE
+        const today = new Date().toISOString().split('T')[0];
+        const redisQuotaKey = `quota_free_${rawIp}_${today}`;
 
-        // Identificativo univoco legato all'IP di rete (non cambia se reinstalla l'estensione!)
+        // Legge quante scansioni ha fatto OGGI questo IP (da 0 a 5)
+        let usedToday = parseInt(await redis.get(redisQuotaKey).catch(() => 0)) || 0;
+
+        if (usedToday >= 5) {
+            return {
+                authorized: false,
+                limitReached: true,
+                plan: "free",
+                scansLeft: 0,
+                message: `Daily limit reached (0/5 scans remaining for today). Upgrade to PRO or PREMIUM for unlimited access.${SUPPORT_FOOTER_HTML}`
+            };
+        }
+
+        usedToday += 1;
+        const creditiRimasti = Math.max(0, 5 - usedToday);
+
+        // Salva su Redis con scadenza automatica 24h (86400s) così domani riparte sempre da 5/5!
+        await redis.set(redisQuotaKey, usedToday, { ex: 86400 }).catch(() => {});
+
+        // Sincronizza in background anche la tabella users su Supabase senza bloccare l'utente
         const freeWalletId = `free_ip_${rawIp}`;
+        supabase.from('users').upsert({
+            wallet_address: freeWalletId,
+            device_id: cleanDevice,
+            plan_type: 'free',
+            scans_remaining: creditiRimasti,
+            last_scan_date: today
+        }, { onConflict: 'wallet_address' }).then(() => {}).catch(() => {});
 
-        let { data: freeUser, error: freeErr } = await supabase
-            .from('users')
-            .select('*')
-            .eq('wallet_address', freeWalletId)
-            .maybeSingle();
-
-        if (freeErr) throw freeErr;
-
-        // Se è la prima volta che questo IP usa l'estensione, crea 1 sola riga nel DB
-        if (!freeUser) {
-            const { data: newUser, error: insertError } = await supabase
-                .from('users')
-                .insert({
-                    wallet_address: freeWalletId,
-                    device_id: cleanDevice,
-                    plan_type: 'free',
-                    scans_remaining: 4, // Parte da 5 e scala subito il primo scan
-                    last_scan_date: today
-                })
-                .select()
-                .single();
-
-            if (insertError) throw insertError;
-            return { authorized: true, plan: "free", scansLeft: 4 };
-        }
-
-        // Se ha reinstallato l'estensione, aggiorniamo solo il device_id sulla STESSA riga senza dargli scan extra
-        const lastScanStr = freeUser.last_scan_date ? String(freeUser.last_scan_date).split('T')[0] : null;
-
-        if (lastScanStr !== today) {
-            // Nuovo giorno: ricarica a 4 (5 meno la scansione attuale)
-            await supabase
-                .from('users')
-                .update({ scans_remaining: 4, last_scan_date: today, device_id: cleanDevice })
-                .eq('id', freeUser.id);
-
-            return { authorized: true, plan: "free", scansLeft: 4 };
-        } else {
-            if (freeUser.scans_remaining <= 0) {
-                return {
-                    authorized: false,
-                    limitReached: true,
-                    plan: "free",
-                    scansLeft: 0,
-                    message: "Daily limit reached (0/5). Reinstalling the extension does not reset credits. Upgrade to PRO or PREMIUM for unlimited access."
-                };
-            }
-
-            const creditiRimasti = freeUser.scans_remaining - 1;
-            await supabase
-                .from('users')
-                .update({ scans_remaining: creditiRimasti, device_id: cleanDevice })
-                .eq('id', freeUser.id);
-
-            return { authorized: true, plan: "free", scansLeft: creditiRimasti };
-        }
+        return { authorized: true, plan: "free", scansLeft: creditiRimasti };
 
     } catch (err) {
-        console.error("❌ Auth Error:", err.message);
-        return { authorized: false, message: "Database connection error. Please retry in a few seconds." };
+        console.error("❌ Auth/DB Error:", err.message);
+        return {
+            authorized: false,
+            message: `Database or license verification error.${SUPPORT_FOOTER_HTML}`
+        };
     }
 }
 // =====================================================================
@@ -2839,7 +2810,7 @@ app.post('/api/laboratorio/wallet-spy', async (req, res) => {
     }
 });
 
-// 5. LIVE SPY RADAR
+// 5. LIVE SPY RADAR (Intercetta Buy + 100% Sell + Classificazione Bot/Umano/Insider)
 app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
     try {
         const walletAddress = req.params.walletAddress;
@@ -2848,95 +2819,108 @@ app.get('/api/spy-wallet/:walletAddress', async (req, res) => {
         const sigs = await getRPC().getSignaturesForAddress(pubKey, { limit: 15 });
         if (sigs.length === 0) return res.json({ actions: [] });
 
-        let classificazione = "Trader Umano 🧑‍💻";
         let timeDiffs = [];
         for (let i = 0; i < sigs.length - 1; i++) {
             if (sigs[i].blockTime && sigs[i+1].blockTime) {
                 timeDiffs.push(Math.abs(sigs[i].blockTime - sigs[i+1].blockTime));
             }
         }
-        
-        if (timeDiffs.length > 0) {
-            const avgTime = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
-            if (avgTime < 3) classificazione = "Sniper Bot 🤖";
-            else if (avgTime < 15) classificazione = "Algo Trader ⚡";
-        }
+        const avgTime = timeDiffs.length > 0 ? (timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length) : 60;
 
         const sigStrings = sigs.slice(0, 10).map(s => s.signature);
         const txs = await getRPC().getParsedTransactions(sigStrings, { maxSupportedTransactionVersion: 0 });
 
         let actions = [];
         let historicalBuysSol = [];
+        let profitableExits = 0;
+        let totalSellsCount = 0;
 
         for (let i = 0; i < txs.length; i++) {
             const tx = txs[i];
             const sigInfo = sigs[i]; 
-            if (!tx || !tx.meta || !tx.meta.postTokenBalances) continue;
+            if (!tx || !tx.meta || tx.meta.err) continue;
 
-            const preBals = tx.meta.preTokenBalances.filter(b => b.owner === walletAddress);
-            const postBals = tx.meta.postTokenBalances.filter(b => b.owner === walletAddress);
+            const preBals = (tx.meta.preTokenBalances || []).filter(b => b.owner === walletAddress);
+            const postBals = (tx.meta.postTokenBalances || []).filter(b => b.owner === walletAddress);
 
-            let solSpent = 0;
+            let solDelta = 0;
             const walletAccIndex = tx.transaction.message.accountKeys.findIndex(k => k.pubkey.toString() === walletAddress);
             if (walletAccIndex !== -1 && tx.meta.preBalances && tx.meta.postBalances) {
                 const preSol = tx.meta.preBalances[walletAccIndex] / 1e9;
                 const postSol = tx.meta.postBalances[walletAccIndex] / 1e9;
-                if (preSol > postSol) {
-                    let diff = preSol - postSol;
-                    if (diff > 0.005) solSpent += diff; 
-                }
-            }
-            
-            const wSolPre = preBals.find(b => b.mint === "So11111111111111111111111111111111111111112");
-            const wSolPost = postBals.find(b => b.mint === "So11111111111111111111111111111111111111112");
-            if (wSolPre && wSolPost) {
-                const diffToken = (wSolPre.uiTokenAmount.uiAmount || 0) - (wSolPost.uiTokenAmount.uiAmount || 0);
-                if (diffToken > 0) solSpent += diffToken;
+                solDelta = postSol - preSol; // Negativo = Ha speso SOL (BUY), Positivo = Ha incassato SOL (SELL)
             }
 
-            let actionType = null;
-            let targetMint = null;
+            // Uniamo tutti i mint toccati prima e dopo (così intercettiamo anche le vendite del 100%!)
+            const allMints = new Set([
+                ...preBals.map(b => b.mint),
+                ...postBals.map(b => b.mint)
+            ]);
+            allMints.delete("So11111111111111111111111111111111111111112");
 
-            for (let post of postBals) {
-                const mint = post.mint;
-                if (mint === "So11111111111111111111111111111111111111112") continue; 
-
-                const pre = preBals.find(b => b.mint === mint);
-                const preAmount = pre ? (pre.uiTokenAmount.uiAmount || 0) : 0;
-                const postAmount = post.uiTokenAmount.uiAmount || 0;
+            for (const mint of allMints) {
+                const preObj = preBals.find(b => b.mint === mint);
+                const postObj = postBals.find(b => b.mint === mint);
+                const preAmount = preObj ? (parseFloat(preObj.uiTokenAmount?.uiAmount) || 0) : 0;
+                const postAmount = postObj ? (parseFloat(postObj.uiTokenAmount?.uiAmount) || 0) : 0;
 
                 if (postAmount > preAmount) {
-                    actionType = "BUY"; targetMint = mint;
-                    if (solSpent > 0.02) historicalBuysSol.push(solSpent); 
+                    const solSpent = Math.abs(solDelta) > 0.005 ? Math.abs(solDelta) : 0.15;
+                    historicalBuysSol.push(solSpent);
+                    actions.push({
+                        type: "BUY",
+                        mint,
+                        signature: sigInfo.signature,
+                        solSpent,
+                        timestamp: sigInfo.blockTime ? new Date(sigInfo.blockTime * 1000).toLocaleTimeString('en-GB', { hour12: false }) : "LIVE"
+                    });
                 } else if (postAmount < preAmount) {
-                    actionType = "SELL"; targetMint = mint;
+                    const solReceived = solDelta > 0.005 ? solDelta : 0.20;
+                    totalSellsCount++;
+                    if (solReceived >= 0.25) profitableExits++;
+                    actions.push({
+                        type: "SELL",
+                        mint,
+                        signature: sigInfo.signature,
+                        solSpent: solReceived,
+                        timestamp: sigInfo.blockTime ? new Date(sigInfo.blockTime * 1000).toLocaleTimeString('en-GB', { hour12: false }) : "LIVE"
+                    });
                 }
-            }
-
-            if (actionType) {
-                actions.push({ type: actionType, mint: targetMint, signature: sigInfo.signature, solSpent: solSpent });
             }
         }
-        
-        let avgBet = historicalBuysSol.length > 0 ? (historicalBuysSol.reduce((a, b) => a + b, 0) / historicalBuysSol.length) : 0;
-        
+
+        // CLASSIFICAZIONE ALGORITMICA: BOT vs UMANO vs INSIDER ALPHA
+        let classificazione = "[HUMAN TRADER]";
+        const avgBuySol = historicalBuysSol.length > 0 ? (historicalBuysSol.reduce((a, b) => a + b, 0) / historicalBuysSol.length) : 0;
+        const isInsider = (totalSellsCount >= 2 && (profitableExits / totalSellsCount) >= 0.6) || (avgBuySol >= 1.5 && totalSellsCount >= 1);
+
+        if (isInsider) {
+            classificazione = "[INSIDER ALPHA // HIGH WIN-RATE]";
+        } else if (avgTime < 4) {
+            classificazione = "[MEV / SNIPER BOT]";
+        } else if (avgTime < 15) {
+            classificazione = "[ALGO SCALPER]";
+        }
+
         actions = actions.map(act => {
             if (act.type === "BUY") {
-                let conviction = "NORMALE ⚖️"; let reason = `Size investita: ${act.solSpent.toFixed(2)} SOL.`; let color = "#ffaa00"; 
-                if (historicalBuysSol.length >= 2) {
-                    if (act.solSpent > avgBet * 1.5) {
-                        conviction = "ALTA CONVINZIONE 🦍"; reason = `Heavy Buy: ${act.solSpent.toFixed(2)} SOL (Media era ${avgBet.toFixed(2)}).`; color = "#00e676";
-                    } else if (act.solSpent > 0 && act.solSpent < avgBet * 0.5) {
-                        conviction = "TEST / RISCHIO 🧪"; reason = `Micro-buy: ${act.solSpent.toFixed(2)} SOL (Media era ${avgBet.toFixed(2)}).`; color = "#ff4d4d";
-                    }
+                let conviction = "STANDARD ENTRY";
+                let color = "#00ffcc";
+                if (avgBuySol > 0 && act.solSpent > avgBuySol * 1.4) {
+                    conviction = "HIGH CONVICTION ENTRY";
+                    color = "#00e676";
                 }
-                act.strategy = { conviction, reason, color, solSpent: act.solSpent, avgBet };
+                act.strategy = { conviction, color, solSpent: act.solSpent };
+            } else {
+                act.strategy = { conviction: "POSITION EXIT / TAKE PROFIT", color: "#ff4d4d", solSpent: act.solSpent };
             }
             return act;
         });
 
-        res.json({ walletStats: { classificazione: classificazione }, actions: actions.slice(0, 3) });
-    } catch (error) { res.json({ actions: [], error: error.message }); }
+        res.json({ walletStats: { classificazione }, actions: actions.slice(0, 6) });
+    } catch (error) {
+        res.json({ actions: [], error: error.message });
+    }
 });
 // Sostituisci app.listen con server.listen
 
@@ -4163,7 +4147,6 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
         return res.status(500).json({ success: false, error: e.message });
     }
 });
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
-    console.log(`🤖 Autopilota Innescato: In ascolto H24 su ${BALENE_AUTONOME.length} balene.`);
 });

@@ -1266,25 +1266,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="text-align:center; color:#555; font-family:monospace; font-size:0.75em; margin-top:45px; letter-spacing:0.5px;">[LISTENING TO ON-CHAIN TRANSACTIONS...]</div>
                 </div>
             </div>`;
-        const liveTapeHTML = `
-            <div style="background: #0f1118; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3142;">
-                <div style="font-size: 0.75em; color: #888; text-transform: uppercase; margin-bottom: 10px; font-weight: 800; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="display:inline-block; width:8px; height:8px; background:#ff4d4d; border-radius:50%; animation: pulseGlow 1s infinite;"></span>
-                        <span>${t('live_tape_title')}</span>
-                    </div>
-                    <span style="color: #00ffcc; font-size: 0.8em; font-family: monospace; background:rgba(0,255,204,0.1); padding:2px 6px; border-radius:4px;">WSS Sync</span>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; font-size: 0.65em; color: #666; text-transform: uppercase; font-weight: bold; padding-bottom: 4px; border-bottom: 1px solid #2d3142; margin-bottom: 8px; padding-left: 8px; padding-right: 8px;">
-                    <span>Action / Size</span>
-                    <span>Wallet</span>
-                </div>
-                
-                <div id="live-tape-list" style="display: flex; flex-direction: column; gap: 4px; height: 160px; overflow-y: auto; padding-right: 4px; scroll-behavior: smooth;">
-                    <div style="text-align:center; color:#555; font-style:italic; font-size:0.8em; margin-top:30px;">${t('live_tape_listening')}</div>
-                </div>
-            </div>`;
+        const liveTapeHTML = "";
 
         contentDiv.innerHTML = `
             <style>
@@ -1405,10 +1387,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
 
-                        <!-- TRADING ROUTE & AUTO-SNIPER -->
-                        <div style="margin-bottom: 15px; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: #11121a;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <strong style="color: #ff007f; font-size: 0.78em; text-transform: uppercase; font-family: monospace; letter-spacing: 0.5px;">[SYS.HFT] PARASITE AUTO-TRADER</strong>
+                        <!-- PARASITE AUTO-TRADER (DEMO ONLY + PRO LOCK BANNER) -->
+                        <div style="margin-bottom: 15px; border: 1px solid #2d3142; border-left: 3px solid #ff007f; border-radius: 8px; padding: 12px; background: #11121a; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div>
+                                    <strong style="color: #ff007f; font-size: 0.78em; text-transform: uppercase; font-family: monospace; letter-spacing: 0.5px;">[SYS.HFT] PARASITE AUTO-TRADER</strong>
+                                    <div style="font-size: 0.6em; color: #00ffcc; font-family: monospace; margin-top: 2px;">PAPER DEMO ENGINE (0.30 SOL SANDBOX)</div>
+                                </div>
                                 <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
                                     <input type="checkbox" id="user-auto-trade-toggle" style="opacity: 0; width: 0; height: 0;">
                                     <span id="auto-trade-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px;"></span>
@@ -1416,23 +1401,29 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </label>
                             </div>
 
+                            <!-- BANNER DI BLOCCO SE L'UTENTE NON HA UNA CHIAVE PRO/PREMIUM -->
+                            <div id="autotrade-pro-lock-banner" style="display: none; background: rgba(255, 170, 0, 0.08); border: 1px solid #ffaa00; border-radius: 4px; padding: 8px; margin-bottom: 10px; text-align: center; font-family: monospace;">
+                                <div style="color: #ffaa00; font-size: 0.7em; font-weight: 900; margin-bottom: 4px;">[PRO / PREMIUM FEATURE LOCKED]</div>
+                                <div style="color: #ccc; font-size: 0.65em; line-height: 1.3; margin-bottom: 6px;">
+                                    Activate a PRO or PREMIUM Sync Key above to unlock the HFT Auto-Trader Engine on the Radar tab.
+                                </div>
+                                <a href="https://www.memesaver.lol/dashboard/pricing" target="_blank" style="display: inline-block; background: #ffaa00; color: #000; padding: 4px 10px; border-radius: 3px; font-size: 0.65em; font-weight: 900; text-decoration: none; text-transform: uppercase;">UNLOCK PRO ACCESS</a>
+                            </div>
+
                             <div style="margin-bottom: 10px;">
-                                <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px; font-family: monospace;">Burner Wallet Private Key (Base58)</div>
-                                <input type="password" id="user-burner-key" placeholder="Leave empty for Demo Mode or paste key..." style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #333; color: #ff007f; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.75em; outline: none;">
+                                <div style="font-size: 0.62em; color: #666; text-transform: uppercase; margin-bottom: 4px; font-family: monospace;">Execution Mode (Live Keys Disabled for Security)</div>
+                                <input type="text" id="user-burner-key" value="SANDBOX DEMO MODE ONLY (LIVE KEYS LOCKED)" disabled style="width: 100%; box-sizing: border-box; background: #080a0f; border: 1px dashed #333; color: #666; padding: 7px 8px; border-radius: 4px; font-family: monospace; font-size: 0.68em; cursor: not-allowed; text-align: center;">
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div>
-                                    <div style="font-size: 0.65em; color: #00ffcc; text-transform: uppercase; margin-bottom: 4px; font-weight:bold; font-family: monospace;">Trade Size (SOL)</div>
+                                    <div style="font-size: 0.65em; color: #00ffcc; text-transform: uppercase; margin-bottom: 4px; font-weight:bold; font-family: monospace;">Demo Bet (SOL)</div>
                                     <input type="number" step="0.01" id="user-trade-sol" placeholder="0.08" value="0.08" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #00ffcc; color: #00ffcc; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
                                 <div>
                                     <div style="font-size: 0.65em; color: #888; text-transform: uppercase; margin-bottom: 4px; font-family: monospace;">Take Profit (%)</div>
                                     <input type="number" id="user-tp-pct" placeholder="18" value="18" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #333; color: #00e676; padding: 6px; border-radius: 4px; font-family: monospace; font-size: 0.85em; text-align: center; font-weight:bold;">
                                 </div>
-                            </div>
-                            <div style="margin-top: 8px; font-size: 0.65em; color: #777; line-height: 1.3; font-family: monospace;">
-                                When enabled, displays the HFT Execution Engine on the Radar home tab and reclaims +0.002 SOL rent on exit.
                             </div>
                         </div>
 
@@ -1471,7 +1462,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${autoTraderBannerHTML}
                             ${copilotHTML}
                             ${orderFlowHTML}
-                            ${liveTapeHTML}
                             <div id="static-analysis-box"></div>
                         ` : `
                             <div style="text-align:center; padding: 40px 20px; background: #0f1118; border: 1px solid #2d3142; border-radius: 8px;">
@@ -1654,28 +1644,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tradeSolInput = document.getElementById('user-trade-sol');
                 const tpInput = document.getElementById('user-tp-pct');
 
-                if (autoToggle) {
-                    autoToggle.checked = res.userConfig.autoTradeEnabled === true;
-                    if (autoToggle.checked) {
-                        autoSlider.style.backgroundColor = '#ff007f';
-                        autoKnob.style.left = '22px';
-                    }
-                    if (burnerInput && res.userConfig.burnerPrivateKey) burnerInput.value = res.userConfig.burnerPrivateKey;
-                    if (tradeSolInput && res.userConfig.tradeSol) tradeSolInput.value = res.userConfig.tradeSol;
-                    if (tpInput && res.userConfig.takeProfitPct) tpInput.value = res.userConfig.takeProfitPct;
+                const tokenStr = String(res.userAuthToken || "").trim();
+                const isPaidUser = tokenStr.startsWith('ms-pro-') || tokenStr.startsWith('ms-premium-') || tokenStr.includes('admin');
+                const proLockBanner = document.getElementById('autotrade-pro-lock-banner');
 
-                    autoToggle.addEventListener('change', (e) => {
-                        const isChecked = e.target.checked;
-                        autoSlider.style.backgroundColor = isChecked ? '#ff007f' : '#444';
-                        autoKnob.style.left = isChecked ? '22px' : '2px';
-                        chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (cRes) => {
-                            const updatedCfg = cRes.userConfig || {};
-                            updatedCfg.autoTradeEnabled = isChecked;
-                            chrome.storage.local.set({ userConfig: updatedCfg }, () => {
-                                innescaModalitaParassita(cRes.ultimoRisultatoScan, tokenMint);
+                if (autoToggle) {
+                    if (!isPaidUser) {
+                        // Se è FREE, mostra il banner giallo PRO e impedisce l'attivazione
+                        autoToggle.checked = false;
+                        if (proLockBanner) proLockBanner.style.display = 'block';
+                        autoToggle.addEventListener('change', (e) => {
+                            e.target.checked = false;
+                            if (proLockBanner) {
+                                proLockBanner.style.display = 'block';
+                                proLockBanner.style.borderColor = '#ff4d4d';
+                                setTimeout(() => { proLockBanner.style.borderColor = '#ffaa00'; }, 800);
+                            }
+                        });
+                    } else {
+                        if (proLockBanner) proLockBanner.style.display = 'none';
+                        autoToggle.checked = res.userConfig?.autoTradeEnabled === true;
+                        if (autoToggle.checked) {
+                            autoSlider.style.backgroundColor = '#ff007f';
+                            autoKnob.style.left = '22px';
+                        }
+                        autoToggle.addEventListener('change', (e) => {
+                            const isChecked = e.target.checked;
+                            autoSlider.style.backgroundColor = isChecked ? '#ff007f' : '#444';
+                            autoKnob.style.left = isChecked ? '22px' : '2px';
+                            chrome.storage.local.get(['userConfig', 'ultimoRisultatoScan'], (cRes) => {
+                                const updatedCfg = cRes.userConfig || {};
+                                updatedCfg.autoTradeEnabled = isChecked;
+                                updatedCfg.burnerPrivateKey = "DEMO";
+                                chrome.storage.local.set({ userConfig: updatedCfg }, () => {
+                                    innescaModalitaParassita(cRes.ultimoRisultatoScan, tokenMint);
+                                });
                             });
                         });
-                    });
+                    }
                 }
 
                 let isHoloEnabled = res.userConfig.holoEnabled !== false;
@@ -2384,9 +2390,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             clearInterval(timerInterval);
             container.innerHTML = `
-                <div style="color:#ff4d4d; padding:15px; text-align:center; font-weight:bold; text-transform:uppercase; letter-spacing: 1px;">
-                    CONNECTION ERROR
-                    <button id="btn-retry-judge" style="display:block; margin: 12px auto 0; background: #ff4d4d; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">RETRY</button>
+                <div style="color:#ff4d4d; padding:15px; text-align:center; font-family:monospace; border:1px solid #ff4d4d; border-radius:6px; background:rgba(255,77,77,0.08);">
+                    <div style="font-weight:900; font-size:1em; margin-bottom:6px;">[SYSTEM CONNECTION ERROR]</div>
+                    <div style="color:#ccc; font-size:0.78em; line-height:1.4; margin-bottom:10px;">
+                        Unable to reach the analysis server. If the issue persists, contact <b>HelpTrading@proton.me</b> or open a ticket on <a href="https://discord.gg/J9wsre2Mz" target="_blank" style="color:#00ffcc;">Discord</a>.
+                    </div>
+                    <button id="btn-retry-judge" style="background:#ff4d4d; color:#000; border:none; padding:6px 16px; border-radius:4px; font-weight:900; cursor:pointer; font-family:monospace; font-size:0.78em; text-transform:uppercase;">RETRY SCAN</button>
                 </div>`;
             document.getElementById('btn-retry-judge').addEventListener('click', () => avviaLaboratorioGemini(tokenMint));
         }
@@ -2492,51 +2501,49 @@ document.addEventListener('DOMContentLoaded', () => {
     function aggiungiSpyCardHTML(data, isNew) {
         const feed = document.getElementById('spy-feed-list');
         if (!feed) return;
-        if (feed.innerHTML.includes('attesa') || feed.innerHTML.includes('aiting') || feed.innerHTML.includes('等待') || feed.innerHTML.includes('Écoute')) {
+        if (feed.innerHTML.includes('Waiting') || feed.innerHTML.includes('attesa')) {
             feed.innerHTML = '';
         }
 
-        let esitoGrezzo = data.esito || (data.type === "BUY" ? " BOUGHT" : " SOLD");
-        let motivoGrezzo = data.motivo || (data.stats ? data.stats.classificazione : "");
-        if (data.strategy && data.solSpent) motivoGrezzo += ` - Investment: ${data.solSpent.toFixed(2)} SOL`;
-        else if (!data.esito && data.type !== "BUY") motivoGrezzo = "Exiting position";
+        const isBuy = data.type === "BUY";
+        const actionLabel = isBuy ? "EXECUTED BUY" : "EXECUTED SELL";
+        const color = isBuy ? "#00e676" : "#ff4d4d";
+        const traderProfile = data.stats?.classificazione || "[HUMAN TRADER]";
+        const isInsider = traderProfile.includes("INSIDER");
+        const isBot = traderProfile.includes("BOT") || traderProfile.includes("ALGO");
+        const badgeColor = isInsider ? "#ffaa00" : (isBot ? "#c084fc" : "#00ffcc");
 
-        let translatedEsito = traduciDalBackend(esitoGrezzo);
-        let translatedMotivo = traduciDalBackend(motivoGrezzo);
-        
-        let color = data.colore || (data.strategy ? data.strategy.color : (data.type === "BUY" ? "#00ffcc" : "#ff4d4d"));
-        let timeText = data.orario || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        let wallet = data.walletSpia || data.walletName || "Unknown";
-        let mint = data.mint || "";
+        const solVal = parseFloat(data.solSpent || 0).toFixed(2);
+        const timeText = data.timestamp || new Date().toLocaleTimeString('en-GB', { hour12: false });
+        const wallet = data.walletName || data.walletAddress || "Target";
+        const mint = data.mint || "";
 
         const card = document.createElement('div');
         card.style.cssText = `
-            background: #0a0c10; 
-            border-left: 4px solid ${color}; 
-            border-top: 1px solid #1a1c29; border-right: 1px solid #1a1c29; border-bottom: 1px solid #1a1c29;
-            padding: 8px; border-radius: 6px; margin-bottom: 8px; 
-            font-family: monospace; font-size: 0.75em;
+            background: #0b0d13; 
+            border-left: 3px solid ${color}; 
+            border-top: 1px solid #1f2230; border-right: 1px solid #1f2230; border-bottom: 1px solid #1f2230;
+            padding: 10px; border-radius: 6px; margin-bottom: 8px; 
+            font-family: monospace; font-size: 0.74em;
             display: flex; flex-direction: column; gap: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         `;
         
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <span style="color:${color}; font-weight:900; font-size:1.05em; line-height: 1.2;">
-                    ${translatedEsito}
-                </span>
-                <span style="color:#666; font-size: 0.85em; font-weight:bold; white-space:nowrap; margin-left: 5px;">🕒 ${timeText}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:${color}; font-weight:900; letter-spacing:0.5px;">[${actionLabel}] ${solVal} SOL</span>
+                <span style="color:#666; font-size:0.85em;">${timeText}</span>
             </div>
             
-            <div style="background: #12151f; padding: 6px; border-radius: 4px; color:#00ffcc; font-weight: bold; border: 1px solid #1a1c29;">
-                ${translatedMotivo}
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#050608; padding:5px 8px; border-radius:4px; border:1px solid #1a1c29;">
+                <span style="color:#aaa;">TRADER: <b style="color:#fff;">${wallet}</b></span>
+                <span style="color:${badgeColor}; font-weight:900; font-size:0.85em;">${traderProfile}</span>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 2px;">
-                <span style="color:#aaa;">Wallet: <strong style="color:#fff;">${wallet.substring(0,5)}...${wallet.slice(-4)}</strong></span>
-                <div style="display:flex; gap: 4px;">
-                    <button class="copy-spy-mint-btn" data-mint="${mint}" style="background:#2a2d3d; border:1px solid #444; color:#fff; border-radius:4px; cursor:pointer; padding:3px 6px; font-weight:bold; font-size:0.9em; transition: 0.2s;">📋 ${t('copy_mint')}</button>
-                    <a href="https://pump.fun/${mint}" target="_blank" style="background:#1a1c29; color:#4da6ff; padding:3px 6px; border-radius:4px; text-decoration:none; font-weight:bold; border:1px solid #2d3142; transition: 0.2s;">💊</a>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                <span style="color:#666; font-size:0.9em;">CA: ${mint.substring(0,6)}...${mint.slice(-4)}</span>
+                <div style="display:flex; gap:6px;">
+                    <button class="copy-spy-mint-btn" data-mint="${mint}" style="background:#161821; border:1px solid #333; color:#ccc; border-radius:3px; cursor:pointer; padding:3px 8px; font-weight:bold; font-family:monospace; font-size:0.85em;">COPY CA</button>
+                    <a href="https://pump.fun/${mint}" target="_blank" style="background:rgba(0,255,204,0.1); color:#00ffcc; padding:3px 8px; border-radius:3px; text-decoration:none; font-weight:bold; border:1px solid #00ffcc; font-size:0.85em;">OPEN</a>
                 </div>
             </div>
         `;
@@ -2552,8 +2559,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (copyBtn) {
             copyBtn.addEventListener('click', (e) => {
                 navigator.clipboard.writeText(e.target.getAttribute('data-mint')).then(() => {
-                    e.target.innerText = "✅"; e.target.style.background = "#00e676";
-                    setTimeout(() => { e.target.innerHTML = `📋 ${t('copy_mint')}`; e.target.style.background = "#2a2d3d"; }, 2000);
+                    e.target.innerText = "COPIED";
+                    e.target.style.color = "#00e676";
+                    setTimeout(() => { e.target.innerText = "COPY CA"; e.target.style.color = "#ccc"; }, 1500);
                 });
             });
         }
@@ -2572,23 +2580,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function checkSpyWallets() {
-        chrome.storage.local.get(['spiedWallets', 'walletNames'], async (res) => {
-            const spied = res.spiedWallets || [];
-            const names = res.walletNames || {};
-            if (spied.length === 0) return;
+        // 🔥 FIX CRITICO: Legge 'trackedWallets' (gli stessi salvati nel tab Tracker!)
+        chrome.storage.local.get(['trackedWallets'], async (res) => {
+            const wallets = res.trackedWallets || [];
+            if (wallets.length === 0) return;
 
-            for (const wallet of spied) {
+            for (const wObj of wallets) {
+                const address = typeof wObj === 'string' ? wObj : wObj.address;
+                const alias = typeof wObj === 'string' ? `${address.substring(0,5)}..` : (wObj.name || `${address.substring(0,5)}..`);
+                if (!address) continue;
+
                 try {
-                    const response = await fetch(`https://help-trading-production.up.railway.app/api/spy-wallet/${wallet}`);
+                    const response = await fetch(`https://help-trading-production.up.railway.app/api/spy-wallet/${address}`);
                     if (!response.ok) continue;
                     const data = await response.json();
                     
                     if (data.actions && data.actions.length > 0) {
                         for (const action of data.actions.reverse()) {
                             const alertData = {
-                                type: action.type, mint: action.mint, signature: action.signature,
-                                walletAddress: wallet, walletName: names[wallet] || `${wallet.substring(0,4)}...`,
-                                solSpent: action.solSpent, strategy: action.strategy, stats: data.walletStats
+                                type: action.type,
+                                mint: action.mint,
+                                signature: action.signature,
+                                timestamp: action.timestamp,
+                                walletAddress: address,
+                                walletName: alias,
+                                solSpent: action.solSpent,
+                                strategy: action.strategy,
+                                stats: data.walletStats
                             };
                             const isNew = await salvaStoricoSpy(alertData);
                             if (isNew) aggiungiSpyCardHTML(alertData, true);
