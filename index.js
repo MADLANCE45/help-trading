@@ -1491,117 +1491,131 @@ function analizzaOrderFlow_Locale(txs) {
 // 🛡️ SISTEMA ANTI-ABUSO IP (In memoria RAM - Si resetta da solo, 0 peso sul DB)
 const ipUsageCache = new Map();
 
-// 🛡️ THE GATEKEEPER: Paywall, Free Tier, Device Lock & IP Block
+// 🛡️ THE SMART GATEKEEPER: Auto-Healing Device Lock (Zero Support Tickets) + IP Binding Anti-Multiaccount
 async function checkAuthAndLimits(authToken, deviceId, clientIp) {
     const cleanToken = (authToken && authToken !== 'null' && authToken !== 'undefined') ? authToken.trim() : null;
-    const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : null;
-    const ip = clientIp || "unknown";
-
-    // 🔥 FIX 1: Messaggio se manca il Device ID (In inglese)
-    if (!cleanDevice) {
-        return { 
-            authorized: false, 
-            message: "Device not recognized or reset.<br><br>If you hold a PRO or PREMIUM plan and have changed your PC or browser, please contact <b>HelpTrading@proton.me</b> or open a ticket on our <b>Discord</b> to re-authorize your license." 
-        };
-    }
+    const cleanDevice = (deviceId && deviceId !== 'null' && deviceId !== 'undefined') ? deviceId.trim() : "dev_default";
+    // Prende il vero IP anche dietro proxy Railway/Cloudflare
+    const rawIp = String(clientIp || "unknown").split(',')[0].trim();
 
     try {
-        let user = null;
-
-        // 🟢 CASO 1: L'UTENTE HA UNA CHIAVE PRO/PREMIUM
+        // =================================================================
+        // 🟢 CASO 1: UTENTE PRO / PREMIUM (Auto-Switch se reinstalla!)
+        // =================================================================
         if (cleanToken) {
-            const { data, error } = await supabase.from('users').select('*').eq('sync_key', cleanToken).maybeSingle();
+            const { data: user, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('sync_key', cleanToken)
+                .maybeSingle();
+
             if (error) throw error;
-            user = data;
+            if (!user) return { authorized: false, message: "Sync Key not found or invalid." };
 
-            if (!user) return { authorized: false, message: "❌ Sync Key not found or expired." };
+            // Controllo scadenza abbonamento
+            if (user.pro_expires_at && new Date(user.pro_expires_at) < new Date()) {
+                return { authorized: false, message: "Your PRO/PREMIUM license has expired. Please renew on the dashboard." };
+            }
 
-            // DEVICE LOCK (Anti-Condivisione & Installazione Multipla)
-            if (user.plan_type === 'pro' || user.plan_type === 'premium') {
-                if (!user.device_id) {
-                    // Prima installazione in assoluto: blinda la chiave a questo dispositivo
-                    await supabase.from('users').update({ device_id: cleanDevice }).eq('sync_key', cleanToken);
-                } else if (user.device_id !== cleanDevice) {
-                    // 🔥 FIX 2: Messaggio se il Device ID non coincide (In inglese)
-                    return { 
-                        authorized: false, 
-                        message: "This Sync Key is already bound to another device.<br><br>If you changed your PC or reinstalled the extension, please contact <b>HelpTrading@proton.me</b> or open a ticket on our <b>Discord</b> to authorize your new device." 
-                    };
+            if (user.plan_type === 'pro' || user.plan_type === 'premium' || user.plan_type === 'admin') {
+                const activeSessionKey = `active_dev_${cleanToken}`;
+                const activeDeviceInLast15m = await redis.get(activeSessionKey).catch(() => null);
+
+                // Se il device_id è nuovo (es. ha reinstallato l'estensione o cambiato browser)
+                if (user.device_id && user.device_id !== cleanDevice) {
+                    // Controlliamo se il VECCHIO dispositivo sta usando la chiave in questo stesso momento (ultimi 15 min)
+                    if (activeDeviceInLast15m && activeDeviceInLast15m !== cleanDevice) {
+                        return {
+                            authorized: false,
+                            message: "Simultaneous use detected on another active device. Please wait 15 minutes after closing the other session before switching devices."
+                        };
+                    }
+                    // Il vecchio dispositivo è spento: trasferiamo in AUTOMATICO la licenza sul nuovo device_id!
+                    await supabase.from('users').update({ device_id: cleanDevice }).eq('id', user.id);
+                    console.log(`🔄 [AUTO-RELOCK] Licenza ${cleanToken} migrata automaticamente al nuovo device: ${cleanDevice}`);
+                } else if (!user.device_id) {
+                    await supabase.from('users').update({ device_id: cleanDevice }).eq('id', user.id);
                 }
-                
-                // Se è PRO/PREMIUM e il dispositivo combacia, passa senza limiti!
+
+                // Segna questo dispositivo come attivo per i prossimi 15 minuti (900 secondi)
+                await redis.set(activeSessionKey, cleanDevice, { ex: 900 }).catch(() => {});
+
                 return { authorized: true, plan: user.plan_type, scansLeft: "∞" };
             }
-        } 
-        // ⚪ CASO 2: L'UTENTE È FREE (Controllo IP e Device)
-        
-        // 1. CONTROLLO ANTI-FURBO SULL'IP
+        }
+
+        // =================================================================
+        // ⚪ CASO 2: UTENTE FREE (Legato all'IP -> Inutile reinstallare!)
+        // =================================================================
         const currentData = new Date();
-        currentData.setHours(currentData.getHours() + 2); // Fuso Orario Europa
+        currentData.setHours(currentData.getHours() + 2);
         const today = currentData.toISOString().split('T')[0];
 
-        let ipRecord = ipUsageCache.get(ip) || { date: today, count: 0 };
-        if (ipRecord.date !== today) ipRecord = { date: today, count: 0 }; // Nuovo giorno, reset!
+        // Identificativo univoco legato all'IP di rete (non cambia se reinstalla l'estensione!)
+        const freeWalletId = `free_ip_${rawIp}`;
 
-        if (ipRecord.count >= 5) {
-            return { 
-                authorized: false, limitReached: true, 
-                message: "🔒 Daily IP Limit Reached (0/5). Please insert a PRO or PREMIUM Sync Key to bypass network limits." 
-            };
-        }
+        let { data: freeUser, error: freeErr } = await supabase
+            .from('users')
+            .select('*')
+            .eq('wallet_address', freeWalletId)
+            .maybeSingle();
 
-        // 2. CONTROLLO NEL DATABASE (Device ID)
-        const { data: dbUser, error } = await supabase.from('users').select('*').eq('device_id', cleanDevice).eq('plan_type', 'free').maybeSingle();
-        if (error) throw error;
-        user = dbUser;
+        if (freeErr) throw freeErr;
 
-        // Se è nuovo, creiamo il profilo con 5 scan
-        if (!user) {
-            const { data: newUser, error: insertError } = await supabase.from('users').insert({
-                wallet_address: "anon_" + cleanDevice.substring(0,10), 
-                device_id: cleanDevice,
-                plan_type: 'free',
-                scans_remaining: 5,
-                last_scan_date: today
-            }).select().single();
+        // Se è la prima volta che questo IP usa l'estensione, crea 1 sola riga nel DB
+        if (!freeUser) {
+            const { data: newUser, error: insertError } = await supabase
+                .from('users')
+                .insert({
+                    wallet_address: freeWalletId,
+                    device_id: cleanDevice,
+                    plan_type: 'free',
+                    scans_remaining: 4, // Parte da 5 e scala subito il primo scan
+                    last_scan_date: today
+                })
+                .select()
+                .single();
 
             if (insertError) throw insertError;
-            user = newUser;
+            return { authorized: true, plan: "free", scansLeft: 4 };
         }
 
-        // 3. CALCOLO LIMITI
-        const lastScanStr = user.last_scan_date ? user.last_scan_date.split('T')[0] : null;
+        // Se ha reinstallato l'estensione, aggiorniamo solo il device_id sulla STESSA riga senza dargli scan extra
+        const lastScanStr = freeUser.last_scan_date ? String(freeUser.last_scan_date).split('T')[0] : null;
 
         if (lastScanStr !== today) {
-            // Nuovo giorno: Ricarica 5 crediti e ne scala subito 1
-            await supabase.from('users').update({ scans_remaining: 4, last_scan_date: today }).eq('device_id', cleanDevice);
-            
-            ipRecord.count += 1; // Aggiorna tracker IP
-            ipUsageCache.set(ip, ipRecord);
+            // Nuovo giorno: ricarica a 4 (5 meno la scansione attuale)
+            await supabase
+                .from('users')
+                .update({ scans_remaining: 4, last_scan_date: today, device_id: cleanDevice })
+                .eq('id', freeUser.id);
 
             return { authorized: true, plan: "free", scansLeft: 4 };
         } else {
-            if (user.scans_remaining <= 0) {
-                return { 
-                    authorized: false, limitReached: true, 
-                    message: "🔒 You have exhausted your 5 daily AI scans. Insert a PRO or PREMIUM Sync Key to avoid flying blind in the market." 
+            if (freeUser.scans_remaining <= 0) {
+                return {
+                    authorized: false,
+                    limitReached: true,
+                    plan: "free",
+                    scansLeft: 0,
+                    message: "Daily limit reached (0/5). Reinstalling the extension does not reset credits. Upgrade to PRO or PREMIUM for unlimited access."
                 };
-            } else {
-                const creditiRimasti = user.scans_remaining - 1;
-                await supabase.from('users').update({ scans_remaining: creditiRimasti }).eq('device_id', cleanDevice);
-                
-                ipRecord.count += 1; // Aggiorna tracker IP
-                ipUsageCache.set(ip, ipRecord);
-
-                return { authorized: true, plan: "free", scansLeft: creditiRimasti };
             }
+
+            const creditiRimasti = freeUser.scans_remaining - 1;
+            await supabase
+                .from('users')
+                .update({ scans_remaining: creditiRimasti, device_id: cleanDevice })
+                .eq('id', freeUser.id);
+
+            return { authorized: true, plan: "free", scansLeft: creditiRimasti };
         }
+
     } catch (err) {
-        console.error("Auth Error (Safe Mode):", err.message);
-        return { authorized: false, message: "⚠️ Database Network Error. Please try again." }; 
+        console.error("❌ Auth Error:", err.message);
+        return { authorized: false, message: "Database connection error. Please retry in a few seconds." };
     }
 }
-
 // =====================================================================
 // 🦊 MOTORE EVM SUPREMO: PREDATOR MODE (Scammer Exploit + Poverty Filter)
 // =====================================================================
