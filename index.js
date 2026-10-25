@@ -352,7 +352,7 @@ function avviaAscoltoLive(tokenMint) {
 //const app = express();
 //app.use(cors()); // Sblocca le protezioni del browser
 // Permette di leggere i body delle richieste POST
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 // 🕵️ LOG GLOBALE E ANTI-CACHE: Impedisce al browser di salvare gli errori
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -577,24 +577,24 @@ async function eseguiTribunaleHFT(tokenMint, devWalletAgeHours, ubiData, bundled
     const isStealthRetail = orderFlowData?.stealthRetailPattern === true;
     const sizeCV = orderFlowData?.sizeVarianceCV || "0.00";
 
-    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVelSol, liqUsd, currentFdv);
-    if (vettori.postBundleWaveTrap) {
-    manipulatorPhase = "POST_BUNDLE_FALLING_WAVE";
-}
-    // 🔥 Lasketaan kuinka paljon pääomaa manipulaattori kierrättää suhteessa markkina-arvoon
+    const vettori = await calcolaVettoriMomentum(tokenMint, bpReale, txVelSol, liqUsd, currentFdv, bundledSupply);
+
     const volUsdRecente = txVelSol * (macroMarketData.solPriceUsd || 150);
     const volToMcRatio = currentFdv > 0 ? (volUsdRecente / currentFdv) : 0;
 
-    // 🔥 Määritetään manipulaattorin tarkka vaihe (Viidakon laki)
+    // 1. Dichiariamo PRIMA la variabile manipulatorPhase
     let manipulatorPhase = "ORGANIC_OR_CHOP";
     const sybilIsDumping = sybilData && sybilData.inVendita === true;
 
-    if (vettori.deltaMC_Pct < -12 || priceChangeM5 < -15 || bpReale < 36 || sybilIsDumping) {
-        manipulatorPhase = "DISTRIBUTION_DUMP"; // Manipulaattori purkaa positioitaan -> PYSY POISSA
+    // 2. Calcoliamo la fase corretta nell'ordine giusto
+    if (vettori.postBundleWaveTrap) {
+        manipulatorPhase = "POST_BUNDLE_FALLING_WAVE";
+    } else if (vettori.deltaMC_Pct < -12 || priceChangeM5 < -15 || bpReale < 36 || sybilIsDumping) {
+        manipulatorPhase = "DISTRIBUTION_DUMP";
     } else if (currentFdv > 0 && currentFdv <= 55000 && (volToMcRatio >= 0.25 || isStealthRetail) && bpReale >= 53) {
-        manipulatorPhase = "LOW_MC_DEV_ACCUMULATION"; // Kultainen vaihe: Dev pumppaa matalalta omalla pääomallaan -> HYÖDYNNÄ!
+        manipulatorPhase = "LOW_MC_DEV_ACCUMULATION";
     } else if (bpReale >= 58 && priceChangeM5 >= 5) {
-        manipulatorPhase = "ACTIVE_MARKUP_PUMP"; // Vahva nousutrendi -> RIDE / SCALP
+        manipulatorPhase = "ACTIVE_MARKUP_PUMP";
     }
 
     let statoDevReale = "CLEAN (First Project)";
@@ -4147,6 +4147,17 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
         return res.status(500).json({ success: false, error: e.message });
     }
 });
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server Radar avviato sulla porta ${PORT}`);
+// Ascolta sulla porta 3000 (dove punta il dominio pubblico di Railway)
+server.listen(3000, "0.0.0.0", () => {
+    console.log(`🚀 Server Radar avviato sulla porta principale 3000`);
 });
+
+// Se Railway inietta anche una porta secondaria (es. 8080), ascolta anche lì per evitare errori 502
+if (process.env.PORT && Number(process.env.PORT) !== 3000) {
+    const extraPort = Number(process.env.PORT);
+    const secondaryServer = http.createServer(app);
+    io.attach(secondaryServer);
+    secondaryServer.listen(extraPort, "0.0.0.0", () => {
+        console.log(`🚀 Server gemello Anti-502 attivo anche sulla porta ${extraPort}`);
+    });
+}
