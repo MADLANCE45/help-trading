@@ -2006,7 +2006,12 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 currentFdv, isFakeDev, clusterRisk, 
                 earlyBotData.supplyBundledPct, tokenAgeMinutes, txInLast60s, orderFlowData
             );
-
+            const sqhkSignal = valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, earlyBotData.supplyBundledPct, orderFlowData);
+            logAnalisi.push(sqhkSignal.label);
+            if (sqhkSignal.triggered && !statoPanicSell.innescato) {
+                simulazione.azione = "SCALP (SQHK48 SETUP)";
+                simulazione.coloreAzione = "#00ffcc";
+            }
             let sogliaDump = earlyBotData.supplyBundledPct > 0 
                 ? Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50)) 
                 : 0;
