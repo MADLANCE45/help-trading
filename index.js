@@ -134,18 +134,7 @@ app.get('/api/health', (req, res) => {
         }
     });
 });
-app.get('/api/wallet-audit/:address', (req, res) => {
-    const address = req.params.address;
-    console.log(`🩺 Dashboard sta richiedendo l'audit per il wallet: ${address}`);
-    
-    // Per ora simuliamo i dati del wallet per non consumare troppe API,
-    // ma la struttura è pronta per agganciarsi ad Helius per analizzare il wallet dell'utente.
-    res.json({
-        score: Math.floor(Math.random() * 40 + 60), // Da 60 a 100
-        totalTrades: Math.floor(Math.random() * 500) + 12,
-        winRate: `${Math.floor(Math.random() * 40 + 30)}%`
-    });
-});
+
 
 // ==========================================================
 // 📡 MOTORE WSS: LIVE TAPE CON SMART QUEUE (Zero Perdite)
@@ -2241,9 +2230,13 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         }
 
         // Recupero Dati dalla Cache Base (Redis)
-        let datiIniziali = null;
-        const cachedScan = await redis.get(`scan_${cacheKey}`);
-        const fallbackScan = await redis.get(`scan_${tokenMint}_en`);
+        // ⚡ Lettura parallela da Redis (dimezza il ping verso Upstash)
+        const [cachedScan, fallbackScan, cachedLab] = await Promise.all([
+            redis.get(`scan_${cacheKey}`),
+            redis.get(`scan_${tokenMint}_en`),
+            redis.get(`lab_${cacheKey}`)
+        ]);
+        let datiIniziali = cachedScan ? cachedScan.data : (fallbackScan ? fallbackScan.data : null);
         
         if (cachedScan) {
             datiIniziali = cachedScan.data;
@@ -2307,7 +2300,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
         }
 
         // ⚡ RECUPERO ISTANTANEO DA REDIS (ANTI-CRASH ESTENSIONE A 0ms)
-        const cachedLab = await redis.get(`lab_${cacheKey}`);
+        
         if (cachedLab) {
             console.log(`⚡ REDIS LAB CACHE HIT [${lingua.toUpperCase()}]: Recupero Verdetto AI immediato per ${tokenMint}`);
             cachedLab.data.scansLeft = authStatus.scansLeft; 
@@ -2504,34 +2497,24 @@ JSON FORMAT:
         let aiResult = {};
 
         try {
-            if (!apiKey) throw new Error("API Key mancante nel .env");
-
-            let data = await chiamaOpenRouter(primaryModel);
-
-            if (data.error) {
-                console.log(`⚠️ Modello ${primaryModel} in sovraccarico (${data.error.message}). Passo al fallback: ${fallbackModel}...`);
-                data = await chiamaOpenRouter(fallbackModel);
-            }
-
-            if (data.error) throw new Error(`OpenRouter Error: ${data.error.message}`);
-            if (!data.choices || !data.choices[0]) throw new Error("Risposta IA vuota o malformata.");
-
-            let rawText = data.choices[0].message.content;
-            
-            let cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-            cleanText = cleanText.replace(/```json/gi, '').replace(/```/g, '').trim();
-            
-            const startIdx = cleanText.indexOf('{');
-            const endIdx = cleanText.lastIndexOf('}');
-            
-            if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-                cleanText = cleanText.substring(startIdx, endIdx + 1);
+            // ⚡ TURBO 1: Prova prima Groq (Llama-3.3-70B risponde in ~400ms invece dei 6s di DeepSeek!)
+            const groqFastRes = await interrogaAgente("GiudiceSupremo", promptLaboratorio);
+            if (groqFastRes && !groqFastRes.errore && groqFastRes.verdetto_finale) {
+                aiResult = groqFastRes;
             } else {
-                throw new Error(`JSON non trovato nel testo.`);
+                // ⚡ TURBO 2: Se Groq è saturo, usa OpenRouter (GPT-4o-mini è 4x più veloce di DeepSeek)
+                if (!apiKey) throw new Error("API Key mancante nel .env");
+                let data = await chiamaOpenRouter("openai/gpt-4o-mini");
+                if (data.error) data = await chiamaOpenRouter(primaryModel);
+                if (data.error || !data.choices?.[0]) throw new Error("OpenRouter Fallback");
+
+                let rawText = data.choices[0].message.content;
+                let cleanText = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/gi, '').replace(/```/g, '').trim();
+                const startIdx = cleanText.indexOf('{');
+                const endIdx = cleanText.lastIndexOf('}');
+                if (startIdx !== -1 && endIdx !== -1) cleanText = cleanText.substring(startIdx, endIdx + 1);
+                aiResult = JSON.parse(cleanText);
             }
-
-            aiResult = JSON.parse(cleanText);
-
         } catch (erroreAI) {
             console.log(`🛡️ Scudo Anti-Crash Laboratorio attivato: ${erroreAI.message}`);
             
@@ -3052,8 +3035,8 @@ function avviaAscoltoBersaglio(walletAddress) {
                     }
                 }
             } catch (e) {}
-        }, 2500); 
-    }, "confirmed");
+        }, 400); 
+    }, "processed");
 }
 // 📡 ORACOLO DEI PREZZI STEALTH (Bypassa Cloudflare Anti-Bot)
 const PUMP_PROGRAM_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfX91R3KzXFzH9g5cWg");
@@ -3123,6 +3106,40 @@ async function ottieniPrezzoToken(rawMintOrPair) {
     } catch (e) {
         return 15000;
     }
+}
+// 🧮 FORMULA MATEMATICA "SQHK48 SCALP TRIGGER" (Secondi Bundler + Impatto Riserva Curva)
+function valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, bundledPct, orderFlowData) {
+    const ageSeconds = Math.round((parseFloat(tokenAgeMinutes) || 0) * 60);
+    const cState = curveStateMemory.get(tokenMint) || { curvePct: 15, realSolInPool: 10 };
+    const virtualSolReserves = 30 + parseFloat(cState.realSolInPool || 10);
+
+    const buyPressure = parseFloat(orderFlowData?.buyPressure || 50) / 100;
+    const totalVolSol = parseFloat(orderFlowData?.volumeTotaleRecente || 0);
+    const netSolInflow = totalVolSol * (2 * buyPressure - 1); //BuyVol - SellVol
+
+    // Formula d'impatto sulla costante di prodotto della curva Pump.fun
+    const curveImpulsePct = (netSolInflow / virtualSolReserves) * 100;
+
+    // 1. FINESTRA "BUNDLER SECOND-WAVE" (Tra 14s e 180s dal lancio, o curva tra 12% e 68%)
+    const inGoldenTimeWindow = (ageSeconds >= 14 && ageSeconds <= 180) || (cState.curvePct >= 12 && cState.curvePct <= 68);
+    // 2. NESSUN DUMP DEL BUNDLER IN CORSO (Buy Pressure >= 62% e Impulso Curva >= 3.5%)
+    const hasMathematicalImpulse = (buyPressure >= 0.62 && curveImpulsePct >= 3.5);
+
+    if (inGoldenTimeWindow && hasMathematicalImpulse) {
+        return {
+            triggered: true,
+            impulsePct: curveImpulsePct.toFixed(1),
+            optimalHoldSec: 14, // Uscita chirurgica a 14 secondi stile SQHK48
+            optimalTpPct: 11.5, // Target rapido prima del ritracciamento
+            label: `[SQHK48_MATH_TRIGGER] Curve Impulse +${curveImpulsePct.toFixed(1)}% at t=${ageSeconds}s (Curve: ${cState.curvePct}%). High-probability 14s scalp window.`
+        };
+    }
+
+    return {
+        triggered: false,
+        impulsePct: curveImpulsePct.toFixed(1),
+        label: `[SQHK48_MATH] Curve Impulse: ${curveImpulsePct.toFixed(1)}% | Curve Fill: ${cState.curvePct}%`
+    };
 }
 async function valutaEsplosivitaToken(tokenMint, walletTarget) {
     try {
@@ -3243,7 +3260,7 @@ async function chiudiPosizioneStalker(tokenMint, mcEntrata) {
 // =====================================================================
 // Inserisci qui i wallet dei migliori trader che hai trovato
 const BALENE_AUTONOME = [
-    // "38HGfTmj2y3Q3PPWpsfrMVHxdwvJJQvDP1HuT5DyjHQV",
+    "SQHK48QT8SY1vYN44iXji7wQ6CJek8AjfX6mBp47TZq"
     // "EZzygUEZGLDgLG3JLapmpcEGTeJiEnXC8tVPXYXV63JG", // Il bot HFT
     // "93kk52HkrH5pHEPyb2KM62mP4cWA1N5DaSgBgDzA2uT9"  // L'altro tuo target
 ];
