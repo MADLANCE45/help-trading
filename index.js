@@ -4346,15 +4346,6 @@ app.post('/api/poker/evaluate', (req, res) => {
         return res.status(500).json({ success: false, error: "MATH ENGINE ERROR" });
     }
 });
-// 📸 CATTURA ISTANTANEA DEL TAVOLO DA GIOCO PER POKER AUTO-VISION
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "CAPTURE_POKER_TABLE") {
-        chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 65 }, (dataUrl) => {
-            sendResponse({ success: Boolean(dataUrl), imageBase64: dataUrl || null });
-        });
-        return true; // Mantiene aperto il canale asincrono
-    }
-});
 // =====================================================================
 // 📸 MOTORE POKER AUTO-VISION (Legge il tavolo da solo + Calcolo Matematico)
 // =====================================================================
