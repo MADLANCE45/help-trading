@@ -870,55 +870,179 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnBuy = document.getElementById('btn-manual-buy');
         const btnPanic = document.getElementById('btn-panic-burn');
         const btnDemoToggle = document.getElementById('btn-toggle-demo');
+        const content = document.getElementById('content-area'); // Serve per rimpiazzare l'AWAITING MARKET DATA
 
-        if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') return;
-
-        // Timer che mantiene sincronizzati in tempo reale 10S ORDER FLOW e SPEED dell'Auto-Trader
+        // 1. TIMER PER IL 10S ORDER FLOW (Gira sempre in background se c'è un token attivo)
         if (window.parasiteTelemetryTimer) clearInterval(window.parasiteTelemetryTimer);
-        window.parasiteTelemetryTimer = setInterval(() => {
-            if (typeof orderFlowWindow !== 'undefined') {
-                const tenSecAgo = Date.now() - 10000;
-                orderFlowWindow = orderFlowWindow.filter(t => t._ts > tenSecAgo);
-                let bVol = 0, sVol = 0;
-                orderFlowWindow.forEach(t => {
-                    if (t.tipo && t.tipo.includes("BUY")) bVol += parseFloat(t.sol) || 0;
-                    else sVol += parseFloat(t.sol) || 0;
-                });
-                const tot = bVol + sVol;
-                const bp = tot > 0 ? (bVol / tot) * 100 : 50;
-                window.liveMetrics = { history: window.liveMetrics?.history || [], buyVol: bVol, sellVol: sVol, buyPressure: bp };
+        
+        if (tokenMint && tokenMint !== 'board' && tokenMint !== 'create') {
+            window.parasiteTelemetryTimer = setInterval(() => {
+                if (typeof orderFlowWindow !== 'undefined') {
+                    const tenSecAgo = Date.now() - 10000;
+                    orderFlowWindow = orderFlowWindow.filter(t => t._ts > tenSecAgo);
+                    let bVol = 0, sVol = 0;
+                    orderFlowWindow.forEach(t => {
+                        if (t.tipo && t.tipo.includes("BUY")) bVol += parseFloat(t.sol) || 0;
+                        else sVol += parseFloat(t.sol) || 0;
+                    });
+                    const tot = bVol + sVol;
+                    const bp = tot > 0 ? (bVol / tot) * 100 : 50;
+                    window.liveMetrics = { history: window.liveMetrics?.history || [], buyVol: bVol, sellVol: sVol, buyPressure: bp };
 
-                // Aggiorna la barra 10S ORDER FLOW anche quando non arrivano nuovi trade
-                const barGreen = document.getElementById('flow-bar-green');
-                const pctText = document.getElementById('flow-percentage');
-                const volBuyEl = document.getElementById('flow-vol-buy');
-                const volSellEl = document.getElementById('flow-vol-sell');
-                if (barGreen && pctText && volBuyEl && volSellEl) {
-                    barGreen.style.width = `${bp}%`;
-                    pctText.innerText = tot > 0 ? `${bp.toFixed(1)}% BUY` : `IDLE (0 TX)`;
-                    pctText.style.color = tot === 0 ? "#888" : (bp >= 50 ? "#00e676" : "#ff4d4d");
-                    volBuyEl.innerText = `${bVol.toFixed(1)} SOL`;
-                    volSellEl.innerText = `${sVol.toFixed(1)} SOL`;
+                    const barGreen = document.getElementById('flow-bar-green');
+                    const pctText = document.getElementById('flow-percentage');
+                    const volBuyEl = document.getElementById('flow-vol-buy');
+                    const volSellEl = document.getElementById('flow-vol-sell');
+                    
+                    if (barGreen && pctText && volBuyEl && volSellEl) {
+                        barGreen.style.width = `${bp}%`;
+                        pctText.innerText = tot > 0 ? `${bp.toFixed(1)}% BUY` : `IDLE (0 TX)`;
+                        pctText.style.color = tot === 0 ? "#888" : (bp >= 50 ? "#00e676" : "#ff4d4d");
+                        volBuyEl.innerText = `${bVol.toFixed(1)} SOL`;
+                        volSellEl.innerText = `${sVol.toFixed(1)} SOL`;
+                    }
+
+                    const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
+                    if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL`;
+                    if (vampEl) {
+                        vampEl.innerText = isVamp ? "BLEEDING" : "CLEAN";
+                        vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
+                    }
                 }
+            }, 1000);
+        }
 
-                const isVamp = (sVol > bVol * 1.5 && sVol >= 0.5);
-                if (speedEl) speedEl.innerText = `${bVol.toFixed(1)} SOL`;
-                if (vampEl) {
-                    vampEl.innerText = isVamp ? "BLEEDING" : "CLEAN";
-                    vampEl.style.color = isVamp ? "#ff4d4d" : "#00e676";
-                }
-            }
-        }, 1000);
-
+        // 2. GESTIONE AUTOTRADER E POKER AI IN BASE ALLE IMPOSTAZIONI DELL'UTENTE
         chrome.storage.local.get(['userConfig'], async (resObj) => {
             const cfg = resObj.userConfig || {};
+            const isPokerActive = cfg.pokerAiEnabled === true;
 
-            // MOSTRA O NASCONDE IL BANNER NELLA HOME IN BASE ALLA LINGUETTA NELLE IMPOSTAZIONI
+            // =====================================================================
+            // 🛑 GESTIONE SCHERMATA "AWAITING MARKET DATA" / POKER AUTO-VISION
+            // Se non c'è un token crypto valido, mostriamo il Poker o la schermata d'attesa
+            // =====================================================================
+            if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                const renderPokerAutoScanner = () => {
+                    content.innerHTML = `
+                        <div style="background: #0b0d13; border: 1px solid #00aaff; border-top: 3px solid #00aaff; border-radius: 8px; padding: 14px; font-family: monospace; box-shadow: 0 8px 25px rgba(0,0,0,0.8);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <span style="color:#00aaff; font-weight:900; font-size:0.8em; letter-spacing:1px;">[SYS.GTO] AUTO-VISION POKER AI</span>
+                                <span id="poker-game-type-badge" style="background:rgba(0,170,255,0.15); color:#00aaff; padding:2px 6px; border-radius:4px; font-size:0.65em; font-weight:bold;">AUTO-DETECT</span>
+                            </div>
+
+                            <button id="btn-auto-scan-poker" style="width:100%; background: linear-gradient(90deg, #00aaff, #00ffcc); color:#000; border:none; padding:12px; border-radius:6px; font-family:monospace; font-size:0.85em; font-weight:900; cursor:pointer; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);">
+                                SCAN TABLE NOW (AUTO-READ)
+                            </button>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+                                <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
+                                    <div style="font-size:0.6em; color:#666; margin-bottom:3px;">LE TUE CARTE</div>
+                                    <b id="auto-my-cards" style="color:#00ffcc; font-size:0.85em;">--</b>
+                                </div>
+                                <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
+                                    <div style="font-size:0.6em; color:#666; margin-bottom:3px;">TAVOLO / BANCO</div>
+                                    <b id="auto-table-cards" style="color:#e4e4e7; font-size:0.85em;">--</b>
+                                </div>
+                            </div>
+
+                            <div id="auto-poker-verdict-box" style="background:#050608; border:2px solid #2d3142; padding:12px; border-radius:6px; text-align:center; margin-bottom:8px;">
+                                <div style="font-size:0.65em; color:#888; margin-bottom:4px;">MOSSA MATEMATICA CONSIGLIATA</div>
+                                <div id="auto-poker-action" style="font-size:1.05em; font-weight:900; color:#ccc; letter-spacing:0.5px;">
+                                    APRI IL TAVOLO E PREMI SCAN
+                                </div>
+                                <div id="auto-poker-winpct" style="font-size:0.8em; color:#00ffcc; font-weight:bold; margin-top:4px;"></div>
+                            </div>
+
+                            <div id="auto-poker-reason" style="font-size:0.75em; color:#aaa; text-align:center; line-height:1.4;">
+                                Il bot fotografa il tavolo, riconosce da solo le carte e calcola se conviene giocare o passare.
+                            </div>
+                        </div>
+                    `;
+
+                    const btnScan = document.getElementById('btn-auto-scan-poker');
+                    if (btnScan) {
+                        btnScan.onclick = () => {
+                            const actionEl = document.getElementById('auto-poker-action');
+                            const boxEl = document.getElementById('auto-poker-verdict-box');
+                            const reasonEl = document.getElementById('auto-poker-reason');
+                            btnScan.innerText = "LETTURA CARTE IN CORSO...";
+                            btnScan.style.opacity = "0.7";
+
+                            const elaboraScreenshot = async (dataUrl) => {
+                                if (!dataUrl) {
+                                    btnScan.innerText = "SCAN TABLE NOW (AUTO-READ)";
+                                    btnScan.style.opacity = "1";
+                                    if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
+                                    return;
+                                }
+                                try {
+                                    const r = await fetch("https://help-trading-production.up.railway.app/api/poker/auto-vision", {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ imageBase64: dataUrl })
+                                    });
+                                    const d = await r.json();
+                                    if (!d.success) {
+                                        if (actionEl) { actionEl.innerText = "CARTE NON TROVATE"; actionEl.style.color = "#ffaa00"; }
+                                        if (reasonEl) reasonEl.innerText = d.error;
+                                    } else {
+                                        document.getElementById('poker-game-type-badge').innerText = d.gameDetected;
+                                        document.getElementById('auto-my-cards').innerText = d.myCardsStr;
+                                        document.getElementById('auto-table-cards').innerText = d.tableCardsStr;
+                                        document.getElementById('auto-poker-winpct').innerText = `VITTORIA STIMATA: ${d.winPct}`;
+                                        if (actionEl) {
+                                            actionEl.innerText = d.command;
+                                            actionEl.style.color = d.color;
+                                        }
+                                        if (boxEl) boxEl.style.borderColor = d.color;
+                                        if (reasonEl) reasonEl.innerText = d.reason;
+                                    }
+                                } catch (err) {
+                                    if (actionEl) actionEl.innerText = "ERRORE CONNESSIONE SERVER";
+                                } finally {
+                                    btnScan.innerText = "SCAN TABLE NOW (AUTO-READ)";
+                                    btnScan.style.opacity = "1";
+                                }
+                            };
+
+                            if (chrome.tabs && chrome.tabs.captureVisibleTab) {
+                                chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 65 }, elaboraScreenshot);
+                            } else {
+                                chrome.runtime.sendMessage({ action: "CAPTURE_POKER_TABLE" }, (resp) => {
+                                    elaboraScreenshot(resp?.imageBase64);
+                                });
+                            }
+                        };
+                    }
+                };
+
+                if (isPokerActive) {
+                    renderPokerAutoScanner();
+                } else {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 30px 15px; color: #666; font-family: monospace;">
+                            <div style="font-size: 0.95em; color: #ccc; font-weight: bold; margin-bottom: 8px;">[AWAITING MARKET DATA]</div>
+                            <p style="font-size: 0.8em; line-height: 1.5; margin-bottom: 16px;">Navigate to any token on <b>Pump.fun</b> or <b>DexScreener</b> to activate the Crypto Radar.</p>
+                            <button id="btn-quick-enable-poker" style="background: rgba(0, 170, 255, 0.15); color: #00aaff; border: 1px solid #00aaff; padding: 8px 14px; border-radius: 4px; font-family: monospace; font-size: 0.75em; font-weight: 900; cursor: pointer; text-transform: uppercase;">
+                                OPEN POKER AI SCANNER HERE
+                            </button>
+                        </div>`;
+                    const btnQuickPoker = document.getElementById('btn-quick-enable-poker');
+                    if (btnQuickPoker) btnQuickPoker.onclick = renderPokerAutoScanner;
+                }
+                
+                return; // Esce dalla funzione, l'utente non è su un grafico crypto
+            }
+
+            // =====================================================================
+            // 🚀 GESTIONE AUTOTRADER SE L'UTENTE E' SU UN GRAFICO CRYPTO
+            // =====================================================================
             if (!cfg.autoTradeEnabled) {
                 if (bannerEl) bannerEl.style.display = "none";
                 if (window.demoPollTimer) clearInterval(window.demoPollTimer);
                 return;
             }
+            
             if (bannerEl) bannerEl.style.display = "block";
 
             let isDemoForced = cfg.demoModeEnabled !== false;
@@ -940,6 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnDemoToggle.style.background = "rgba(255, 0, 127, 0.15)";
                 }
             };
+            
             aggiornaBottoneDemoUI();
 
             if (btnDemoToggle) {

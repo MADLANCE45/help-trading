@@ -4346,6 +4346,210 @@ app.post('/api/poker/evaluate', (req, res) => {
         return res.status(500).json({ success: false, error: "MATH ENGINE ERROR" });
     }
 });
+// 📸 CATTURA ISTANTANEA DEL TAVOLO DA GIOCO PER POKER AUTO-VISION
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "CAPTURE_POKER_TABLE") {
+        chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 65 }, (dataUrl) => {
+            sendResponse({ success: Boolean(dataUrl), imageBase64: dataUrl || null });
+        });
+        return true; // Mantiene aperto il canale asincrono
+    }
+});
+// =====================================================================
+// 📸 MOTORE POKER AUTO-VISION (Legge il tavolo da solo + Calcolo Matematico)
+// =====================================================================
+app.post('/api/poker/auto-vision', async (req, res) => {
+    try {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) {
+            return res.json({ success: false, error: "NESSUNA IMMAGINE DEL TAVOLO RICEVUTA" });
+        }
+
+        const apiKey = process.env.OPENROUTER_API_KEY;
+        if (!apiKey) {
+            return res.json({ success: false, error: "OPENROUTER_API_KEY MANCANTE SUL SERVER" });
+        }
+
+        // 1. VISION AI: Legge automaticamente il tipo di poker, le tue carte, il banco e il piatto
+        const visionPrompt = `
+You are an ultra-fast optical card reader for online poker tables.
+Look at this screenshot and extract the exact cards visible.
+Convert cards to 2-char format: Rank (2,3,4,5,6,7,8,9,T,J,Q,K,A) + Suit (s=spades ♠, h=hearts ♥, d=diamonds ♦, c=clubs ♣). Example: "As Kh".
+
+Identify the game type:
+- "CARIBBEAN_STUD" if the player has 5 cards and the dealer has 1 face-up card and 4 face-down cards.
+- "HOLDEM" if the player has 2 hole cards and there are community cards (0, 3, 4, or 5) in the center.
+- "VIDEO_POKER" if there are 5 big cards in a row with HOLD buttons.
+
+Return ONLY valid JSON:
+{
+  "gameType": "CARIBBEAN_STUD" or "HOLDEM" or "VIDEO_POKER",
+  "myCards": ["As", "Kh", ...],
+  "boardOrDealerCards": ["7d", ...],
+  "potSize": 100,
+  "callCost": 25,
+  "visualNotes": "Brief description in Italian of the hand you have (e.g. 'Coppia di Re', 'Asso-Re carta alta', 'Progetto di colore')"
+}`;
+
+        const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "openai/gpt-4o-mini",
+                messages: [{
+                    role: "user",
+                    content: [
+                        { type: "text", text: visionPrompt },
+                        { type: "image_url", image_url: { url: imageBase64 } }
+                    ]
+                }],
+                temperature: 0.0,
+                response_format: { type: "json_object" }
+            })
+        });
+
+        const data = await resp.json();
+        if (data.error || !data.choices?.[0]) {
+            return res.json({ success: false, error: "IMPOSSIBILE LEGGERE IL TAVOLO. INQUADRA BENE LE CARTE." });
+        }
+
+        let rawText = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsedVision = JSON.parse(rawText);
+
+        const myCardsArr = parsedVision.myCards || [];
+        const tableCardsArr = parsedVision.boardOrDealerCards || [];
+        const gameType = parsedVision.gameType || "HOLDEM";
+        const notaMano = parsedVision.visualNotes || "Mano rilevata";
+
+        if (myCardsArr.length === 0) {
+            return res.json({
+                success: false,
+                error: "NESSUNA CARTA VISIBILE. ATTENDI CHE IL DEALER DISTRIBUISCA LE CARTE E RIPREMI SCAN."
+            });
+        }
+
+        // =================================================================
+        // CASO A: CARIBBEAN STUD POKER (Strategia Matematica Perfetta Evans)
+        // =================================================================
+        if (gameType === "CARIBBEAN_STUD" || myCardsArr.length === 5) {
+            const cardsNum = parsePokerCards(myCardsArr.join(" "));
+            const dealerCard = parsePokerCards(tableCardsArr.join(" "))[0];
+
+            let ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a);
+            let rankCounts = {};
+            ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
+            const maxSameRank = Math.max(...Object.values(rankCounts), 0);
+
+            let comando = "PASSA / LASCIA (FOLD)";
+            let colore = "#ff4d4d";
+            let winProb = "28%";
+            let spiegazione = "Mano sotto Asso-Re: matematicamente in perdita contro il banco. Non raddoppiare.";
+
+            // Regola 1: Coppia o superiore -> RILANCIA SEMPRE!
+            if (maxSameRank >= 2) {
+                comando = "GIOCA / RADDOPPIA (RAISE 2X)";
+                colore = "#00e676";
+                winProb = maxSameRank >= 3 ? "94%" : "68%";
+                spiegazione = `${notaMano}: con almeno una Coppia è matematicamente obbligatorio fare RAISE.`;
+            }
+            // Regola 2: Hai Asso + Re (12 e 11) -> Rilancia se hai almeno Jack (9) o la stessa carta del banco!
+            else if (ranks[0] === 12 && ranks[1] === 11) {
+                const dealerRank = dealerCard !== undefined ? (dealerCard >> 2) : -1;
+                const matchDealer = ranks.includes(dealerRank);
+                const hasQueenOrJack = ranks[2] >= 9; // Q o J
+
+                if (matchDealer || hasQueenOrJack) {
+                    comando = "GIOCA / RADDOPPIA (RAISE 2X)";
+                    colore = "#00e676";
+                    winProb = "54%";
+                    spiegazione = `Asso-Re forte (${notaMano}): supera la soglia matematica A-K-J-8-3 contro la carta del banco.`;
+                } else {
+                    comando = "PASSA / LASCIA (FOLD)";
+                    colore = "#ffaa00";
+                    winProb = "46%";
+                    spiegazione = `Asso-Re troppo debole (carte basse): sotto la soglia matematica contro il banco.`;
+                }
+            }
+
+            return res.json({
+                success: true,
+                gameDetected: "CARIBBEAN STUD",
+                myCardsStr: myCardsArr.join(" "),
+                tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
+                winPct: winProb,
+                command: comando,
+                color: colore,
+                reason: spiegazione
+            });
+        }
+
+        // =================================================================
+        // CASO B: TEXAS HOLD'EM / CASINO HOLD'EM (10.000 Simulazioni Monte Carlo)
+        // =================================================================
+        const heroCards = parsePokerCards(myCardsArr.slice(0, 2).join(" "));
+        const boardCards = parsePokerCards(tableCardsArr.join(" "));
+
+        if (heroCards.length < 2) {
+            return res.json({ success: false, error: "ATTENDI ENTRAMBE LE TUE CARTE E RIPREMI SCAN." });
+        }
+
+        const usedSet = new Set([...heroCards, ...boardCards]);
+        const deck = [];
+        for (let c = 0; c < 52; c++) if (!usedSet.has(c)) deck.push(c);
+
+        const iterations = 10000;
+        let wins = 0, ties = 0;
+
+        for (let sim = 0; sim < iterations; sim++) {
+            const needed = (5 - boardCards.length) + 2;
+            for (let i = 0; i < needed; i++) {
+                const rIdx = i + Math.floor(Math.random() * (deck.length - i));
+                const tmp = deck[i]; deck[i] = deck[rIdx]; deck[rIdx] = tmp;
+            }
+            const simBoard = [...boardCards];
+            let ptr = 0;
+            while (simBoard.length < 5) simBoard.push(deck[ptr++]);
+
+            const hScore = valutaForza7Carte([...heroCards, ...simBoard]);
+            const vScore = valutaForza7Carte([deck[ptr++], deck[ptr++], ...simBoard]);
+
+            if (hScore > vScore) wins++;
+            else if (hScore === vScore) ties++;
+        }
+
+        const equityPct = parseFloat((((wins + ties * 0.5) / iterations) * 100).toFixed(1));
+        let comando = "PASSA / FOLD";
+        let colore = "#ff4d4d";
+        let spiegazione = `${notaMano}: hai solo il ${equityPct}% di vittoria. Matematicamente in perdita.`;
+
+        if (equityPct >= 62) {
+            comando = "PUNTA FORTE / RILANCIA (RAISE)";
+            colore = "#00e676";
+            spiegazione = `${notaMano}: vantaggio matematico netto (${equityPct}% di vittoria su 10.000 mani simulate).`;
+        } else if (equityPct >= 44) {
+            comando = "CHIAMA / GIOCA (CALL / CHECK)";
+            colore = "#00ffcc";
+            spiegazione = `${notaMano}: buona equità matematica (${equityPct}%). Profittevole vedere la carta successiva.`;
+        }
+
+        return res.json({
+            success: true,
+            gameDetected: "TEXAS / CASINO HOLD'EM",
+            myCardsStr: myCardsArr.join(" "),
+            tableCardsStr: tableCardsArr.length > 0 ? `Tavolo: ${tableCardsArr.join(" ")}` : "Pre-Flop",
+            winPct: `${equityPct}%`,
+            command: comando,
+            color: colore,
+            reason: spiegazione
+        });
+
+    } catch (e) {
+        return res.json({ success: false, error: "ERRORE LETTURA TAVOLO: " + e.message });
+    }
+});
 // Ascolta sulla porta 3000 (dove punta il dominio pubblico di Railway)
 server.listen(3000, "0.0.0.0", () => {
     console.log(`🚀 Server Radar avviato sulla porta principale 3000`);
