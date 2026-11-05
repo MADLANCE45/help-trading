@@ -4169,6 +4169,183 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
         return res.status(500).json({ success: false, error: e.message });
     }
 });
+// =====================================================================
+// ♠️ MODULO ISOLATO: GTO & MONTE CARLO POKER ENGINE (Zero-Lag 10k Sims)
+// =====================================================================
+const POKER_RANKS = "23456789TJQKA";
+const POKER_SUITS = "cdhs";
+
+function parsePokerCards(str) {
+    if (!str || typeof str !== "string") return [];
+    const tokens = str.trim().replace(/10/g, "T").split(/[\s,]+/).filter(Boolean);
+    const parsed = [];
+    for (const tk of tokens) {
+        if (tk.length < 2) continue;
+        const r = POKER_RANKS.indexOf(tk[0].toUpperCase());
+        const s = POKER_SUITS.indexOf(tk[1].toLowerCase());
+        if (r !== -1 && s !== -1) parsed.push(r * 4 + s);
+    }
+    return parsed;
+}
+
+// Valutatore rapido a 7 carte (High Card -> Straight Flush) per Monte Carlo ad alta velocità
+function valutaForza7Carte(cards7) {
+    let rankCounts = new Array(13).fill(0);
+    let suitCounts = [0, 0, 0, 0];
+    let suitMask = [0, 0, 0, 0];
+    let rankMask = 0;
+
+    for (let i = 0; i < 7; i++) {
+        const c = cards7[i];
+        const r = c >> 2;
+        const s = c & 3;
+        rankCounts[r]++;
+        suitCounts[s]++;
+        suitMask[s] |= (1 << r);
+        rankMask |= (1 << r);
+    }
+
+    const trovaScala = (mask) => {
+        const m = (mask & (1 << 12)) ? (mask | 1) << 1 : mask << 1;
+        for (let r = 12; r >= 3; r--) {
+            if (((mask >> (r - 3)) & 0x1F) === 0x1F) return r + 1;
+        }
+        if ((mask & 0x100F) === 0x100F) return 4; // A-2-3-4-5 Wheel
+        return -1;
+    };
+
+    // 1. Controllo Colore & Scala Colore
+    let flushSuit = -1;
+    for (let s = 0; s < 4; s++) {
+        if (suitCounts[s] >= 5) { flushSuit = s; break; }
+    }
+    if (flushSuit !== -1) {
+        const sfHigh = trovaScala(suitMask[flushSuit]);
+        if (sfHigh !== -1) return 8000000 + sfHigh;
+    }
+
+    // 2. Classificazione Multipli (Poker, Full, Tris, Doppia, Coppia)
+    let quads = -1, trips = -1, pair1 = -1, pair2 = -1;
+    for (let r = 12; r >= 0; r--) {
+        const cnt = rankCounts[r];
+        if (cnt === 4) quads = r;
+        else if (cnt === 3) { if (trips === -1) trips = r; else if (pair1 === -1) pair1 = r; }
+        else if (cnt === 2) { if (pair1 === -1) pair1 = r; else if (pair2 === -1) pair2 = r; }
+    }
+
+    if (quads !== -1) return 7000000 + quads * 100;
+    if (trips !== -1 && pair1 !== -1) return 6000000 + trips * 100 + pair1;
+    if (flushSuit !== -1) return 5000000 + suitMask[flushSuit];
+
+    const stHigh = trovaScala(rankMask);
+    if (stHigh !== -1) return 4000000 + stHigh;
+    if (trips !== -1) return 3000000 + trips * 100;
+    if (pair1 !== -1 && pair2 !== -1) return 2000000 + pair1 * 100 + pair2;
+    if (pair1 !== -1) return 1000000 + pair1 * 100;
+
+    return rankMask;
+}
+
+app.post('/api/poker/evaluate', (req, res) => {
+    try {
+        const { hole = "", board = "", pot = 100, toCall = 25, villains = 1 } = req.body;
+        const heroCards = parsePokerCards(hole);
+        const boardCards = parsePokerCards(board);
+
+        if (heroCards.length !== 2) {
+            return res.json({ success: false, error: "ENTER 2 VALID HOLE CARDS (E.G. As Kh)" });
+        }
+
+        const usedSet = new Set([...heroCards, ...boardCards]);
+        if (usedSet.size !== heroCards.length + boardCards.length) {
+            return res.json({ success: false, error: "DUPLICATE CARD DETECTED" });
+        }
+
+        const deck = [];
+        for (let c = 0; c < 52; c++) {
+            if (!usedSet.has(c)) deck.push(c);
+        }
+
+        const numOpponents = Math.max(1, Math.min(8, parseInt(villains) || 1));
+        const iterations = 10000;
+        let wins = 0;
+        let ties = 0;
+
+        // Range Narrowing: se la puntata da coprire supera il 35% del piatto, gli avversari scartano mani spazzatura
+        const isHeavyBet = (toCall / Math.max(1, pot)) >= 0.35;
+
+        for (let sim = 0; sim < iterations; sim++) {
+            const neededCards = (5 - boardCards.length) + (numOpponents * 2);
+            // Partial Fisher-Yates shuffle solo per le carte necessarie
+            for (let i = 0; i < neededCards; i++) {
+                const randIdx = i + Math.floor(Math.random() * (deck.length - i));
+                const tmp = deck[i];
+                deck[i] = deck[randIdx];
+                deck[randIdx] = tmp;
+            }
+
+            const simBoard = [...boardCards];
+            let ptr = 0;
+            while (simBoard.length < 5) simBoard.push(deck[ptr++]);
+
+            const heroScore = valutaForza7Carte([...heroCards, ...simBoard]);
+            let heroBest = true;
+            let isTie = false;
+
+            for (let v = 0; v < numOpponents; v++) {
+                let vCard1 = deck[ptr++];
+                let vCard2 = deck[ptr++];
+
+                // Range Narrowing su bet pesante: se il villain ha 7-2 offsuit o carta alta < 9 senza coppia, pesca la carta successiva
+                if (isHeavyBet && (vCard1 >> 2) < 7 && (vCard2 >> 2) < 7 && (vCard1 >> 2) !== (vCard2 >> 2)) {
+                    vCard1 = deck[ptr % deck.length];
+                }
+
+                const vScore = valutaForza7Carte([vCard1, vCard2, ...simBoard]);
+                if (vScore > heroScore) { heroBest = false; break; }
+                else if (vScore === heroScore) { isTie = true; }
+            }
+
+            if (heroBest) {
+                if (isTie) ties += 1;
+                else wins += 1;
+            }
+        }
+
+        const equity = (wins + (ties * 0.5)) / iterations;
+        const equityPct = parseFloat((equity * 100).toFixed(1));
+        const potTotal = parseFloat(pot) || 0;
+        const callCost = parseFloat(toCall) || 0;
+
+        // Formula Pot Odds: Costo Call / (Pot Totale + Costo Call)
+        const potOdds = (potTotal + callCost) > 0 ? (callCost / (potTotal + callCost)) : 0;
+        const potOddsPct = parseFloat((potOdds * 100).toFixed(1));
+
+        // Valore Atteso (EV) = (Equity * (Pot + Call)) - Call
+        const evUsd = parseFloat(((equity * (potTotal + callCost)) - callCost).toFixed(2));
+        const edgePct = parseFloat((equityPct - potOddsPct).toFixed(1));
+
+        let action = "FOLD (-EV)";
+        if (callCost === 0) {
+            action = equityPct >= 58 ? "VALUE BET (+EV)" : "CHECK";
+        } else if (edgePct >= 14) {
+            action = "RAISE / aggressive (+EV)";
+        } else if (edgePct >= 0) {
+            action = "CALL (+EV)";
+        }
+
+        return res.json({
+            success: true,
+            equityPct,
+            potOddsPct,
+            evUsd,
+            edgePct,
+            action
+        });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: "MATH ENGINE ERROR" });
+    }
+});
 // Ascolta sulla porta 3000 (dove punta il dominio pubblico di Railway)
 server.listen(3000, "0.0.0.0", () => {
     console.log(`🚀 Server Radar avviato sulla porta principale 3000`);

@@ -1218,6 +1218,73 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 </div>
             </div>`;
+            const pokerBannerHTML = `
+            <div id="poker-ai-live-banner" style="display: none; background: #0b0d13; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #2d3142; border-top: 2px solid #00aaff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6); font-family: monospace;">
+                
+                <!-- HEADER -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="width: 6px; height: 6px; background: #00aaff; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #00aaff;"></span>
+                        <span style="font-size: 0.7em; color: #e4e4e7; font-weight: 900; letter-spacing: 1px;">[SYS.GTO] MONTE CARLO POKER ENGINE</span>
+                    </div>
+                    <span id="poker-ev-badge" style="background: rgba(0, 170, 255, 0.12); color: #00aaff; border: 1px solid #00aaff; padding: 1px 6px; border-radius: 3px; font-size: 0.62em; font-weight: 900;">
+                        READY (10K SIMS)
+                    </span>
+                </div>
+
+                <!-- INPUT RAPIDO STATO MANO (O POPOLATO DA OCR) -->
+                <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 6px; margin-bottom: 6px;">
+                    <div>
+                        <div style="font-size: 0.55em; color: #666; margin-bottom: 2px;">HOLE CARDS (E.G. As Kh)</div>
+                        <input type="text" id="poker-hole-cards" placeholder="As Kh" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #2d3142; color: #00ffcc; padding: 5px 6px; border-radius: 3px; font-family: monospace; font-size: 0.72em; font-weight: bold; text-transform: uppercase;">
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55em; color: #666; margin-bottom: 2px;">BOARD (FLOP / TURN / RIVER)</div>
+                        <input type="text" id="poker-board-cards" placeholder="Qs Jd 2c" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #2d3142; color: #e4e4e7; padding: 5px 6px; border-radius: 3px; font-family: monospace; font-size: 0.72em; font-weight: bold; text-transform: uppercase;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 6px; margin-bottom: 8px;">
+                    <div>
+                        <div style="font-size: 0.55em; color: #666; margin-bottom: 2px;">TOTAL POT ($)</div>
+                        <input type="number" id="poker-pot-size" placeholder="100" value="100" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #2d3142; color: #fff; padding: 5px 6px; border-radius: 3px; font-family: monospace; font-size: 0.72em;">
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55em; color: #666; margin-bottom: 2px;">TO CALL ($)</div>
+                        <input type="number" id="poker-call-size" placeholder="25" value="25" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #2d3142; color: #ffaa00; padding: 5px 6px; border-radius: 3px; font-family: monospace; font-size: 0.72em;">
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55em; color: #666; margin-bottom: 2px;">VILLAINS</div>
+                        <input type="number" id="poker-opponents" min="1" max="8" value="1" style="width: 100%; box-sizing: border-box; background: #050608; border: 1px solid #2d3142; color: #ccc; padding: 5px 6px; border-radius: 3px; font-family: monospace; font-size: 0.72em; text-align: center;">
+                    </div>
+                </div>
+
+                <!-- TELEMETRY 3 COLONNE: EQUITY / POT ODDS / EV -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666;">WIN EQUITY</div>
+                        <b id="poker-equity-val" style="font-size: 0.75em; color: #00ffcc;">--%</b>
+                    </div>
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666;">POT ODDS REQ</div>
+                        <b id="poker-potodds-val" style="font-size: 0.75em; color: #ffaa00;">--%</b>
+                    </div>
+                    <div style="background: #11131c; border: 1px solid #1f2230; border-radius: 4px; padding: 5px; text-align: center;">
+                        <div style="font-size: 0.55em; color: #666;">EXPECTED EV</div>
+                        <b id="poker-ev-val" style="font-size: 0.75em; color: #e4e4e7;">$0.00</b>
+                    </div>
+                </div>
+
+                <!-- DECISIONE GTO + PULSANTE CALCOLO -->
+                <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; align-items: center;">
+                    <div id="poker-decision-box" style="background: #050608; border: 1px solid #1a1c29; border-left: 3px solid #00aaff; padding: 6px 8px; border-radius: 4px; font-size: 0.7em; color: #ccc; font-weight: 900; text-align: center;">
+                        AWAITING HAND INPUT
+                    </div>
+                    <button id="btn-calc-poker" style="background: rgba(0, 170, 255, 0.18); color: #00aaff; border: 1px solid #00aaff; padding: 6px 0; border-radius: 4px; font-weight: 900; font-family: monospace; font-size: 0.7em; cursor: pointer; text-transform: uppercase;">
+                        SOLVE GTO
+                    </button>
+                </div>
+            </div>`;
         const copilotHTML = `
             <div style="background: #0f1118; padding: 14px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2d3142; position: relative; overflow: hidden;">
                 <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2;">
@@ -1426,6 +1493,23 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         </div>
+                        <!-- MODULO OPZIONALE: POKER AI GTO ENGINE -->
+                        <div style="margin-bottom: 15px; border: 1px solid #2d3142; border-left: 3px solid #00aaff; border-radius: 8px; padding: 12px; background: #11121a;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <div>
+                                    <strong style="color: #00aaff; font-size: 0.78em; text-transform: uppercase; font-family: monospace; letter-spacing: 0.5px;">[SYS.GTO] POKER AI SOLVER</strong>
+                                    <div style="font-size: 0.6em; color: #888; font-family: monospace; margin-top: 2px;">MONTE CARLO EQUITY + POT ODDS OVERLAY</div>
+                                </div>
+                                <label style="position: relative; display: inline-block; width: 40px; height: 20px;">
+                                    <input type="checkbox" id="user-poker-ai-toggle" style="opacity: 0; width: 0; height: 0;">
+                                    <span id="poker-ai-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 20px;"></span>
+                                    <span id="poker-ai-knob" style="position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                                </label>
+                            </div>
+                            <div style="font-size: 0.63em; color: #666; line-height: 1.3; font-family: monospace;">
+                                Isolated module. Keeps 0% memory footprint on crypto DEXs when disabled.
+                            </div>
+                        </div>
 
                         <!-- SCAN HISTORY -->
                         <div style="background: #0a0c10; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
@@ -1459,6 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                                 <button id="btn-ricarica" style="background: #161821; border: 1px solid #2d3142; color: #00ffcc; font-weight: bold; padding: 0 12px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 0.7em; text-transform: uppercase; box-sizing: border-box; display: flex; align-items: center; font-family: monospace;">Reload</button>
                             </div>
+                            ${pokerBannerHTML}
                             ${autoTraderBannerHTML}
                             ${copilotHTML}
                             ${orderFlowHTML}
@@ -1574,7 +1659,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const tabs = ['radar', 'tracker', 'spy'];
         const viewUser = document.getElementById('view-user');
         const bottomNav = document.getElementById('bottom-tabs-nav');
-        
+        const pokerToggle = document.getElementById('user-poker-ai-toggle');
+        const pokerSlider = document.getElementById('poker-ai-slider');
+        const pokerKnob = document.getElementById('poker-ai-knob');
+        const pokerBanner = document.getElementById('poker-ai-live-banner');
+        const btnCalcPoker = document.getElementById('btn-calc-poker');
+
+        chrome.storage.local.get(['userConfig'], (pRes) => {
+            const pCfg = pRes.userConfig || {};
+            const isPokerOn = pCfg.pokerAiEnabled === true;
+            if (pokerToggle) {
+                pokerToggle.checked = isPokerOn;
+                if (isPokerOn) {
+                    pokerSlider.style.backgroundColor = '#00aaff';
+                    pokerKnob.style.left = '22px';
+                }
+                pokerToggle.addEventListener('change', (e) => {
+                    const active = e.target.checked;
+                    pokerSlider.style.backgroundColor = active ? '#00aaff' : '#444';
+                    pokerKnob.style.left = active ? '22px' : '2px';
+                    if (pokerBanner) pokerBanner.style.display = active ? 'block' : 'none';
+                    chrome.storage.local.get(['userConfig'], (sRes) => {
+                        const uCfg = sRes.userConfig || {};
+                        uCfg.pokerAiEnabled = active;
+                        chrome.storage.local.set({ userConfig: uCfg });
+                    });
+                });
+            }
+            if (pokerBanner) pokerBanner.style.display = isPokerOn ? 'block' : 'none';
+        });
+
+        if (btnCalcPoker) {
+            btnCalcPoker.addEventListener('click', async () => {
+                const hole = document.getElementById('poker-hole-cards')?.value || "";
+                const board = document.getElementById('poker-board-cards')?.value || "";
+                const pot = parseFloat(document.getElementById('poker-pot-size')?.value) || 100;
+                const toCall = parseFloat(document.getElementById('poker-call-size')?.value) || 0;
+                const villains = parseInt(document.getElementById('poker-opponents')?.value) || 1;
+                const decBox = document.getElementById('poker-decision-box');
+
+                if (decBox) decBox.innerText = "RUNNING 10K MONTE CARLO...";
+                try {
+                    const r = await fetch(`https://help-trading-production.up.railway.app/api/poker/evaluate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ hole, board, pot, toCall, villains })
+                    });
+                    const d = await r.json();
+                    if (!d.success) {
+                        if (decBox) { decBox.innerText = d.error; decBox.style.color = "#ffaa00"; }
+                        return;
+                    }
+                    document.getElementById('poker-equity-val').innerText = `${d.equityPct}%`;
+                    document.getElementById('poker-potodds-val').innerText = `${d.potOddsPct}%`;
+                    document.getElementById('poker-ev-val').innerText = `${d.evUsd >= 0 ? '+' : ''}$${d.evUsd}`;
+                    document.getElementById('poker-ev-val').style.color = d.evUsd >= 0 ? "#00e676" : "#ff4d4d";
+
+                    if (decBox) {
+                        decBox.innerText = `[${d.action}] EDGE: ${d.edgePct >= 0 ? '+' : ''}${d.edgePct}%`;
+                        decBox.style.color = d.action.includes("FOLD") ? "#ff4d4d" : "#00e676";
+                        decBox.style.borderLeftColor = d.action.includes("FOLD") ? "#ff4d4d" : "#00e676";
+                    }
+                } catch (err) {
+                    if (decBox) decBox.innerText = "ENGINE OFFLINE";
+                }
+            });
+        }
         function switchTab(activeId) {
             viewUser.style.display = 'none'; 
             bottomNav.style.display = 'flex'; 
