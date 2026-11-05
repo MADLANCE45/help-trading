@@ -374,17 +374,7 @@ if (typeof window.matrixWatcher === 'undefined' && window.enableAutoHologram ===
         window.lastKnownVol = currentVol;
     }, 4000); 
 }
-// 📩 ASCOLTATORE DI MESSAGGI (Riceve il comando di scatto dal popup)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "INJECT_HOLOGRAM") {
-        // 🛡️ DOPPIA SICUREZZA: Ignora i messaggi se ci troviamo nel popup
-        const isPopup = window.location.href.includes(chrome.runtime.id) || window.location.protocol.includes('extension');
-        if (isPopup) return;
-        
-        window.holoCooldown = Date.now(); 
-        mostraOlogrammaTatticoSulSito(request.copilotData, request.staticData, request.avatarUrl, request.liveMetrics);
-    }
-});
+
 document.addEventListener('DOMContentLoaded', () => {
     const contentDiv = document.getElementById('content');
     const masterApp = document.getElementById('master-app');
