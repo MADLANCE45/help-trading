@@ -360,7 +360,9 @@ const io = new Server(server, {
 });
 
 
+// Parsing del body in JSON con limite alzato a 50MB per gli screenshot del Poker
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 //app.use(cors());
 const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
 // 🔥 GARBAGE COLLECTOR OTTIMIZZATO (Solo per WebSocket)

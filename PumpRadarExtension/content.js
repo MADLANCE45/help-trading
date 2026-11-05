@@ -975,13 +975,33 @@ document.addEventListener('DOMContentLoaded', () => {
                             btnScan.innerText = "LETTURA TAVOLO IN CORSO...";
                             btnScan.style.opacity = "0.7";
 
-                            const elaboraScreenshot = async (dataUrl) => {
-                                if (!dataUrl) {
+                            const elaboraScreenshot = async ( rawDataUrl ) => {
+                                if (!rawDataUrl) {
                                     btnScan.innerText = "SCAN TABLE NOW (LEGGI CARTE)";
                                     btnScan.style.opacity = "1";
                                     if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
                                     return;
                                 }
+
+                                // ⚡ COMPRESSIONE RAPIDA (< 50 KB): Evita l'errore 413 e triplica la velocità dell'IA
+                                const comprimiImmagine = (srcBase64) => new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        const canvas = document.createElement('canvas');
+                                        const maxW = 1100;
+                                        const scale = img.width > maxW ? (maxW / img.width) : 1;
+                                        canvas.width = Math.round(img.width * scale);
+                                        canvas.height = Math.round(img.height * scale);
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                        resolve(canvas.toDataURL('image/jpeg', 0.55));
+                                    };
+                                    img.onerror = () => resolve(srcBase64);
+                                    img.src = srcBase64;
+                                });
+
+                                const dataUrl = await comprimiImmagine(rawDataUrl);
+
                                 try {
                                     const r = await fetch("https://help-trading-production.up.railway.app/api/poker/auto-vision", {
                                         method: "POST",
