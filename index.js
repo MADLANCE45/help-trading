@@ -4347,13 +4347,15 @@ app.post('/api/poker/evaluate', (req, res) => {
     }
 });
 // =====================================================================
-// 📸 MOTORE POKER AUTO-VISION (Legge il tavolo da solo + Calcolo Matematico)
+// 📸 MOTORE POKER AUTO-VISION (3 Card Brag + Hold'em + Caribbean + Bet Sizing)
 // =====================================================================
 app.post('/api/poker/auto-vision', async (req, res) => {
     try {
-        const { imageBase64 } = req.body;
+        const { imageBase64, baseBet = 0.50 } = req.body;
+        const unitBet = Math.max(0.10, parseFloat(baseBet) || 0.50);
+
         if (!imageBase64) {
-            return res.json({ success: false, error: "NESSUNA IMMAGINE DEL TAVOLO RICEVUTA" });
+            return res.json({ success: false, error: "NESSUNA IMMAGINE RICEVUTA" });
         }
 
         const apiKey = process.env.OPENROUTER_API_KEY;
@@ -4361,25 +4363,25 @@ app.post('/api/poker/auto-vision', async (req, res) => {
             return res.json({ success: false, error: "OPENROUTER_API_KEY MANCANTE SUL SERVER" });
         }
 
-        // 1. VISION AI: Legge automaticamente il tipo di poker, le tue carte, il banco e il piatto
         const visionPrompt = `
-You are an ultra-fast optical card reader for online poker tables.
-Look at this screenshot and extract the exact cards visible.
-Convert cards to 2-char format: Rank (2,3,4,5,6,7,8,9,T,J,Q,K,A) + Suit (s=spades ♠, h=hearts ♥, d=diamonds ♦, c=clubs ♣). Example: "As Kh".
-
-Identify the game type:
-- "CARIBBEAN_STUD" if the player has 5 cards and the dealer has 1 face-up card and 4 face-down cards.
-- "HOLDEM" if the player has 2 hole cards and there are community cards (0, 3, 4, or 5) in the center.
-- "VIDEO_POKER" if there are 5 big cards in a row with HOLD buttons.
+You are an optical card & table reader for online casino poker (Playtech / Evolution).
+Look at this screenshot and extract:
+1. Game type:
+   - "THREE_CARD_BRAG" if the table says "3 Card Brag", "Three Card Poker", or "DEALER PLAYS WITH QUEEN OR HIGHER" (3 cards per hand).
+   - "CARIBBEAN_STUD" if the player has 5 cards and dealer has 1 face-up card.
+   - "HOLDEM" if the player has 2 hole cards + community cards (Casino Hold'em / Texas Hold'em).
+2. The player's visible cards in 2-char format: Rank (2,3,4,5,6,7,8,9,T,J,Q,K,A) + Suit (s,h,d,c).
+   IMPORTANT: Ignore the mini example cards painted on the felt layout (like the static K-9-8 example diagram on the left/right of the table). Read ONLY real dealt cards in the active hand! If no real cards are dealt yet (e.g. "ATTENDI FINCHÉ NON INIZIA IL PROSSIMO GIRO"), return an empty array [] for myCards.
+3. Read the player's visible balance ("Saldo") and current bet ("Puntata") if visible.
 
 Return ONLY valid JSON:
 {
-  "gameType": "CARIBBEAN_STUD" or "HOLDEM" or "VIDEO_POKER",
-  "myCards": ["As", "Kh", ...],
-  "boardOrDealerCards": ["7d", ...],
-  "potSize": 100,
-  "callCost": 25,
-  "visualNotes": "Brief description in Italian of the hand you have (e.g. 'Coppia di Re', 'Asso-Re carta alta', 'Progetto di colore')"
+  "gameType": "THREE_CARD_BRAG" or "CARIBBEAN_STUD" or "HOLDEM",
+  "myCards": ["As", "Kh", "9d"],
+  "boardOrDealerCards": [],
+  "detectedBalance": 0.02,
+  "detectedBet": 0,
+  "visualNotes": "Descrizione in italiano della mano reale"
 }`;
 
         const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -4404,7 +4406,7 @@ Return ONLY valid JSON:
 
         const data = await resp.json();
         if (data.error || !data.choices?.[0]) {
-            return res.json({ success: false, error: "IMPOSSIBILE LEGGERE IL TAVOLO. INQUADRA BENE LE CARTE." });
+            return res.json({ success: false, error: "IMPOSSIBILE LEGGERE LO SCHERMO. RIPROVA." });
         }
 
         let rawText = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -4412,88 +4414,125 @@ Return ONLY valid JSON:
 
         const myCardsArr = parsedVision.myCards || [];
         const tableCardsArr = parsedVision.boardOrDealerCards || [];
-        const gameType = parsedVision.gameType || "HOLDEM";
-        const notaMano = parsedVision.visualNotes || "Mano rilevata";
+        const gameType = parsedVision.gameType || "THREE_CARD_BRAG";
+        const notaMano = parsedVision.visualNotes || "Mano analizzata";
+        const effectiveAnte = parsedVision.detectedBet > 0 ? parseFloat(parsedVision.detectedBet) : unitBet;
 
+        // Se il giro non è ancora iniziato, dà subito il consiglio su quanto puntare sull'ANTE!
         if (myCardsArr.length === 0) {
             return res.json({
                 success: false,
-                error: "NESSUNA CARTA VISIBILE. ATTENDI CHE IL DEALER DISTRIBUISCA LE CARTE E RIPREMI SCAN."
+                betSizingText: `PROSSIMO GIRO: PUNTA $${unitBet.toFixed(2)} SULL'ANTE (ZERO BONUS LATERALI)`,
+                error: `Tavolo ${gameType} rilevato. Attendi che il croupier distribuisca le tue carte reali e premi SCAN.`
             });
         }
 
         // =================================================================
-        // CASO A: CARIBBEAN STUD POKER (Strategia Matematica Perfetta Evans)
+        // CASO 1: 3 CARD BRAG / THREE CARD POKER ("DEALER PLAYS WITH QUEEN OR HIGHER")
+        // Regola Matematica GTO: PLAY (1x Ante) con Q-6-4 o superiore, FOLD sotto Q-6-4!
+        // =================================================================
+        if (gameType === "THREE_CARD_BRAG" || myCardsArr.length === 3) {
+            const cardsNum = parsePokerCards(myCardsArr.join(" "));
+            const ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a); // 12=A, 11=K, 10=Q, 9=J...
+            const suits = cardsNum.map(c => c & 3);
+
+            const isFlush = suits.length === 3 && suits[0] === suits[1] && suits[1] === suits[2];
+            const isPairOrBetter = (ranks[0] === ranks[1]) || (ranks[1] === ranks[2]);
+            const isStraight = (ranks[0] - ranks[1] === 1 && ranks[1] - ranks[2] === 1) || (ranks[0] === 12 && ranks[1] === 1 && ranks[2] === 0);
+
+            // Verifica soglia matematica esatta Q-6-4 (Queen=10, 6=4, 4=2)
+            let isQ64OrBetter = false;
+            if (isPairOrBetter || isFlush || isStraight) {
+                isQ64OrBetter = true;
+            } else if (ranks[0] > 10) {
+                isQ64OrBetter = true; // Re (K) o Asso (A) carta alta batte sempre la soglia Q-6-4!
+            } else if (ranks[0] === 10) {
+                // Ha una Donna (Q): controlliamo la seconda e terza carta (>= 6-4)
+                if (ranks[1] > 4 || (ranks[1] === 4 && ranks[2] >= 2)) {
+                    isQ64OrBetter = true;
+                }
+            }
+
+            if (isQ64OrBetter) {
+                const winEst = isPairOrBetter || isFlush || isStraight ? "82%" : (ranks[0] === 12 ? "64%" : "53.5%");
+                return res.json({
+                    success: true,
+                    gameDetected: "3 CARD BRAG",
+                    myCardsStr: myCardsArr.join(" "),
+                    tableCardsStr: "Target: >= Q-6-4",
+                    winPct: winEst,
+                    command: "GIOCA / PUNTA PLAY (RAISE 1X)",
+                    betSizingText: `PUNTA $${effectiveAnte.toFixed(2)} SU 'PLAY' (TOTALE IN GIOCO: $${(effectiveAnte * 2).toFixed(2)})`,
+                    color: "#00e676",
+                    reason: `${notaMano}: supera la soglia matematica Q-6-4. Il valore atteso (+EV) di chiamare PLAY è positivo.`
+                });
+            } else {
+                return res.json({
+                    success: true,
+                    gameDetected: "3 CARD BRAG",
+                    myCardsStr: myCardsArr.join(" "),
+                    tableCardsStr: "Sotto Q-6-4",
+                    winPct: "34%",
+                    command: "PASSA SUBITO (FOLD)",
+                    betSizingText: `PUNTA $0.00 SU PLAY (RISPARMIA $${effectiveAnte.toFixed(2)}!). PROSSIMO ANTE: $${unitBet.toFixed(2)}`,
+                    color: "#ff4d4d",
+                    reason: `${notaMano}: mano inferiore a Donna-6-4. Chiamare PLAY qui regala soldi matematici al banco.`
+                });
+            }
+        }
+
+        // =================================================================
+        // CASO 2: CARIBBEAN STUD POKER (5 Carte)
         // =================================================================
         if (gameType === "CARIBBEAN_STUD" || myCardsArr.length === 5) {
             const cardsNum = parsePokerCards(myCardsArr.join(" "));
             const dealerCard = parsePokerCards(tableCardsArr.join(" "))[0];
-
             let ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a);
             let rankCounts = {};
             ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
             const maxSameRank = Math.max(...Object.values(rankCounts), 0);
 
-            let comando = "PASSA / LASCIA (FOLD)";
-            let colore = "#ff4d4d";
-            let winProb = "28%";
-            let spiegazione = "Mano sotto Asso-Re: matematicamente in perdita contro il banco. Non raddoppiare.";
+            const dealerRank = dealerCard !== undefined ? (dealerCard >> 2) : -1;
+            const shouldRaise = (maxSameRank >= 2) || (ranks[0] === 12 && ranks[1] === 11 && (ranks.includes(dealerRank) || ranks[2] >= 9));
 
-            // Regola 1: Coppia o superiore -> RILANCIA SEMPRE!
-            if (maxSameRank >= 2) {
-                comando = "GIOCA / RADDOPPIA (RAISE 2X)";
-                colore = "#00e676";
-                winProb = maxSameRank >= 3 ? "94%" : "68%";
-                spiegazione = `${notaMano}: con almeno una Coppia è matematicamente obbligatorio fare RAISE.`;
+            if (shouldRaise) {
+                return res.json({
+                    success: true,
+                    gameDetected: "CARIBBEAN STUD",
+                    myCardsStr: myCardsArr.join(" "),
+                    tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
+                    winPct: maxSameRank >= 2 ? "68%" : "54%",
+                    command: "RILANCIA (RAISE 2X ANTE)",
+                    betSizingText: `PUNTA $${(effectiveAnte * 2).toFixed(2)} SU RAISE`,
+                    color: "#00e676",
+                    reason: `${notaMano}: mano matematicamente profittevole contro la carta scoperta del banco.`
+                });
+            } else {
+                return res.json({
+                    success: true,
+                    gameDetected: "CARIBBEAN STUD",
+                    myCardsStr: myCardsArr.join(" "),
+                    tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
+                    winPct: "29%",
+                    command: "PASSA / LASCIA (FOLD)",
+                    betSizingText: `NON RADDOPPIARE (RISPARMIA $${(effectiveAnte * 2).toFixed(2)}!). PROSSIMO ANTE: $${unitBet.toFixed(2)}`,
+                    color: "#ff4d4d",
+                    reason: `${notaMano}: sotto la soglia A-K-J-8-3. Rilanciare 2x qui porta a una perdita matematica.`
+                });
             }
-            // Regola 2: Hai Asso + Re (12 e 11) -> Rilancia se hai almeno Jack (9) o la stessa carta del banco!
-            else if (ranks[0] === 12 && ranks[1] === 11) {
-                const dealerRank = dealerCard !== undefined ? (dealerCard >> 2) : -1;
-                const matchDealer = ranks.includes(dealerRank);
-                const hasQueenOrJack = ranks[2] >= 9; // Q o J
-
-                if (matchDealer || hasQueenOrJack) {
-                    comando = "GIOCA / RADDOPPIA (RAISE 2X)";
-                    colore = "#00e676";
-                    winProb = "54%";
-                    spiegazione = `Asso-Re forte (${notaMano}): supera la soglia matematica A-K-J-8-3 contro la carta del banco.`;
-                } else {
-                    comando = "PASSA / LASCIA (FOLD)";
-                    colore = "#ffaa00";
-                    winProb = "46%";
-                    spiegazione = `Asso-Re troppo debole (carte basse): sotto la soglia matematica contro il banco.`;
-                }
-            }
-
-            return res.json({
-                success: true,
-                gameDetected: "CARIBBEAN STUD",
-                myCardsStr: myCardsArr.join(" "),
-                tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
-                winPct: winProb,
-                command: comando,
-                color: colore,
-                reason: spiegazione
-            });
         }
 
         // =================================================================
-        // CASO B: TEXAS HOLD'EM / CASINO HOLD'EM (10.000 Simulazioni Monte Carlo)
+        // CASO 3: CASINO HOLD'EM / TEXAS HOLD'EM (10.000 Simulazioni Monte Carlo)
         // =================================================================
         const heroCards = parsePokerCards(myCardsArr.slice(0, 2).join(" "));
         const boardCards = parsePokerCards(tableCardsArr.join(" "));
-
-        if (heroCards.length < 2) {
-            return res.json({ success: false, error: "ATTENDI ENTRAMBE LE TUE CARTE E RIPREMI SCAN." });
-        }
-
         const usedSet = new Set([...heroCards, ...boardCards]);
         const deck = [];
         for (let c = 0; c < 52; c++) if (!usedSet.has(c)) deck.push(c);
 
         const iterations = 10000;
         let wins = 0, ties = 0;
-
         for (let sim = 0; sim < iterations; sim++) {
             const needed = (5 - boardCards.length) + 2;
             for (let i = 0; i < needed; i++) {
@@ -4503,42 +4542,40 @@ Return ONLY valid JSON:
             const simBoard = [...boardCards];
             let ptr = 0;
             while (simBoard.length < 5) simBoard.push(deck[ptr++]);
-
             const hScore = valutaForza7Carte([...heroCards, ...simBoard]);
             const vScore = valutaForza7Carte([deck[ptr++], deck[ptr++], ...simBoard]);
-
-            if (hScore > vScore) wins++;
-            else if (hScore === vScore) ties++;
+            if (hScore > vScore) wins++; else if (hScore === vScore) ties++;
         }
 
         const equityPct = parseFloat((((wins + ties * 0.5) / iterations) * 100).toFixed(1));
-        let comando = "PASSA / FOLD";
-        let colore = "#ff4d4d";
-        let spiegazione = `${notaMano}: hai solo il ${equityPct}% di vittoria. Matematicamente in perdita.`;
-
-        if (equityPct >= 62) {
-            comando = "PUNTA FORTE / RILANCIA (RAISE)";
-            colore = "#00e676";
-            spiegazione = `${notaMano}: vantaggio matematico netto (${equityPct}% di vittoria su 10.000 mani simulate).`;
-        } else if (equityPct >= 44) {
-            comando = "CHIAMA / GIOCA (CALL / CHECK)";
-            colore = "#00ffcc";
-            spiegazione = `${notaMano}: buona equità matematica (${equityPct}%). Profittevole vedere la carta successiva.`;
+        if (equityPct >= 44) {
+            const mult = equityPct >= 62 ? 2 : 1;
+            return res.json({
+                success: true,
+                gameDetected: "HOLD'EM GTO",
+                myCardsStr: myCardsArr.join(" "),
+                tableCardsStr: tableCardsArr.length > 0 ? tableCardsArr.join(" ") : "Pre-Flop",
+                winPct: `${equityPct}%`,
+                command: equityPct >= 62 ? "RILANCIA FORTE (RAISE)" : "CHIAMA (CALL)",
+                betSizingText: `PUNTA $${(effectiveAnte * mult).toFixed(2)} (${mult}X ANTE)`,
+                color: "#00e676",
+                reason: `${notaMano}: equità di vittoria del ${equityPct}% su 10.000 simulazioni Monte Carlo.`
+            });
+        } else {
+            return res.json({
+                success: true,
+                gameDetected: "HOLD'EM GTO",
+                myCardsStr: myCardsArr.join(" "),
+                tableCardsStr: tableCardsArr.length > 0 ? tableCardsArr.join(" ") : "Pre-Flop",
+                winPct: `${equityPct}%`,
+                command: "PASSA (FOLD)",
+                betSizingText: `PUNTA $0.00 (RISPARMIA LA CHIAMATA). PROSSIMA MANO: $${unitBet.toFixed(2)}`,
+                color: "#ff4d4d",
+                reason: `${notaMano}: solo ${equityPct}% di vittoria. Matematicamente in perdita.`
+            });
         }
-
-        return res.json({
-            success: true,
-            gameDetected: "TEXAS / CASINO HOLD'EM",
-            myCardsStr: myCardsArr.join(" "),
-            tableCardsStr: tableCardsArr.length > 0 ? `Tavolo: ${tableCardsArr.join(" ")}` : "Pre-Flop",
-            winPct: `${equityPct}%`,
-            command: comando,
-            color: colore,
-            reason: spiegazione
-        });
-
     } catch (e) {
-        return res.json({ success: false, error: "ERRORE LETTURA TAVOLO: " + e.message });
+        return res.json({ success: false, error: "ERRORE ANALISI: " + e.message });
     }
 });
 // Ascolta sulla porta 3000 (dove punta il dominio pubblico di Railway)

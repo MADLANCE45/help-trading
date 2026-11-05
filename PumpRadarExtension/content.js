@@ -860,7 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnBuy = document.getElementById('btn-manual-buy');
         const btnPanic = document.getElementById('btn-panic-burn');
         const btnDemoToggle = document.getElementById('btn-toggle-demo');
-        const content = document.getElementById('content-area'); // Serve per rimpiazzare l'AWAITING MARKET DATA
+        const content = document.getElementById('view-radar'); // 🔥 FIX: L'ID reale nel tuo HTML è 'view-radar'!
 
         // 1. TIMER PER IL 10S ORDER FLOW (Gira sempre in background se c'è un token attivo)
         if (window.parasiteTelemetryTimer) clearInterval(window.parasiteTelemetryTimer);
@@ -907,21 +907,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const cfg = resObj.userConfig || {};
             const isPokerActive = cfg.pokerAiEnabled === true;
 
-            // =====================================================================
-            // 🛑 GESTIONE SCHERMATA "AWAITING MARKET DATA" / POKER AUTO-VISION
-            // Se non c'è un token crypto valido, mostriamo il Poker o la schermata d'attesa
-            // =====================================================================
             if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                if (!content) return;
+
                 const renderPokerAutoScanner = () => {
                     content.innerHTML = `
                         <div style="background: #0b0d13; border: 1px solid #00aaff; border-top: 3px solid #00aaff; border-radius: 8px; padding: 14px; font-family: monospace; box-shadow: 0 8px 25px rgba(0,0,0,0.8);">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                                 <span style="color:#00aaff; font-weight:900; font-size:0.8em; letter-spacing:1px;">[SYS.GTO] AUTO-VISION POKER AI</span>
-                                <span id="poker-game-type-badge" style="background:rgba(0,170,255,0.15); color:#00aaff; padding:2px 6px; border-radius:4px; font-size:0.65em; font-weight:bold;">AUTO-DETECT</span>
+                                <span id="poker-game-type-badge" style="background:rgba(0,170,255,0.15); color:#00aaff; padding:2px 6px; border-radius:4px; font-size:0.65em; font-weight:bold;">READY</span>
+                            </div>
+
+                            <!-- PUNTATA BASE / ANTE ATTUALE -->
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+                                <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px;">
+                                    <div style="font-size:0.55em; color:#888; margin-bottom:2px;">TUA PUNTATA BASE / ANTE ($)</div>
+                                    <input type="number" step="0.5" id="poker-base-bet" value="${cfg.pokerBaseBet || 0.50}" style="width:100%; box-sizing:border-box; background:transparent; border:none; color:#00ffcc; font-family:monospace; font-size:0.85em; font-weight:900; outline:none;">
+                                </div>
+                                <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px; text-align:center;">
+                                    <div style="font-size:0.55em; color:#888; margin-bottom:2px;">VITTORIA STIMATA</div>
+                                    <b id="auto-poker-winpct" style="color:#00e676; font-size:0.85em;">--%</b>
+                                </div>
                             </div>
 
                             <button id="btn-auto-scan-poker" style="width:100%; background: linear-gradient(90deg, #00aaff, #00ffcc); color:#000; border:none; padding:12px; border-radius:6px; font-family:monospace; font-size:0.85em; font-weight:900; cursor:pointer; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);">
-                                SCAN TABLE NOW (AUTO-READ)
+                                SCAN TABLE NOW (LEGGI CARTE)
                             </button>
 
                             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
@@ -935,16 +945,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
+                            <!-- VERDETTO + QUANTO PUNTARE -->
                             <div id="auto-poker-verdict-box" style="background:#050608; border:2px solid #2d3142; padding:12px; border-radius:6px; text-align:center; margin-bottom:8px;">
-                                <div style="font-size:0.65em; color:#888; margin-bottom:4px;">MOSSA MATEMATICA CONSIGLIATA</div>
-                                <div id="auto-poker-action" style="font-size:1.05em; font-weight:900; color:#ccc; letter-spacing:0.5px;">
-                                    APRI IL TAVOLO E PREMI SCAN
+                                <div style="font-size:0.62em; color:#888; margin-bottom:4px;">ORDINE MATEMATICO & PUNTATA</div>
+                                <div id="auto-poker-action" style="font-size:1.02em; font-weight:900; color:#ccc; letter-spacing:0.5px;">
+                                    PREMI SCAN QUANDO HAI LE CARTE
                                 </div>
-                                <div id="auto-poker-winpct" style="font-size:0.8em; color:#00ffcc; font-weight:bold; margin-top:4px;"></div>
+                                <div id="auto-poker-bet-advice" style="font-size:0.82em; color:#ffaa00; font-weight:900; margin-top:6px;"></div>
                             </div>
 
-                            <div id="auto-poker-reason" style="font-size:0.75em; color:#aaa; text-align:center; line-height:1.4;">
-                                Il bot fotografa il tavolo, riconosce da solo le carte e calcola se conviene giocare o passare.
+                            <div id="auto-poker-reason" style="font-size:0.74em; color:#aaa; text-align:center; line-height:1.4;">
+                                Supporta 3 Card Brag, Casino Hold'em, Texas Hold'em e Caribbean Stud.
                             </div>
                         </div>
                     `;
@@ -953,14 +964,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (btnScan) {
                         btnScan.onclick = () => {
                             const actionEl = document.getElementById('auto-poker-action');
+                            const betAdviceEl = document.getElementById('auto-poker-bet-advice');
                             const boxEl = document.getElementById('auto-poker-verdict-box');
                             const reasonEl = document.getElementById('auto-poker-reason');
-                            btnScan.innerText = "LETTURA CARTE IN CORSO...";
+                            const baseBetVal = parseFloat(document.getElementById('poker-base-bet')?.value) || 0.50;
+
+                            cfg.pokerBaseBet = baseBetVal;
+                            chrome.storage.local.set({ userConfig: cfg });
+
+                            btnScan.innerText = "LETTURA TAVOLO IN CORSO...";
                             btnScan.style.opacity = "0.7";
 
                             const elaboraScreenshot = async (dataUrl) => {
                                 if (!dataUrl) {
-                                    btnScan.innerText = "SCAN TABLE NOW (AUTO-READ)";
+                                    btnScan.innerText = "SCAN TABLE NOW (LEGGI CARTE)";
                                     btnScan.style.opacity = "1";
                                     if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
                                     return;
@@ -969,20 +986,25 @@ document.addEventListener('DOMContentLoaded', () => {
                                     const r = await fetch("https://help-trading-production.up.railway.app/api/poker/auto-vision", {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ imageBase64: dataUrl })
+                                        body: JSON.stringify({ imageBase64: dataUrl, baseBet: baseBetVal })
                                     });
                                     const d = await r.json();
                                     if (!d.success) {
-                                        if (actionEl) { actionEl.innerText = "CARTE NON TROVATE"; actionEl.style.color = "#ffaa00"; }
+                                        if (actionEl) { actionEl.innerText = "ATTENDI LE CARTE"; actionEl.style.color = "#ffaa00"; }
+                                        if (betAdviceEl) betAdviceEl.innerText = d.betSizingText || "";
                                         if (reasonEl) reasonEl.innerText = d.error;
                                     } else {
                                         document.getElementById('poker-game-type-badge').innerText = d.gameDetected;
                                         document.getElementById('auto-my-cards').innerText = d.myCardsStr;
                                         document.getElementById('auto-table-cards').innerText = d.tableCardsStr;
-                                        document.getElementById('auto-poker-winpct').innerText = `VITTORIA STIMATA: ${d.winPct}`;
+                                        document.getElementById('auto-poker-winpct').innerText = d.winPct;
                                         if (actionEl) {
                                             actionEl.innerText = d.command;
                                             actionEl.style.color = d.color;
+                                        }
+                                        if (betAdviceEl) {
+                                            betAdviceEl.innerText = d.betSizingText || "";
+                                            betAdviceEl.style.color = d.color;
                                         }
                                         if (boxEl) boxEl.style.borderColor = d.color;
                                         if (reasonEl) reasonEl.innerText = d.reason;
@@ -990,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 } catch (err) {
                                     if (actionEl) actionEl.innerText = "ERRORE CONNESSIONE SERVER";
                                 } finally {
-                                    btnScan.innerText = "SCAN TABLE NOW (AUTO-READ)";
+                                    btnScan.innerText = "SCAN TABLE NOW (LEGGI CARTE)";
                                     btnScan.style.opacity = "1";
                                 }
                             };
@@ -1010,15 +1032,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderPokerAutoScanner();
                 } else {
                     content.innerHTML = `
-                        <div style="text-align: center; padding: 30px 15px; color: #666; font-family: monospace;">
-                            <div style="font-size: 0.95em; color: #ccc; font-weight: bold; margin-bottom: 8px;">[AWAITING MARKET DATA]</div>
-                            <p style="font-size: 0.8em; line-height: 1.5; margin-bottom: 16px;">Navigate to any token on <b>Pump.fun</b> or <b>DexScreener</b> to activate the Crypto Radar.</p>
-                            <button id="btn-quick-enable-poker" style="background: rgba(0, 170, 255, 0.15); color: #00aaff; border: 1px solid #00aaff; padding: 8px 14px; border-radius: 4px; font-family: monospace; font-size: 0.75em; font-weight: 900; cursor: pointer; text-transform: uppercase;">
-                                OPEN POKER AI SCANNER HERE
+                        <div style="text-align: center; padding: 30px 15px; background: #0f1118; border: 1px solid #2d3142; border-radius: 8px; font-family: monospace;">
+                            <div style="font-size: 0.95em; color: #00ffcc; font-weight: bold; margin-bottom: 8px;">[AWAITING MARKET DATA]</div>
+                            <p style="font-size: 0.8em; color: #888; line-height: 1.5; margin-bottom: 16px;">Navigate to any token on <b>Pump.fun</b> or <b>DexScreener</b> to activate the Crypto Radar.</p>
+                            <button id="btn-quick-enable-poker" style="background: linear-gradient(90deg, #00aaff, #00ffcc); color: #000; border: none; padding: 10px 16px; border-radius: 6px; font-family: monospace; font-size: 0.78em; font-weight: 900; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 15px rgba(0, 170, 255, 0.3);">
+                                ATTIVA SCANNER POKER QUI
                             </button>
                         </div>`;
                     const btnQuickPoker = document.getElementById('btn-quick-enable-poker');
-                    if (btnQuickPoker) btnQuickPoker.onclick = renderPokerAutoScanner;
+                    if (btnQuickPoker) {
+                        btnQuickPoker.onclick = () => {
+                            cfg.pokerAiEnabled = true;
+                            chrome.storage.local.set({ userConfig: cfg }, renderPokerAutoScanner);
+                        };
+                    }
                 }
                 
                 return; // Esce dalla funzione, l'utente non è su un grafico crypto
@@ -1213,38 +1240,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (!tabs || tabs.length === 0) return;
-                const url = tabs[0].url;
+                const url = tabs[0].url || "";
                 
                 const matchEVM = url.match(/0x[a-fA-F0-9]{40}/);
                 const matchSolana = url.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/);
 
                 let tokenMint = null;
-                if (matchEVM) {
-                    tokenMint = matchEVM[0]; 
-                } else if (matchSolana) {
-                    tokenMint = matchSolana[0]; 
+                // Evita che parole lunghe negli URL dei casinò (es. playtech/poker-lobby-live) vengano scambiate per indirizzi Solana
+                const isCryptoSite = /pump\.fun|dexscreener|bullx|photon|axiom|birdeye|raydium|jupiter|solscan|dextools/i.test(url);
+                if (isCryptoSite) {
+                    if (matchEVM) tokenMint = matchEVM[0]; 
+                    else if (matchSolana) tokenMint = matchSolana[0]; 
                 }
-                // 🔥 FIX 1: AZZERAMENTO MEMORIA E RISCALDAMENTO
-                // Se abbiamo cambiato pagina o token, puliamo i dati del token precedente
+
                 if (window.currentTokenMint !== tokenMint) {
                     window.currentTokenMint = tokenMint;
-                    
-                    // Puliamo l'array dei trade precedenti
                     if (typeof orderFlowWindow !== 'undefined') orderFlowWindow.length = 0;
-                    
-                    // Resettiamo le metriche live
                     window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
-                    
-                    // Rimandiamo il Matrix Watcher in fase di riscaldamento
                     window.matrixWarmupTicks = 0; 
                 }
-                // 🔥 FIX GOOGLE REVIEW: Costruiamo SEMPRE l'interfaccia del Popup, 
-                // anche se non c'è un token, così il revisore vede che l'app funziona.
+
                 costruisciInterfacciaLive(tokenMint);
                 resettaTimerNoia();
 
-                // Se non c'è un token, ci fermiamo qui senza chiamare le API del backend
+                // 🔥 FIX CRITICO: Se non siamo su un token crypto, avvia subito il pannello Poker AI!
                 if (!tokenMint || tokenMint === 'board' || tokenMint === 'create') {
+                    innescaModalitaParassita(null, null);
                     return;
                 }
 
@@ -1254,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (memoria.ultimoTokenScansionato === tokenMint && memoria.ultimoRisultatoScan && memoria.ultimoScanLang === currentLang) {
                         popolaInterfacciaStatica(memoria.ultimoRisultatoScan, tokenMint);
                         avviaLaboratorioGemini(tokenMint);
-                        innescaModalitaParassita(memoria.ultimoRisultatoScan, tokenMint); // 🔥 PARTE ANCHE SE IN CACHE!
+                        innescaModalitaParassita(memoria.ultimoRisultatoScan, tokenMint);
                     } else {
                         fetch(`https://help-trading-production.up.railway.app/api/scan/${tokenMint}?lang=${currentLang}`, {
                             headers: { "x-wallet-address": userWallet }
@@ -1269,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                             popolaInterfacciaStatica(data, tokenMint);
                             avviaLaboratorioGemini(tokenMint);
-                            innescaModalitaParassita(data, tokenMint); // 🔥 PARTE SUI NUOVI TOKEN!
+                            innescaModalitaParassita(data, tokenMint);
                         })
                         .catch(err => {
                             const staticBox = document.getElementById('static-analysis-box');
@@ -2011,11 +2032,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     aiModel: document.getElementById('user-ai-model') ? document.getElementById('user-ai-model').value : "deepseek/deepseek-chat",
                     holoEnabled: document.getElementById('user-holo-toggle') ? document.getElementById('user-holo-toggle').checked : true,
                     autoTradeEnabled: document.getElementById('user-auto-trade-toggle') ? document.getElementById('user-auto-trade-toggle').checked : false,
+                    pokerAiEnabled: document.getElementById('user-poker-ai-toggle') ? document.getElementById('user-poker-ai-toggle').checked : false,
                     burnerPrivateKey: document.getElementById('user-burner-key') ? document.getElementById('user-burner-key').value.trim() : "",
                     tradeSol: document.getElementById('user-trade-sol') ? document.getElementById('user-trade-sol').value : 0.08,
                     takeProfitPct: document.getElementById('user-tp-pct') ? document.getElementById('user-tp-pct').value : 18
                 };
-
                 chrome.storage.local.set({ userConfig: newConfig }, () => {
                     btnSaveConfig.style.background = '#00e676';
                     btnSaveConfig.innerHTML = "SAVED!";
