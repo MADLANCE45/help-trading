@@ -1043,7 +1043,23 @@ JSON FORMAT:
         };
 
         // 1. TENTATIVO PRINCIPALE
-        let data = await chiamaCopilot(primaryModel);
+        // ⚡ PRIMA PROVA GROQ GRATIS ($0.00), E SOLO SE FALLISCE USA OPENROUTER!
+        let aiResult = await interrogaAgente("CopilotHFT", promptCopilot);
+
+        if (!aiResult || aiResult.errore || !aiResult.tattica) {
+            let data = await chiamaCopilot(primaryModel);
+            if (data.error) data = await chiamaCopilot(fallbackModel);
+            if (data.error) throw new Error(data.error.message);
+
+            let rawText = data.choices[0].message.content;
+            let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const startIdx = cleanText.indexOf('{');
+            const endIdx = cleanText.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+                cleanText = cleanText.substring(startIdx, endIdx + 1);
+            }
+            aiResult = JSON.parse(cleanText);
+        }
 
         // 2. AUTO-FALLBACK: Se il modello primario (es. DeepSeek) è intasato, salviamo la chat!
         if (data.error) {
@@ -4172,7 +4188,7 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
     }
 });
 // =====================================================================
-// ♠️ PARSER CARTE CORAZZATO (Accetta 10, T, simboli ♠♥♦♣ e carte senza seme)
+// ♠️ MODULO POKER COMPLETO (Include valutaForza7Carte + Groq Vision GRATIS)
 // =====================================================================
 const POKER_RANKS = "23456789TJQKA";
 const POKER_SUITS = "cdhs";
@@ -4182,7 +4198,7 @@ function parsePokerCards(input) {
     const rawList = Array.isArray(input) ? input : String(input).trim().split(/[\s,;]+/);
     const parsed = [];
 
-    rawList.forEach(( rawTk, idx ) => {
+    rawList.forEach((rawTk, idx) => {
         if (!rawTk) return;
         let tk = String(rawTk).trim()
             .replace(/10/g, "T")
@@ -4195,8 +4211,6 @@ function parsePokerCards(input) {
         const r = POKER_RANKS.indexOf(tk[0].toUpperCase());
         if (r === -1) return;
 
-        // Se l'IA ha dimenticato il seme o ha messo un carattere strano, assegna un seme di fallback
-        // così il conteggio di Coppia / Doppia Coppia / Tris / Scala NON fallisce mai!
         let s = tk.length >= 2 ? POKER_SUITS.indexOf(tk[tk.length - 1].toLowerCase()) : -1;
         if (s === -1) s = idx % 4;
 
@@ -4205,254 +4219,267 @@ function parsePokerCards(input) {
     return parsed;
 }
 
+// 🔥 FUNZIONE OBBLIGATORIA (Evita l'errore "valutaForza7Carte is not defined")
+function valutaForza7Carte(cards7) {
+    let rankCounts = new Array(13).fill(0);
+    let suitCounts = [0, 0, 0, 0];
+    let suitMask = [0, 0, 0, 0];
+    let rankMask = 0;
+
+    for (let i = 0; i < cards7.length; i++) {
+        const c = cards7[i];
+        const r = c >> 2;
+        const s = c & 3;
+        rankCounts[r]++;
+        suitCounts[s]++;
+        suitMask[s] |= (1 << r);
+        rankMask |= (1 << r);
+    }
+
+    const trovaScala = (mask) => {
+        for (let r = 12; r >= 3; r--) {
+            if (((mask >> (r - 3)) & 0x1F) === 0x1F) return r + 1;
+        }
+        if ((mask & 0x100F) === 0x100F) return 4;
+        return -1;
+    };
+
+    let flushSuit = -1;
+    for (let s = 0; s < 4; s++) {
+        if (suitCounts[s] >= 5) { flushSuit = s; break; }
+    }
+    if (flushSuit !== -1) {
+        const sfHigh = trovaScala(suitMask[flushSuit]);
+        if (sfHigh !== -1) return 8000000 + sfHigh;
+    }
+
+    let quads = -1, trips = -1, pair1 = -1, pair2 = -1;
+    for (let r = 12; r >= 0; r--) {
+        const cnt = rankCounts[r];
+        if (cnt === 4) quads = r;
+        else if (cnt === 3) { if (trips === -1) trips = r; else if (pair1 === -1) pair1 = r; }
+        else if (cnt === 2) { if (pair1 === -1) pair1 = r; else if (pair2 === -1) pair2 = r; }
+    }
+
+    if (quads !== -1) return 7000000 + quads * 100;
+    if (trips !== -1 && pair1 !== -1) return 6000000 + trips * 100 + pair1;
+    if (flushSuit !== -1) return 5000000 + suitMask[flushSuit];
+
+    const stHigh = trovaScala(rankMask);
+    if (stHigh !== -1) return 4000000 + stHigh;
+    if (trips !== -1) return 3000000 + trips * 100;
+    if (pair1 !== -1 && pair2 !== -1) return 2000000 + pair1 * 100 + pair2;
+    if (pair1 !== -1) return 1000000 + pair1 * 100;
+
+    return rankMask;
+}
+
 // =====================================================================
-// 📸 MOTORE POKER AUTO-VISION V2 (Blindato per Platipus Caribbean Club & Hold'em)
+// 📸 MOTORE POKER AUTO-VISION V3 (COSTO ZERO SU GROQ + GEMINI FLASH LITE)
 // =====================================================================
 app.post('/api/poker/auto-vision', async (req, res) => {
     try {
-        const { imageBase64, baseBet = 0.80 } = req.body;
-        const unitBet = Math.max(0.10, parseFloat(baseBet) || 0.80);
+        const { imageBase64, baseBet = 0.40 } = req.body;
+        const unitBet = Math.max(0.10, parseFloat(baseBet) || 0.40);
 
         if (!imageBase64) {
             return res.json({ success: false, error: "NESSUNA IMMAGINE RICEVUTA" });
         }
 
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) {
-            return res.json({ success: false, error: "OPENROUTER_API_KEY MANCANTE SUL SERVER" });
-        }
-
         const visionPrompt = `
-You are an ultra-precise optical card reader for online casino poker (especially Platipus 'Caribbean Club Poker', Playtech '3 Card Brag', and 'Casino Hold'em').
-Look at the screenshot and extract:
-1. "gameType":
-   - "CARIBBEAN_STUD" if the player has 5 cards at the bottom ("ANTE" / "PLACE BET" circles, "DEALER QUALIFIES WITH ACE/KING OR HIGHER").
-   - "THREE_CARD_BRAG" if the player has 3 cards ("DEALER PLAYS WITH QUEEN OR HIGHER").
-   - "HOLDEM" if the player has 2 hole cards + community cards.
-2. "myCards": Array of the player's bottom cards in strict format Rank (2,3,4,5,6,7,8,9,T,J,Q,K,A) + Suit (s,h,d,c). Example for 8♦ 8♠ 6♣ 6♠ 10♥: ["8d", "8s", "6c", "6s", "Th"].
-3. "boardOrDealerCards": Array of the dealer's visible face-up cards at the top. (If the round is already over and all 5 dealer cards are face-up, still list them, and set "roundFinished": true).
-4. "handCategory": Classify the player's 5-card hand among: "HIGH_CARD", "ACE_KING_HIGH", "ONE_PAIR", "TWO_PAIR", "THREE_OF_A_KIND", "STRAIGHT", "FLUSH", "FULL_HOUSE", "FOUR_OF_A_KIND", "STRAIGHT_FLUSH".
-5. "detectedBet": Read the number under "PUNTATA TOTALE" or on the ANTE chip if visible (e.g. 0.8).
+Read the poker table screenshot carefully.
+Look ONLY at the player's bottom 5 cards (above the ANTE / PLACE BET circles) and the black label above them (e.g. "ONE PAIR", "TWO PAIRS", "HIGH CARD", "NO GAME").
+Do NOT mix the dealer's top card (under "MIN/MAX" or above "DEALER QUALIFIES") into "myCards"!
 
-Return ONLY valid JSON:
+Return ONLY a valid JSON object:
 {
   "gameType": "CARIBBEAN_STUD",
-  "myCards": ["8d", "8s", "6c", "6s", "Th"],
-  "boardOrDealerCards": ["4d"],
-  "handCategory": "TWO_PAIR",
-  "roundFinished": false,
-  "detectedBet": 0.8,
-  "visualNotes": "Doppia Coppia di 8 e 6"
-}`;
+  "myCards": ["Td", "Ts", "Kc", "4d", "3c"],
+  "boardOrDealerCards": ["9s"],
+  "handCategory": "ONE_PAIR",
+  "detectedBet": 0.4,
+  "visualNotes": "Coppia di 10 con Re kicker"
+}
+Rules for cards: use T for 10, J, Q, K, A, and s,h,d,c for suits.
+Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_PAIR", "TWO_PAIR", "THREE_OF_A_KIND", "STRAIGHT", "FLUSH", "FULL_HOUSE", "FOUR_OF_A_KIND".`;
 
-        const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "openai/gpt-4o-mini",
-                messages: [{
-                    role: "user",
-                    content: [
-                        { type: "text", text: visionPrompt },
-                        { type: "image_url", image_url: { url: imageBase64 } }
-                    ]
-                }],
-                temperature: 0.0,
-                response_format: { type: "json_object" }
-            })
-        });
+        let parsedVision = null;
 
-        const data = await resp.json();
-        if (data.error || !data.choices?.[0]) {
-            return res.json({ success: false, error: "ERRORE LETTURA IMMAGINE. RIPROVA." });
+        // ⚡ LIVELLO 1: GROQ VISION GRATIS ($0.00 di consumo!)
+        if (groqKeys && groqKeys.length > 0 && groqKeys[0] !== "") {
+            try {
+                const gKey = groqKeys[currentGroqIndex];
+                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
+
+                const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${gKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+                        messages: [{
+                            role: "user",
+                            content: [
+                                { type: "text", text: visionPrompt },
+                                { type: "image_url", image_url: { url: imageBase64 } }
+                            ]
+                        }],
+                        temperature: 0.0,
+                        response_format: { type: "json_object" }
+                    })
+                });
+                const gData = await groqResp.json();
+                if (gData.choices?.[0]?.message?.content) {
+                    let cleanG = gData.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    parsedVision = JSON.parse(cleanG);
+                    console.log("⚡ [POKER VISION] Letto GRATIS con Groq Llama-4 Scout!");
+                }
+            } catch (gErr) {
+                console.log("⚠️ Groq Vision occupato, passo a Gemini Flash Lite ultra-economico...");
+            }
         }
 
-        let rawText = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const parsedVision = JSON.parse(rawText);
+        // ⚡ LIVELLO 2 (FALLBACK): GEMINI 2.0 FLASH LITE SU OPENROUTER (Costa 100x meno di GPT-4o-mini!)
+        if (!parsedVision) {
+            const apiKey = process.env.OPENROUTER_API_KEY;
+            if (!apiKey) return res.json({ success: false, error: "CHIAVE API MANCANTE" });
 
-        const myCardsArr = parsedVision.myCards || [];
+            const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: "google/gemini-2.0-flash-lite-001", // ⚡ Costa $0.00003 a foto invece di $0.01!
+                    messages: [{
+                        role: "user",
+                        content: [
+                            { type: "text", text: visionPrompt },
+                            { type: "image_url", image_url: { url: imageBase64, detail: "low" } }
+                        ]
+                    }],
+                    temperature: 0.0,
+                    response_format: { type: "json_object" }
+                })
+            });
+
+            const data = await resp.json();
+            if (data.error || !data.choices?.[0]) {
+                return res.json({ success: false, error: "RIPROVA SCAN TRA 1 SECONDO" });
+            }
+            let rawText = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const sIdx = rawText.indexOf('{');
+            const eIdx = rawText.lastIndexOf('}');
+            if (sIdx !== -1 && eIdx !== -1) rawText = rawText.substring(sIdx, eIdx + 1);
+            parsedVision = JSON.parse(rawText);
+        }
+
+        // Teniamo sempre e solo le prime 5 carte del giocatore (anche se l'IA ne legge 6 per sbaglio!)
+        let myCardsArr = (parsedVision.myCards || []).slice(0, 5);
         const tableCardsArr = parsedVision.boardOrDealerCards || [];
-        const gameType = parsedVision.gameType || "CARIBBEAN_STUD";
-        const aiCategory = (parsedVision.handCategory || "HIGH_CARD").toUpperCase();
-        const notaMano = parsedVision.visualNotes || "Mano rilevata";
+        const aiCategory = String(parsedVision.handCategory || "HIGH_CARD").toUpperCase();
+        const notaMano = parsedVision.visualNotes || "Mano analizzata";
         const effectiveAnte = parsedVision.detectedBet > 0 ? parseFloat(parsedVision.detectedBet) : unitBet;
 
         if (myCardsArr.length === 0) {
             return res.json({
                 success: false,
                 betSizingText: `PUNTA €${unitBet.toFixed(2)} SU 'ANTE' E PREMI DEAL`,
-                error: "Nessuna carta distribuita. Piazza l'Ante, premi DEAL e appena vedi le tue 5 carte premi SCAN."
+                error: "Nessuna carta visibile in basso. Premi DEAL e poi clicca SCAN."
             });
         }
 
         // =================================================================
-        // CASO 1: CARIBBEAN CLUB POKER (Platipus / 5 Carte)
+        // LOGICA CARIBBEAN CLUB POKER (Attiva sempre con 4 o 5 carte!)
         // =================================================================
-        if (gameType === "CARIBBEAN_STUD" || myCardsArr.length === 5) {
-            const cardsNum = parsePokerCards(myCardsArr);
-            const dealerCardsNum = parsePokerCards(tableCardsArr);
-            const dealerUpCard = dealerCardsNum[0];
+        const cardsNum = parsePokerCards(myCardsArr);
+        const dealerCardsNum = parsePokerCards(tableCardsArr);
+        const dealerUpCard = dealerCardsNum[0];
 
-            const ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a);
-            const suits = cardsNum.map(c => c & 3);
-            let rankCounts = {};
-            ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
+        const ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a);
+        const suits = cardsNum.map(c => c & 3);
+        let rankCounts = {};
+        ranks.forEach(r => rankCounts[r] = (rankCounts[r] || 0) + 1);
 
-            const countsArr = Object.values(rankCounts).sort((a, b) => b - a);
-            const maxSameRank = countsArr[0] || 0;
-            const secondSameRank = countsArr[1] || 0;
+        const countsArr = Object.values(rankCounts).sort((a, b) => b - a);
+        const maxSameRank = countsArr[0] || 0;
+        const secondSameRank = countsArr[1] || 0;
 
-            const isFlush = suits.length === 5 && suits.every(s => s === suits[0]);
-            const isUnique5 = countsArr.length === 5;
-            const isStraight = isUnique5 && ((ranks[0] - ranks[4] === 4) || (ranks[0] === 12 && ranks[1] === 3 && ranks[4] === 0));
+        const isFlush = suits.length === 5 && suits.every(s => s === suits[0]);
+        const isUnique5 = countsArr.length === 5;
+        const isStraight = isUnique5 && ((ranks[0] - ranks[4] === 4) || (ranks[0] === 12 && ranks[1] === 3 && ranks[4] === 0));
 
-            // DOPPIA VERIFICA: Sia il motore matematico SIA l'IA visiva controllano se hai un punto fatto!
-            const aiSaysMadeHand = /PAIR|THREE|STRAIGHT|FLUSH|FULL|FOUR/.test(aiCategory);
-            const mathSaysMadeHand = (maxSameRank >= 2) || isFlush || isStraight;
+        // Riconosce se hai Coppia o più sia dai numeri SIA dalla scritta "ONE PAIR" / "TWO PAIRS" letta sul tavolo!
+        const aiSaysMadeHand = /PAIR|THREE|STRAIGHT|FLUSH|FULL|FOUR/.test(aiCategory) || /COPPIA|TRIS|SCALA|COLORE|FULL|POKER|PAIR/i.test(notaMano);
+        const mathSaysMadeHand = (maxSameRank >= 2) || isFlush || isStraight;
 
-            let nomePunto = notaMano;
-            if (maxSameRank === 4) nomePunto = "POKER (4 OF A KIND)";
-            else if (maxSameRank === 3 && secondSameRank === 2) nomePunto = "FULL HOUSE";
-            else if (isFlush) nomePunto = "COLORE (FLUSH)";
-            else if (isStraight) nomePunto = "SCALA (STRAIGHT)";
-            else if (maxSameRank === 3) nomePunto = "TRIS (THREE OF A KIND)";
-            else if (maxSameRank === 2 && secondSameRank === 2) nomePunto = "DOPPIA COPPIA (TWO PAIRS)";
-            else if (maxSameRank === 2 || aiSaysMadeHand) nomePunto = "COPPIA (ONE PAIR)";
+        let nomePunto = "CARTA ALTA";
+        if (maxSameRank === 4) nomePunto = "POKER";
+        else if (maxSameRank === 3 && secondSameRank === 2) nomePunto = "FULL HOUSE";
+        else if (isFlush) nomePunto = "COLORE";
+        else if (isStraight) nomePunto = "SCALA";
+        else if (maxSameRank === 3) nomePunto = "TRIS";
+        else if ((maxSameRank === 2 && secondSameRank === 2) || aiCategory.includes("TWO")) nomePunto = "DOPPIA COPPIA";
+        else if (maxSameRank === 2 || aiSaysMadeHand) nomePunto = "COPPIA (ONE PAIR)";
 
-            const raiseCost = (effectiveAnte * 2).toFixed(2);
-            const totalInPlay = (effectiveAnte * 3).toFixed(2);
+        const raiseCost = (effectiveAnte * 2).toFixed(2);
+        const totalInPlay = (effectiveAnte * 3).toFixed(2);
 
-            // REGOLA A: HAI ALMENO UNA COPPIA O SUPERIORE -> VIETATO FOLDARE! RADDOPPIA SEMPRE!
-            if (mathSaysMadeHand || aiSaysMadeHand) {
-                let winEst = "68%";
-                if (maxSameRank >= 3 || isFlush || isStraight) winEst = "95%+";
-                else if (secondSameRank === 2 || aiCategory === "TWO_PAIR") winEst = "86%";
+        // 1. HAI COPPIA O SUPERIORE -> PREMI SEMPRE "X2 PUNTATA"!
+        if (mathSaysMadeHand || aiSaysMadeHand) {
+            let winEst = "68%";
+            if (maxSameRank >= 3 || isFlush || isStraight) winEst = "95%+";
+            else if (secondSameRank === 2 || aiCategory.includes("TWO")) winEst = "86%";
 
-                return res.json({
-                    success: true,
-                    gameDetected: "CARIBBEAN POKER",
-                    myCardsStr: `${myCardsArr.join(" ")} [${nomePunto}]`,
-                    tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
-                    winPct: winEst,
-                    command: "PREMI 'BET / CALL' (RADDOPPIA 2X)!",
-                    betSizingText: `METTI €${raiseCost} SU 'PLACE BET' (TOTALE: €${totalInPlay}) - VIETATO FOLDARE!`,
-                    color: "#00e676",
-                    reason: `Hai ${nomePunto}! Con qualsiasi Coppia o Doppia Coppia è un errore grave fare Fold: matematicamente devi SEMPRE raddoppiare.`
-                });
-            }
-
-            // REGOLA B: HAI ASSO + RE (A-K) SENZA COPPIA
-            const hasAceKing = (ranks[0] === 12 && ranks[1] === 11) || aiCategory === "ACE_KING_HIGH";
-            if (hasAceKing) {
-                const dealerRank = dealerUpCard !== undefined ? (dealerUpCard >> 2) : -1;
-                const matchDealer = ranks.includes(dealerRank);
-                const hasQueenOrJack = ranks[2] >= 9; // Terza carta Q o J
-
-                if (matchDealer || hasQueenOrJack) {
-                    return res.json({
-                        success: true,
-                        gameDetected: "CARIBBEAN POKER",
-                        myCardsStr: `${myCardsArr.join(" ")} [ASSO-RE FORTE]`,
-                        tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
-                        winPct: "54%",
-                        command: "PREMI 'BET / CALL' (RADDOPPIA 2X)",
-                        betSizingText: `METTI €${raiseCost} SU 'PLACE BET' (SUPERI LA SOGLIA A-K-J-8-3)`,
-                        color: "#00ffcc",
-                        reason: `Hai Asso-Re con kicker alto (${notaMano}): batti tutte le mani di qualificazione A-K più basse del banco.`
-                    });
-                }
-            }
-
-            // REGOLA C: CARTA ALTA SOTTO ASSO-RE (NESSUNA COPPIA) -> FOLD!
             return res.json({
                 success: true,
                 gameDetected: "CARIBBEAN POKER",
-                myCardsStr: `${myCardsArr.join(" ")} [CARTA ALTA]`,
-                tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr.join(" ")}` : "Banco: --",
-                winPct: "26%",
-                command: "PREMI 'FOLD' (NON RADDOPPIARE)",
-                betSizingText: `NON METTERE I €${raiseCost} SU PLACE BET! RISPARMIALI PER LA PROSSIMA MANO`,
-                color: "#ff4d4d",
-                reason: `Non hai nessuna coppia e sei sotto Asso-Re (${notaMano}). Poiché il banco gioca solo con A-K o più, se si qualifica ti batte già.`
+                myCardsStr: `${myCardsArr.join(" ")} [${nomePunto}]`,
+                tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr[0]}` : "Banco: --",
+                winPct: winEst,
+                command: "PREMI 'X2 PUNTATA' (RADDOPPIA)!",
+                betSizingText: `CLICCA 'X2 PUNTATA' (+€${raiseCost} -> TOTALE €${totalInPlay})`,
+                color: "#00e676",
+                reason: `Hai ${nomePunto} (${notaMano})! Matematicamente sei in netto vantaggio sul banco: raddoppia sempre.`
             });
         }
 
-        // =================================================================
-        // CASO 2: 3 CARD BRAG (3 Carte - Soglia Q-6-4)
-        // =================================================================
-        if (gameType === "THREE_CARD_BRAG" || myCardsArr.length === 3) {
-            const cardsNum = parsePokerCards(myCardsArr);
-            const ranks = cardsNum.map(c => c >> 2).sort((a, b) => b - a);
-            const isPair = (ranks[0] === ranks[1]) || (ranks[1] === ranks[2]) || /PAIR|THREE|STRAIGHT|FLUSH/.test(aiCategory);
-            const isQ64 = isPair || ranks[0] > 10 || (ranks[0] === 10 && (ranks[1] > 4 || (ranks[1] === 4 && ranks[2] >= 2)));
+        // 2. HAI ASSO + RE (A-K) SENZA COPPIA
+        const hasAceKing = (ranks[0] === 12 && ranks[1] === 11) || aiCategory === "ACE_KING_HIGH";
+        if (hasAceKing) {
+            const dealerRank = dealerUpCard !== undefined ? (dealerUpCard >> 2) : -1;
+            const matchDealer = ranks.includes(dealerRank);
+            const hasQueenOrJack = ranks[2] >= 9;
 
-            if (isQ64) {
+            if (matchDealer || hasQueenOrJack) {
                 return res.json({
                     success: true,
-                    gameDetected: "3 CARD BRAG",
-                    myCardsStr: myCardsArr.join(" "),
-                    tableCardsStr: "Soglia >= Q-6-4",
-                    winPct: isPair ? "82%" : "56%",
-                    command: "PREMI 'PLAY' (GIOCA 1X)",
-                    betSizingText: `PUNTA €${effectiveAnte.toFixed(2)} SU PLAY`,
-                    color: "#00e676",
-                    reason: `${notaMano}: mano sopra la soglia matematica Q-6-4.`
-                });
-            } else {
-                return res.json({
-                    success: true,
-                    gameDetected: "3 CARD BRAG",
-                    myCardsStr: myCardsArr.join(" "),
-                    tableCardsStr: "Sotto Q-6-4",
-                    winPct: "32%",
-                    command: "PREMI 'FOLD' (LASCIA)",
-                    betSizingText: `RISPARMIA €${effectiveAnte.toFixed(2)} (NON PREMERE PLAY)`,
-                    color: "#ff4d4d",
-                    reason: `${notaMano}: sotto Donna-6-4.`
+                    gameDetected: "CARIBBEAN POKER",
+                    myCardsStr: `${myCardsArr.join(" ")} [ASSO-RE FORTE]`,
+                    tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr[0]}` : "Banco: --",
+                    winPct: "54%",
+                    command: "PREMI 'X2 PUNTATA' (RADDOPPIA)",
+                    betSizingText: `CLICCA 'X2 PUNTATA' (+€${raiseCost})`,
+                    color: "#00ffcc",
+                    reason: `Hai Asso-Re forte (${notaMano}): superi la soglia matematica A-K-J-8-3.`
                 });
             }
         }
 
-        // =================================================================
-        // CASO 3: HOLD'EM (2 Carte + Board)
-        // =================================================================
-        const heroCards = parsePokerCards(myCardsArr.slice(0, 2));
-        const boardCards = parsePokerCards(tableCardsArr);
-        const usedSet = new Set([...heroCards, ...boardCards]);
-        const deck = [];
-        for (let c = 0; c < 52; c++) if (!usedSet.has(c)) deck.push(c);
-
-        const iterations = 10000;
-        let wins = 0, ties = 0;
-        for (let sim = 0; sim < iterations; sim++) {
-            const needed = (5 - boardCards.length) + 2;
-            for (let i = 0; i < needed; i++) {
-                const rIdx = i + Math.floor(Math.random() * (deck.length - i));
-                const tmp = deck[i]; deck[i] = deck[rIdx]; deck[rIdx] = tmp;
-            }
-            const simBoard = [...boardCards];
-            let ptr = 0;
-            while (simBoard.length < 5) simBoard.push(deck[ptr++]);
-            const hScore = valutaForza7Carte([...heroCards, ...simBoard]);
-            const vScore = valutaForza7Carte([deck[ptr++], deck[ptr++], ...simBoard]);
-            if (hScore > vScore) wins++; else if (hScore === vScore) ties++;
-        }
-
-        const equityPct = parseFloat((((wins + ties * 0.5) / iterations) * 100).toFixed(1));
-        const isPlay = equityPct >= 44;
+        // 3. NON HAI NÉ COPPIA NÉ ASSO-RE -> PREMI FOLD!
         return res.json({
             success: true,
-            gameDetected: "HOLD'EM GTO",
-            myCardsStr: myCardsArr.join(" "),
-            tableCardsStr: tableCardsArr.join(" ") || "Pre-Flop",
-            winPct: `${equityPct}%`,
-            command: isPlay ? "CHIAMA / RILANCIA (CALL/BET)" : "PASSA (FOLD)",
-            betSizingText: isPlay ? `PUNTA €${(effectiveAnte * 2).toFixed(2)}` : `RISPARMIA LA CHIAMATA (FOLD)`,
-            color: isPlay ? "#00e676" : "#ff4d4d",
-            reason: `${notaMano}: equità del ${equityPct}% su 10.000 mani.`
+            gameDetected: "CARIBBEAN POKER",
+            myCardsStr: `${myCardsArr.join(" ")} [CARTA ALTA]`,
+            tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr[0]}` : "Banco: --",
+            winPct: "24%",
+            command: "PREMI 'FOLD' (LASCIA)",
+            betSizingText: `CLICCA 'FOLD' E RISPARMIA I €${raiseCost} DEL RADDOPPIO!`,
+            color: "#ff4d4d",
+            reason: `Hai solo Carta Alta (${notaMano}). Non mettere altri €${raiseCost}: il banco si qualifica solo con A-K o più.`
         });
 
     } catch (e) {
