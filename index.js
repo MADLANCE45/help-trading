@@ -1080,9 +1080,7 @@ JSON FORMAT:
         } else {
             throw new Error(`Invalid JSON format from AI`);
         }
-
-        const aiResult = JSON.parse(cleanText);
-        
+      
         // 📦 RISPOSTA FINALE AL FRONTEND
         res.json({
             success: true,
