@@ -360,9 +360,10 @@ const io = new Server(server, {
 });
 
 
-// Parsing del body in JSON con limite alzato a 50MB per gli screenshot del Poker
+// Parsing del body in JSON e impostazione proxy per Railway/Vercel
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.set('trust proxy', 1);
 //app.use(cors());
 const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
 // 🔥 GARBAGE COLLECTOR OTTIMIZZATO (Solo per WebSocket)
@@ -1061,25 +1062,6 @@ JSON FORMAT:
             aiResult = JSON.parse(cleanText);
         }
 
-        // 2. AUTO-FALLBACK: Se il modello primario (es. DeepSeek) è intasato, salviamo la chat!
-        if (data.error) {
-            console.log(`⚠️ Copilot Model ${primaryModel} failed (${data.error.message}). Fallback to ${fallbackModel}!`);
-            data = await chiamaCopilot(fallbackModel);
-        }
-
-        if (data.error) throw new Error(data.error.message);
-
-        // 🪤 PARSING DEL JSON
-        let rawText = data.choices[0].message.content;
-        let cleanText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const startIdx = cleanText.indexOf('{');
-        const endIdx = cleanText.lastIndexOf('}');
-        
-        if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-            cleanText = cleanText.substring(startIdx, endIdx + 1);
-        } else {
-            throw new Error(`Invalid JSON format from AI`);
-        }
       
         // 📦 RISPOSTA FINALE AL FRONTEND
         res.json({
@@ -4273,8 +4255,21 @@ function valutaForza7Carte(cards7) {
 }
 
 // =====================================================================
-// 📸 MOTORE POKER AUTO-VISION V3 (COSTO ZERO SU GROQ + GEMINI FLASH LITE)
+// 📸 MOTORE POKER AUTO-VISION V4 (Senza bug response_format + Cache 0ms)
 // =====================================================================
+const pokerVisionCache = new Map();
+
+function estraiJsonDaTestoVision(rawContent) {
+    if (!rawContent || typeof rawContent !== "string") return null;
+    let clean = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/gi, '').replace(/```/g, '').trim();
+    const sIdx = clean.indexOf('{');
+    const eIdx = clean.lastIndexOf('}');
+    if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
+        return JSON.parse(clean.substring(sIdx, eIdx + 1));
+    }
+    return null;
+}
+
 app.post('/api/poker/auto-vision', async (req, res) => {
     try {
         const { imageBase64, baseBet = 0.40 } = req.body;
@@ -4284,98 +4279,133 @@ app.post('/api/poker/auto-vision', async (req, res) => {
             return res.json({ success: false, error: "NESSUNA IMMAGINE RICEVUTA" });
         }
 
-        const visionPrompt = `
-Read the poker table screenshot carefully.
-Look ONLY at the player's bottom 5 cards (above the ANTE / PLACE BET circles) and the black label above them (e.g. "ONE PAIR", "TWO PAIRS", "HIGH CARD", "NO GAME").
-Do NOT mix the dealer's top card (under "MIN/MAX" or above "DEALER QUALIFIES") into "myCards"!
+        // ⚡ CACHE IMMAGINE IDENTICA: Se clicchi 2 volte sulla stessa mano non consuma API!
+        const imgSignature = imageBase64.slice(Math.floor(imageBase64.length / 2), Math.floor(imageBase64.length / 2) + 120);
+        if (pokerVisionCache.has(imgSignature)) {
+            const cached = pokerVisionCache.get(imgSignature);
+            if (Date.now() - cached.time < 45000) {
+                console.log("⚡ [POKER CACHE] Stessa immagine rilevata: risposta in 0ms ($0.00)");
+                return res.json(cached.payload);
+            }
+        }
 
-Return ONLY a valid JSON object:
+        const visionPrompt = `Look at this online poker screenshot.
+Read ONLY the player's bottom 5 cards (above ANTE / PLACE BET) and the black label above them (like "ONE PAIR", "TWO PAIRS", "HIGH CARD", "NO GAME").
+Do NOT put the dealer's top card (under MIN/MAX) inside "myCards".
+
+Reply ONLY with a valid JSON object (no markdown, no extra text):
 {
   "gameType": "CARIBBEAN_STUD",
   "myCards": ["Td", "Ts", "Kc", "4d", "3c"],
   "boardOrDealerCards": ["9s"],
   "handCategory": "ONE_PAIR",
   "detectedBet": 0.4,
-  "visualNotes": "Coppia di 10 con Re kicker"
+  "visualNotes": "Coppia di 10 con Re"
 }
-Rules for cards: use T for 10, J, Q, K, A, and s,h,d,c for suits.
-Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_PAIR", "TWO_PAIR", "THREE_OF_A_KIND", "STRAIGHT", "FLUSH", "FULL_HOUSE", "FOUR_OF_A_KIND".`;
+Use T for 10, J, Q, K, A, and s,h,d,c for suits.
+For handCategory use ONLY: "HIGH_CARD", "ACE_KING_HIGH", "ONE_PAIR", "TWO_PAIR", "THREE_OF_A_KIND", "STRAIGHT", "FLUSH", "FULL_HOUSE", "FOUR_OF_A_KIND".`;
 
         let parsedVision = null;
+        let lastApiError = "";
 
-        // ⚡ LIVELLO 1: GROQ VISION GRATIS ($0.00 di consumo!)
+        // ⚡ LIVELLO 1 & 2: GROQ VISION GRATIS ($0.00 - Senza response_format che bloccava le immagini!)
         if (groqKeys && groqKeys.length > 0 && groqKeys[0] !== "") {
-            try {
-                const gKey = groqKeys[currentGroqIndex];
-                currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
+            const groqVisionModels = [
+                "meta-llama/llama-4-scout-17b-16e-instruct",
+                "meta-llama/llama-4-maverick-17b-128e-instruct"
+            ];
+            for (const gModel of groqVisionModels) {
+                if (parsedVision) break;
+                try {
+                    const gKey = groqKeys[currentGroqIndex];
+                    currentGroqIndex = (currentGroqIndex + 1) % groqKeys.length;
 
-                const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${gKey}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: "meta-llama/llama-4-scout-17b-16e-instruct",
-                        messages: [{
-                            role: "user",
-                            content: [
-                                { type: "text", text: visionPrompt },
-                                { type: "image_url", image_url: { url: imageBase64 } }
-                            ]
-                        }],
-                        temperature: 0.0,
-                        response_format: { type: "json_object" }
-                    })
-                });
-                const gData = await groqResp.json();
-                if (gData.choices?.[0]?.message?.content) {
-                    let cleanG = gData.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    parsedVision = JSON.parse(cleanG);
-                    console.log("⚡ [POKER VISION] Letto GRATIS con Groq Llama-4 Scout!");
+                    const groqResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${gKey}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            model: gModel,
+                            messages: [{
+                                role: "user",
+                                content: [
+                                    { type: "text", text: visionPrompt },
+                                    { type: "image_url", image_url: { url: imageBase64 } }
+                                ]
+                            }],
+                            temperature: 0.0,
+                            max_tokens: 300
+                        })
+                    });
+                    const gData = await groqResp.json();
+                    if (gData.error) {
+                        lastApiError = gData.error.message || "Groq Error";
+                    } else if (gData.choices?.[0]?.message?.content) {
+                        parsedVision = estraiJsonDaTestoVision(gData.choices[0].message.content);
+                        if (parsedVision) console.log(`⚡ [POKER VISION] Letto GRATIS con Groq (${gModel})!`);
+                    }
+                } catch (gErr) {
+                    lastApiError = gErr.message;
                 }
-            } catch (gErr) {
-                console.log("⚠️ Groq Vision occupato, passo a Gemini Flash Lite ultra-economico...");
             }
         }
 
-        // ⚡ LIVELLO 2 (FALLBACK): GEMINI 2.0 FLASH LITE SU OPENROUTER (Costa 100x meno di GPT-4o-mini!)
+        // ⚡ LIVELLO 3 & 4: OPENROUTER ULTRA-LOW-COST (Gemini Flash Lite -> GPT-4o-mini detail:low da $0.00002)
         if (!parsedVision) {
             const apiKey = process.env.OPENROUTER_API_KEY;
-            if (!apiKey) return res.json({ success: false, error: "CHIAVE API MANCANTE" });
+            if (!apiKey) return res.json({ success: false, error: "CHIAVE OPENROUTER MANCANTE" });
 
-            const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    model: "google/gemini-2.0-flash-lite-001", // ⚡ Costa $0.00003 a foto invece di $0.01!
-                    messages: [{
-                        role: "user",
-                        content: [
-                            { type: "text", text: visionPrompt },
-                            { type: "image_url", image_url: { url: imageBase64, detail: "low" } }
-                        ]
-                    }],
-                    temperature: 0.0,
-                    response_format: { type: "json_object" }
-                })
-            });
+            const openRouterModels = [
+                "google/gemini-2.0-flash-001",
+                "openai/gpt-4o-mini" // Con detail:"low" consuma solo 85 token ($0.00002)!
+            ];
 
-            const data = await resp.json();
-            if (data.error || !data.choices?.[0]) {
-                return res.json({ success: false, error: "RIPROVA SCAN TRA 1 SECONDO" });
+            for (const orModel of openRouterModels) {
+                if (parsedVision) break;
+                try {
+                    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${apiKey}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            model: orModel,
+                            messages: [{
+                                role: "user",
+                                content: [
+                                    { type: "text", text: visionPrompt },
+                                    { type: "image_url", image_url: { url: imageBase64, detail: "low" } }
+                                ]
+                            }],
+                            temperature: 0.0,
+                            max_tokens: 300
+                        })
+                    });
+
+                    const data = await resp.json();
+                    if (data.error) {
+                        lastApiError = data.error.message || "OpenRouter Error";
+                        console.log(`⚠️ Vision ${orModel} fallito:`, lastApiError);
+                    } else if (data.choices?.[0]?.message?.content) {
+                        parsedVision = estraiJsonDaTestoVision(data.choices[0].message.content);
+                        if (parsedVision) console.log(`⚡ [POKER VISION] Letto con ${orModel} (Low-Cost Mode)!`);
+                    }
+                } catch (orErr) {
+                    lastApiError = orErr.message;
+                }
             }
-            let rawText = data.choices[0].message.content.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const sIdx = rawText.indexOf('{');
-            const eIdx = rawText.lastIndexOf('}');
-            if (sIdx !== -1 && eIdx !== -1) rawText = rawText.substring(sIdx, eIdx + 1);
-            parsedVision = JSON.parse(rawText);
         }
 
-        // Teniamo sempre e solo le prime 5 carte del giocatore (anche se l'IA ne legge 6 per sbaglio!)
+        if (!parsedVision) {
+            return res.json({
+                success: false,
+                error: `ERRORE VISION API: ${lastApiError || "Risposta non valida"}`
+            });
+        }
+
         let myCardsArr = (parsedVision.myCards || []).slice(0, 5);
         const tableCardsArr = parsedVision.boardOrDealerCards || [];
         const aiCategory = String(parsedVision.handCategory || "HIGH_CARD").toUpperCase();
@@ -4390,9 +4420,6 @@ Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_P
             });
         }
 
-        // =================================================================
-        // LOGICA CARIBBEAN CLUB POKER (Attiva sempre con 4 o 5 carte!)
-        // =================================================================
         const cardsNum = parsePokerCards(myCardsArr);
         const dealerCardsNum = parsePokerCards(tableCardsArr);
         const dealerUpCard = dealerCardsNum[0];
@@ -4410,7 +4437,6 @@ Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_P
         const isUnique5 = countsArr.length === 5;
         const isStraight = isUnique5 && ((ranks[0] - ranks[4] === 4) || (ranks[0] === 12 && ranks[1] === 3 && ranks[4] === 0));
 
-        // Riconosce se hai Coppia o più sia dai numeri SIA dalla scritta "ONE PAIR" / "TWO PAIRS" letta sul tavolo!
         const aiSaysMadeHand = /PAIR|THREE|STRAIGHT|FLUSH|FULL|FOUR/.test(aiCategory) || /COPPIA|TRIS|SCALA|COLORE|FULL|POKER|PAIR/i.test(notaMano);
         const mathSaysMadeHand = (maxSameRank >= 2) || isFlush || isStraight;
 
@@ -4426,13 +4452,15 @@ Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_P
         const raiseCost = (effectiveAnte * 2).toFixed(2);
         const totalInPlay = (effectiveAnte * 3).toFixed(2);
 
+        let responsePayload = null;
+
         // 1. HAI COPPIA O SUPERIORE -> PREMI SEMPRE "X2 PUNTATA"!
         if (mathSaysMadeHand || aiSaysMadeHand) {
             let winEst = "68%";
             if (maxSameRank >= 3 || isFlush || isStraight) winEst = "95%+";
             else if (secondSameRank === 2 || aiCategory.includes("TWO")) winEst = "86%";
 
-            return res.json({
+            responsePayload = {
                 success: true,
                 gameDetected: "CARIBBEAN POKER",
                 myCardsStr: `${myCardsArr.join(" ")} [${nomePunto}]`,
@@ -4442,18 +4470,16 @@ Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_P
                 betSizingText: `CLICCA 'X2 PUNTATA' (+€${raiseCost} -> TOTALE €${totalInPlay})`,
                 color: "#00e676",
                 reason: `Hai ${nomePunto} (${notaMano})! Matematicamente sei in netto vantaggio sul banco: raddoppia sempre.`
-            });
+            };
         }
-
         // 2. HAI ASSO + RE (A-K) SENZA COPPIA
-        const hasAceKing = (ranks[0] === 12 && ranks[1] === 11) || aiCategory === "ACE_KING_HIGH";
-        if (hasAceKing) {
+        else if ((ranks[0] === 12 && ranks[1] === 11) || aiCategory === "ACE_KING_HIGH") {
             const dealerRank = dealerUpCard !== undefined ? (dealerUpCard >> 2) : -1;
             const matchDealer = ranks.includes(dealerRank);
             const hasQueenOrJack = ranks[2] >= 9;
 
             if (matchDealer || hasQueenOrJack) {
-                return res.json({
+                responsePayload = {
                     success: true,
                     gameDetected: "CARIBBEAN POKER",
                     myCardsStr: `${myCardsArr.join(" ")} [ASSO-RE FORTE]`,
@@ -4463,22 +4489,27 @@ Rules for handCategory: choose ONLY between "HIGH_CARD", "ACE_KING_HIGH", "ONE_P
                     betSizingText: `CLICCA 'X2 PUNTATA' (+€${raiseCost})`,
                     color: "#00ffcc",
                     reason: `Hai Asso-Re forte (${notaMano}): superi la soglia matematica A-K-J-8-3.`
-                });
+                };
             }
         }
 
         // 3. NON HAI NÉ COPPIA NÉ ASSO-RE -> PREMI FOLD!
-        return res.json({
-            success: true,
-            gameDetected: "CARIBBEAN POKER",
-            myCardsStr: `${myCardsArr.join(" ")} [CARTA ALTA]`,
-            tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr[0]}` : "Banco: --",
-            winPct: "24%",
-            command: "PREMI 'FOLD' (LASCIA)",
-            betSizingText: `CLICCA 'FOLD' E RISPARMIA I €${raiseCost} DEL RADDOPPIO!`,
-            color: "#ff4d4d",
-            reason: `Hai solo Carta Alta (${notaMano}). Non mettere altri €${raiseCost}: il banco si qualifica solo con A-K o più.`
-        });
+        if (!responsePayload) {
+            responsePayload = {
+                success: true,
+                gameDetected: "CARIBBEAN POKER",
+                myCardsStr: `${myCardsArr.join(" ")} [CARTA ALTA]`,
+                tableCardsStr: tableCardsArr.length > 0 ? `Banco: ${tableCardsArr[0]}` : "Banco: --",
+                winPct: "24%",
+                command: "PREMI 'FOLD' (LASCIA)",
+                betSizingText: `CLICCA 'FOLD' E RISPARMIA I €${raiseCost} DEL RADDOPPIO!`,
+                color: "#ff4d4d",
+                reason: `Hai solo Carta Alta (${notaMano}). Non mettere altri €${raiseCost}: il banco si qualifica solo con A-K o più.`
+            };
+        }
+
+        pokerVisionCache.set(imgSignature, { time: Date.now(), payload: responsePayload });
+        return res.json(responsePayload);
 
     } catch (e) {
         return res.json({ success: false, error: "ERRORE ANALISI: " + e.message });
