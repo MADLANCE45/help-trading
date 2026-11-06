@@ -1026,38 +1026,48 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const betAdviceEl = document.getElementById('auto-poker-bet-advice');
                                 const boxEl = document.getElementById('auto-poker-verdict-box');
                                 const reasonEl = document.getElementById('auto-poker-reason');
-                                const baseBetVal = parseFloat(document.getElementById('poker-base-bet')?.value) || 0.40;
+                                const myCardsEl = document.getElementById('auto-my-cards');
+                                const tableCardsEl = document.getElementById('auto-table-cards');
+                                const winPctEl = document.getElementById('auto-poker-winpct');
+                                const baseBetVal = parseFloat(document.getElementById('poker-base-bet')?.value) || 0.50;
 
                                 cfg.pokerBaseBet = baseBetVal;
                                 chrome.storage.local.set({ userConfig: cfg });
 
-                                btnScan.innerText = "LETTURA NUOVE CARTE...";
+                                // 🛡️ SICUREZZA ANTI-INGANNO: Azzera subito le vecchie carte e il vecchio consiglio verde!
+                                btnScan.innerText = "LETTURA TAVOLO IN CORSO...";
                                 btnScan.style.opacity = "0.7";
+                                if (myCardsEl) myCardsEl.innerText = "LETTURA...";
+                                if (tableCardsEl) tableCardsEl.innerText = "...";
+                                if (winPctEl) winPctEl.innerText = "--%";
+                                if (actionEl) { actionEl.innerText = "ANALISI CARTE..."; actionEl.style.color = "#ffaa00"; }
+                                if (betAdviceEl) betAdviceEl.innerText = "";
+                                if (boxEl) boxEl.style.borderColor = "#ffaa00";
 
                                 const elaboraScreenshot = async (rawDataUrl) => {
                                     if (!rawDataUrl) {
                                         btnScan.innerText = "🔄 AGGIORNA NUOVA MANO (SCAN)";
                                         btnScan.style.opacity = "1";
-                                        if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
+                                        if (actionEl) { actionEl.innerText = "IMPOSSIBILE FOTOGRAFARE IL TAVOLO"; actionEl.style.color = "#ff4d4d"; }
+                                        if (betAdviceEl) betAdviceEl.innerText = "NON PUNTARE: TAVOLO NON RILEVATO";
+                                        if (reasonEl) reasonEl.innerText = "Assicurati che la scheda di LuckyBlock sia aperta e visibile sullo schermo.";
                                         return;
                                     }
 
-                                    // 🔍 RITAGLIO ZOOM SUL TAVOLO VERDE: Taglia via menu laterali e chat per leggere le carte al 100% di nitidezza!
                                     const ritagliaTavoloPoker = (srcBase64) => new Promise((resolve) => {
                                         const img = new Image();
                                         img.onload = () => {
                                             const canvas = document.createElement('canvas');
-                                            // Prende l'area centrale dove c'è il tavolo verde di LuckyBlock
-                                            const cropX = Math.round(img.width * 0.16);
-                                            const cropY = Math.round(img.height * 0.12);
-                                            const cropW = Math.round(img.width * 0.62);
+                                            const cropX = Math.round(img.width * 0.18);
+                                            const cropY = Math.round(img.height * 0.14);
+                                            const cropW = Math.round(img.width * 0.58);
                                             const cropH = Math.round(img.height * 0.72);
 
-                                            canvas.width = 950;
-                                            canvas.height = Math.round((cropH / cropW) * 950);
+                                            canvas.width = 900;
+                                            canvas.height = Math.round((cropH / cropW) * 900);
                                             const ctx = canvas.getContext('2d');
                                             ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-                                            resolve(canvas.toDataURL('image/jpeg', 0.78));
+                                            resolve(canvas.toDataURL('image/jpeg', 0.75));
                                         };
                                         img.onerror = () => resolve(srcBase64);
                                         img.src = srcBase64;
@@ -1073,8 +1083,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                         });
                                         const d = await r.json();
                                         if (!d.success) {
-                                            if (actionEl) { actionEl.innerText = "ATTENDI LE CARTE"; actionEl.style.color = "#ffaa00"; }
-                                            if (betAdviceEl) betAdviceEl.innerText = d.betSizingText || "";
+                                            if (myCardsEl) myCardsEl.innerText = "NESSUNA CARTA";
+                                            if (tableCardsEl) tableCardsEl.innerText = "--";
+                                            if (actionEl) { actionEl.innerText = "ATTENDI IL FLOP / CARTE"; actionEl.style.color = "#ffaa00"; }
+                                            if (betAdviceEl) { betAdviceEl.innerText = d.betSizingText || ""; betAdviceEl.style.color = "#ffaa00"; }
+                                            if (boxEl) boxEl.style.borderColor = "#ffaa00";
                                             if (reasonEl) reasonEl.innerText = d.error;
                                         } else {
                                             sess.handsCount = (sess.handsCount || 0) + 1;
@@ -1087,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             sess.lastWinPct = d.winPct;
 
                                             const oraStr = new Date().toLocaleTimeString('it-IT', { hour12: false });
-                                            sess.history.unshift(`[${oraStr}] ${d.myCardsStr} | ${d.tableCardsStr} -> ${d.command.includes('FOLD') ? 'FOLD' : 'X2'}`);
+                                            sess.history.unshift(`[${oraStr}] ${d.myCardsStr} | ${d.tableCardsStr} -> ${d.command.includes('FOLD') ? 'FOLD' : 'PLAY'}`);
                                             if (sess.history.length > 15) sess.history.pop();
 
                                             chrome.storage.local.set({ pokerSession1: sess }, () => {
@@ -1095,19 +1108,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                             });
                                         }
                                     } catch (err) {
-                                        if (actionEl) actionEl.innerText = "ERRORE CONNESSIONE SERVER";
+                                        if (myCardsEl) myCardsEl.innerText = "ERRORE RETE";
+                                        if (actionEl) { actionEl.innerText = "ERRORE CONNESSIONE SERVER"; actionEl.style.color = "#ff4d4d"; }
+                                        if (betAdviceEl) { betAdviceEl.innerText = "FERMATI: IL SERVER NON HA RISPOSTO!"; betAdviceEl.style.color = "#ff4d4d"; }
+                                        if (boxEl) boxEl.style.borderColor = "#ff4d4d";
+                                        if (reasonEl) reasonEl.innerText = "Dettaglio tecnico: " + err.message;
                                     } finally {
                                         btnScan.innerText = "🔄 AGGIORNA NUOVA MANO (SCAN)";
                                         btnScan.style.opacity = "1";
                                     }
                                 };
 
-                                // Cerca sempre la finestra del casinò (anche se stai usando la Finestra Fissa staccata!)
-                                chrome.tabs.query({ active: true, lastFocusedWindow: false }, (allTabs) => {
-                                    const casinoTab = allTabs.find(t => t.url && !t.url.includes(chrome.runtime.id) && !t.url.startsWith('chrome'));
-                                    const targetWinId = casinoTab ? casinoTab.windowId : null;
-                                    if (chrome.tabs && chrome.tabs.captureVisibleTab) {
-                                        chrome.tabs.captureVisibleTab(targetWinId, { format: "jpeg", quality: 80 }, elaboraScreenshot);
+                                // 🔥 FIX FINESTRA FISSA: Cerca in TUTTE le finestre aperte la scheda di LuckyBlock!
+                                chrome.tabs.query({}, (allTabs) => {
+                                    const casinoTab = allTabs.find(t => t.url && /luckyblock|casino|poker|pragmatic|playtech|platipus/i.test(t.url))
+                                                   || allTabs.find(t => t.active && t.url && !t.url.includes(chrome.runtime.id) && !t.url.startsWith('chrome') && !t.url.startsWith('moz-extension'));
+
+                                    if (casinoTab && chrome.tabs.captureVisibleTab) {
+                                        chrome.tabs.captureVisibleTab(casinoTab.windowId, { format: "jpeg", quality: 78 }, elaboraScreenshot);
+                                    } else if (chrome.tabs && chrome.tabs.captureVisibleTab) {
+                                        chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 78 }, elaboraScreenshot);
                                     } else {
                                         chrome.runtime.sendMessage({ action: "CAPTURE_POKER_TABLE" }, (resp) => {
                                             elaboraScreenshot(resp?.imageBase64);
