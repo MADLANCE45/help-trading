@@ -911,141 +911,212 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!content) return;
 
                 const renderPokerAutoScanner = () => {
-                    content.innerHTML = `
-                        <div style="background: #0b0d13; border: 1px solid #00aaff; border-top: 3px solid #00aaff; border-radius: 8px; padding: 14px; font-family: monospace; box-shadow: 0 8px 25px rgba(0,0,0,0.8);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                                <span style="color:#00aaff; font-weight:900; font-size:0.8em; letter-spacing:1px;">[SYS.GTO] AUTO-VISION POKER AI</span>
-                                <span id="poker-game-type-badge" style="background:rgba(0,170,255,0.15); color:#00aaff; padding:2px 6px; border-radius:4px; font-size:0.65em; font-weight:bold;">READY</span>
-                            </div>
-
-                            <!-- PUNTATA BASE / ANTE ATTUALE -->
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
-                                <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px;">
-                                    <div style="font-size:0.55em; color:#888; margin-bottom:2px;">TUA PUNTATA BASE / ANTE ($)</div>
-                                    <input type="number" step="0.5" id="poker-base-bet" value="${cfg.pokerBaseBet || 0.50}" style="width:100%; box-sizing:border-box; background:transparent; border:none; color:#00ffcc; font-family:monospace; font-size:0.85em; font-weight:900; outline:none;">
-                                </div>
-                                <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px; text-align:center;">
-                                    <div style="font-size:0.55em; color:#888; margin-bottom:2px;">VITTORIA STIMATA</div>
-                                    <b id="auto-poker-winpct" style="color:#00e676; font-size:0.85em;">--%</b>
-                                </div>
-                            </div>
-
-                            <button id="btn-auto-scan-poker" style="width:100%; background: linear-gradient(90deg, #00aaff, #00ffcc); color:#000; border:none; padding:12px; border-radius:6px; font-family:monospace; font-size:0.85em; font-weight:900; cursor:pointer; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);">
-                                SCAN TABLE NOW (LEGGI CARTE)
-                            </button>
-
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
-                                <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
-                                    <div style="font-size:0.6em; color:#666; margin-bottom:3px;">LE TUE CARTE</div>
-                                    <b id="auto-my-cards" style="color:#00ffcc; font-size:0.85em;">--</b>
-                                </div>
-                                <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
-                                    <div style="font-size:0.6em; color:#666; margin-bottom:3px;">TAVOLO / BANCO</div>
-                                    <b id="auto-table-cards" style="color:#e4e4e7; font-size:0.85em;">--</b>
-                                </div>
-                            </div>
-
-                            <!-- VERDETTO + QUANTO PUNTARE -->
-                            <div id="auto-poker-verdict-box" style="background:#050608; border:2px solid #2d3142; padding:12px; border-radius:6px; text-align:center; margin-bottom:8px;">
-                                <div style="font-size:0.62em; color:#888; margin-bottom:4px;">ORDINE MATEMATICO & PUNTATA</div>
-                                <div id="auto-poker-action" style="font-size:1.02em; font-weight:900; color:#ccc; letter-spacing:0.5px;">
-                                    PREMI SCAN QUANDO HAI LE CARTE
-                                </div>
-                                <div id="auto-poker-bet-advice" style="font-size:0.82em; color:#ffaa00; font-weight:900; margin-top:6px;"></div>
-                            </div>
-
-                            <div id="auto-poker-reason" style="font-size:0.74em; color:#aaa; text-align:center; line-height:1.4;">
-                                Supporta 3 Card Brag, Casino Hold'em, Texas Hold'em e Caribbean Stud.
-                            </div>
-                        </div>
-                    `;
-
-                    const btnScan = document.getElementById('btn-auto-scan-poker');
-                    if (btnScan) {
-                        btnScan.onclick = () => {
-                            const actionEl = document.getElementById('auto-poker-action');
-                            const betAdviceEl = document.getElementById('auto-poker-bet-advice');
-                            const boxEl = document.getElementById('auto-poker-verdict-box');
-                            const reasonEl = document.getElementById('auto-poker-reason');
-                            const baseBetVal = parseFloat(document.getElementById('poker-base-bet')?.value) || 0.50;
-
-                            cfg.pokerBaseBet = baseBetVal;
-                            chrome.storage.local.set({ userConfig: cfg });
-
-                            btnScan.innerText = "LETTURA TAVOLO IN CORSO...";
-                            btnScan.style.opacity = "0.7";
-
-                            const elaboraScreenshot = async ( rawDataUrl ) => {
-                                if (!rawDataUrl) {
-                                    btnScan.innerText = "SCAN TABLE NOW (LEGGI CARTE)";
-                                    btnScan.style.opacity = "1";
-                                    if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
-                                    return;
-                                }
-
-                                // ⚡ COMPRESSIONE RAPIDA (< 50 KB): Evita l'errore 413 e triplica la velocità dell'IA
-                                const comprimiImmagine = (srcBase64) => new Promise((resolve) => {
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        const canvas = document.createElement('canvas');
-                                        const maxW = 1100;
-                                        const scale = img.width > maxW ? (maxW / img.width) : 1;
-                                        canvas.width = Math.round(img.width * scale);
-                                        canvas.height = Math.round(img.height * scale);
-                                        const ctx = canvas.getContext('2d');
-                                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                        resolve(canvas.toDataURL('image/jpeg', 0.55));
-                                    };
-                                    img.onerror = () => resolve(srcBase64);
-                                    img.src = srcBase64;
-                                });
-
-                                const dataUrl = await comprimiImmagine(rawDataUrl);
-
-                                try {
-                                    const r = await fetch("https://help-trading-production.up.railway.app/api/poker/auto-vision", {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ imageBase64: dataUrl, baseBet: baseBetVal })
-                                    });
-                                    const d = await r.json();
-                                    if (!d.success) {
-                                        if (actionEl) { actionEl.innerText = "ATTENDI LE CARTE"; actionEl.style.color = "#ffaa00"; }
-                                        if (betAdviceEl) betAdviceEl.innerText = d.betSizingText || "";
-                                        if (reasonEl) reasonEl.innerText = d.error;
-                                    } else {
-                                        document.getElementById('poker-game-type-badge').innerText = d.gameDetected;
-                                        document.getElementById('auto-my-cards').innerText = d.myCardsStr;
-                                        document.getElementById('auto-table-cards').innerText = d.tableCardsStr;
-                                        document.getElementById('auto-poker-winpct').innerText = d.winPct;
-                                        if (actionEl) {
-                                            actionEl.innerText = d.command;
-                                            actionEl.style.color = d.color;
-                                        }
-                                        if (betAdviceEl) {
-                                            betAdviceEl.innerText = d.betSizingText || "";
-                                            betAdviceEl.style.color = d.color;
-                                        }
-                                        if (boxEl) boxEl.style.borderColor = d.color;
-                                        if (reasonEl) reasonEl.innerText = d.reason;
-                                    }
-                                } catch (err) {
-                                    if (actionEl) actionEl.innerText = "ERRORE CONNESSIONE SERVER";
-                                } finally {
-                                    btnScan.innerText = "SCAN TABLE NOW (LEGGI CARTE)";
-                                    btnScan.style.opacity = "1";
-                                }
-                            };
-
-                            if (chrome.tabs && chrome.tabs.captureVisibleTab) {
-                                chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 65 }, elaboraScreenshot);
-                            } else {
-                                chrome.runtime.sendMessage({ action: "CAPTURE_POKER_TABLE" }, (resp) => {
-                                    elaboraScreenshot(resp?.imageBase64);
-                                });
-                            }
+                    chrome.storage.local.get(['pokerSession1'], (sessRes) => {
+                        const sess = sessRes.pokerSession1 || {
+                            active: true,
+                            handsCount: 0,
+                            lastMyCards: "--",
+                            lastDealerCard: "--",
+                            lastCommand: "PREMI 'AGGIORNA NUOVA MANO'",
+                            lastBetAdvice: "",
+                            lastReason: "Pronto. Quando il croupier dà le 5 carte, premi AGGIORNA NUOVA MANO.",
+                            lastColor: "#ccc",
+                            lastWinPct: "--%",
+                            history: []
                         };
-                    }
+
+                        content.innerHTML = `
+                            <div style="background: #0b0d13; border: 1px solid #00aaff; border-top: 3px solid #00aaff; border-radius: 8px; padding: 12px; font-family: monospace; box-shadow: 0 8px 25px rgba(0,0,0,0.8);">
+                                
+                                <!-- BARRA SESSIONE 1 + TASTO FINESTRA FISSA (NON SI CHIUDE) -->
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px dashed #1f2230;">
+                                    <span style="color:#00ffcc; font-weight:900; font-size:0.72em;">💾 SESSIONE 1 (MANI: <b id="sess-hands-count">${sess.handsCount}</b>)</span>
+                                    <div style="display:flex; gap:5px;">
+                                        <button id="btn-undock-poker" title="Apre una mini-finestra che non si chiude quando clicchi sul tavolo" style="background:rgba(0,255,204,0.12); color:#00ffcc; border:1px solid #00ffcc; padding:3px 7px; border-radius:4px; font-family:monospace; font-size:0.62em; font-weight:900; cursor:pointer;">
+                                            📌 FINESTRA FISSA
+                                        </button>
+                                        <button id="btn-close-session" title="Azzera e chiudi la Sessione 1" style="background:rgba(255,77,77,0.15); color:#ff4d4d; border:1px solid #ff4d4d; padding:3px 7px; border-radius:4px; font-family:monospace; font-size:0.62em; font-weight:900; cursor:pointer;">
+                                            ✕ CHIUDI SESSIONE
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- PUNTATA BASE E PROBABILITA' -->
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+                                    <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px;">
+                                        <div style="font-size:0.55em; color:#888; margin-bottom:2px;">TUA ANTE BASE (€)</div>
+                                        <input type="number" step="0.2" id="poker-base-bet" value="${cfg.pokerBaseBet || 0.40}" style="width:100%; box-sizing:border-box; background:transparent; border:none; color:#00ffcc; font-family:monospace; font-size:0.85em; font-weight:900; outline:none;">
+                                    </div>
+                                    <div style="background:#050608; border:1px solid #1f2230; padding:6px 8px; border-radius:4px; text-align:center;">
+                                        <div style="font-size:0.55em; color:#888; margin-bottom:2px;">VITTORIA STIMATA</div>
+                                        <b id="auto-poker-winpct" style="color:${sess.lastColor}; font-size:0.85em;">${sess.lastWinPct}</b>
+                                    </div>
+                                </div>
+
+                                <!-- TASTO AGGIORNA NUOVA MANO -->
+                                <button id="btn-auto-scan-poker" style="width:100%; background: linear-gradient(90deg, #00aaff, #00ffcc); color:#000; border:none; padding:11px; border-radius:6px; font-family:monospace; font-size:0.82em; font-weight:900; cursor:pointer; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px; box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);">
+                                    🔄 AGGIORNA NUOVA MANO (SCAN)
+                                </button>
+
+                                <!-- CARTE RILEVATE -->
+                                <div style="display:grid; grid-template-columns: 1.4fr 0.8fr; gap:8px; margin-bottom:10px;">
+                                    <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
+                                        <div style="font-size:0.58em; color:#666; margin-bottom:3px;">LE TUE 5 CARTE</div>
+                                        <b id="auto-my-cards" style="color:#00ffcc; font-size:0.78em;">${sess.lastMyCards}</b>
+                                    </div>
+                                    <div style="background:#050608; border:1px solid #1f2230; padding:8px; border-radius:4px; text-align:center;">
+                                        <div style="font-size:0.58em; color:#666; margin-bottom:3px;">CARTA BANCO</div>
+                                        <b id="auto-table-cards" style="color:#e4e4e7; font-size:0.78em;">${sess.lastDealerCard}</b>
+                                    </div>
+                                </div>
+
+                                <!-- VERDETTO -->
+                                <div id="auto-poker-verdict-box" style="background:#050608; border:2px solid ${sess.lastColor}; padding:10px; border-radius:6px; text-align:center; margin-bottom:8px;">
+                                    <div style="font-size:0.6em; color:#888; margin-bottom:3px;">AZIONE CONSIGLIATA SUL TAVOLO</div>
+                                    <div id="auto-poker-action" style="font-size:0.98em; font-weight:900; color:${sess.lastColor}; letter-spacing:0.5px;">
+                                        ${sess.lastCommand}
+                                    </div>
+                                    <div id="auto-poker-bet-advice" style="font-size:0.78em; color:${sess.lastColor}; font-weight:900; margin-top:5px;">
+                                        ${sess.lastBetAdvice}
+                                    </div>
+                                </div>
+
+                                <div id="auto-poker-reason" style="font-size:0.72em; color:#aaa; text-align:center; line-height:1.35; margin-bottom:8px;">
+                                    ${sess.lastReason}
+                                </div>
+
+                                <!-- STORICO MANI DELLA SESSIONE 1 -->
+                                <div style="background:#050608; border:1px solid #1a1c29; border-radius:4px; padding:6px 8px;">
+                                    <div style="font-size:0.58em; color:#888; text-transform:uppercase; margin-bottom:4px;">STORICO CARTE SESSIONE 1:</div>
+                                    <div id="poker-session-history" style="font-size:0.65em; color:#888; max-height:60px; overflow-y:auto; line-height:1.4;">
+                                        ${sess.history.length > 0 ? sess.history.map(h => `<div>• ${h}</div>`).join('') : 'Nessuna mano registrata in questa sessione.'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+                        // 1. PULSANTE "FINESTRA FISSA" (Non si chiude mai quando clicchi sul tavolo del casinò!)
+                        const btnUndock = document.getElementById('btn-undock-poker');
+                        if (btnUndock) {
+                            btnUndock.onclick = () => {
+                                chrome.windows.create({
+                                    url: chrome.runtime.getURL("popup.html"),
+                                    type: "popup",
+                                    width: 390,
+                                    height: 640
+                                });
+                            };
+                        }
+
+                        // 2. PULSANTE "CHIUDI SESSIONE 1" (Azzera la memoria quando finisci di giocare)
+                        const btnCloseSess = document.getElementById('btn-close-session');
+                        if (btnCloseSess) {
+                            btnCloseSess.onclick = () => {
+                                chrome.storage.local.remove('pokerSession1', () => {
+                                    renderPokerAutoScanner();
+                                });
+                            };
+                        }
+
+                        // 3. PULSANTE "AGGIORNA NUOVA MANO (SCAN)"
+                        const btnScan = document.getElementById('btn-auto-scan-poker');
+                        if (btnScan) {
+                            btnScan.onclick = () => {
+                                const actionEl = document.getElementById('auto-poker-action');
+                                const betAdviceEl = document.getElementById('auto-poker-bet-advice');
+                                const boxEl = document.getElementById('auto-poker-verdict-box');
+                                const reasonEl = document.getElementById('auto-poker-reason');
+                                const baseBetVal = parseFloat(document.getElementById('poker-base-bet')?.value) || 0.40;
+
+                                cfg.pokerBaseBet = baseBetVal;
+                                chrome.storage.local.set({ userConfig: cfg });
+
+                                btnScan.innerText = "LETTURA NUOVE CARTE...";
+                                btnScan.style.opacity = "0.7";
+
+                                const elaboraScreenshot = async (rawDataUrl) => {
+                                    if (!rawDataUrl) {
+                                        btnScan.innerText = "🔄 AGGIORNA NUOVA MANO (SCAN)";
+                                        btnScan.style.opacity = "1";
+                                        if (actionEl) actionEl.innerText = "ERRORE CATTURA SCHERMO";
+                                        return;
+                                    }
+
+                                    // 🔍 RITAGLIO ZOOM SUL TAVOLO VERDE: Taglia via menu laterali e chat per leggere le carte al 100% di nitidezza!
+                                    const ritagliaTavoloPoker = (srcBase64) => new Promise((resolve) => {
+                                        const img = new Image();
+                                        img.onload = () => {
+                                            const canvas = document.createElement('canvas');
+                                            // Prende l'area centrale dove c'è il tavolo verde di LuckyBlock
+                                            const cropX = Math.round(img.width * 0.16);
+                                            const cropY = Math.round(img.height * 0.12);
+                                            const cropW = Math.round(img.width * 0.62);
+                                            const cropH = Math.round(img.height * 0.72);
+
+                                            canvas.width = 950;
+                                            canvas.height = Math.round((cropH / cropW) * 950);
+                                            const ctx = canvas.getContext('2d');
+                                            ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+                                            resolve(canvas.toDataURL('image/jpeg', 0.78));
+                                        };
+                                        img.onerror = () => resolve(srcBase64);
+                                        img.src = srcBase64;
+                                    });
+
+                                    const dataUrl = await ritagliaTavoloPoker(rawDataUrl);
+
+                                    try {
+                                        const r = await fetch("https://help-trading-production.up.railway.app/api/poker/auto-vision", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ imageBase64: dataUrl, baseBet: baseBetVal, _ts: Date.now() })
+                                        });
+                                        const d = await r.json();
+                                        if (!d.success) {
+                                            if (actionEl) { actionEl.innerText = "ATTENDI LE CARTE"; actionEl.style.color = "#ffaa00"; }
+                                            if (betAdviceEl) betAdviceEl.innerText = d.betSizingText || "";
+                                            if (reasonEl) reasonEl.innerText = d.error;
+                                        } else {
+                                            sess.handsCount = (sess.handsCount || 0) + 1;
+                                            sess.lastMyCards = d.myCardsStr;
+                                            sess.lastDealerCard = d.tableCardsStr;
+                                            sess.lastCommand = d.command;
+                                            sess.lastBetAdvice = d.betSizingText || "";
+                                            sess.lastReason = d.reason;
+                                            sess.lastColor = d.color;
+                                            sess.lastWinPct = d.winPct;
+
+                                            const oraStr = new Date().toLocaleTimeString('it-IT', { hour12: false });
+                                            sess.history.unshift(`[${oraStr}] ${d.myCardsStr} | ${d.tableCardsStr} -> ${d.command.includes('FOLD') ? 'FOLD' : 'X2'}`);
+                                            if (sess.history.length > 15) sess.history.pop();
+
+                                            chrome.storage.local.set({ pokerSession1: sess }, () => {
+                                                renderPokerAutoScanner();
+                                            });
+                                        }
+                                    } catch (err) {
+                                        if (actionEl) actionEl.innerText = "ERRORE CONNESSIONE SERVER";
+                                    } finally {
+                                        btnScan.innerText = "🔄 AGGIORNA NUOVA MANO (SCAN)";
+                                        btnScan.style.opacity = "1";
+                                    }
+                                };
+
+                                // Cerca sempre la finestra del casinò (anche se stai usando la Finestra Fissa staccata!)
+                                chrome.tabs.query({ active: true, lastFocusedWindow: false }, (allTabs) => {
+                                    const casinoTab = allTabs.find(t => t.url && !t.url.includes(chrome.runtime.id) && !t.url.startsWith('chrome'));
+                                    const targetWinId = casinoTab ? casinoTab.windowId : null;
+                                    if (chrome.tabs && chrome.tabs.captureVisibleTab) {
+                                        chrome.tabs.captureVisibleTab(targetWinId, { format: "jpeg", quality: 80 }, elaboraScreenshot);
+                                    } else {
+                                        chrome.runtime.sendMessage({ action: "CAPTURE_POKER_TABLE" }, (resp) => {
+                                            elaboraScreenshot(resp?.imageBase64);
+                                        });
+                                    }
+                                });
+                            };
+                        }
+                    });
                 };
 
                 if (isPokerActive) {
