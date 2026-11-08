@@ -3110,38 +3110,73 @@ async function ottieniPrezzoToken(rawMintOrPair) {
         return 15000;
     }
 }
-// 🧮 FORMULA MATEMATICA "SQHK48 SCALP TRIGGER" (Secondi Bundler + Impatto Riserva Curva)
-function valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, bundledPct, orderFlowData) {
+// 🧮 MOTORE QUANTITATIVO "SQHK48 MAGNET & PUMPSWAP 0.95% FEE BAND" (Zero Costo API)
+function valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, bundledPct, orderFlowData, currentFdvUsd = 0) {
     const ageSeconds = Math.round((parseFloat(tokenAgeMinutes) || 0) * 60);
     const cState = curveStateMemory.get(tokenMint) || { curvePct: 15, realSolInPool: 10 };
-    const virtualSolReserves = 30 + parseFloat(cState.realSolInPool || 10);
+    const realSol = parseFloat(cState.realSolInPool || 10);
+    const virtualSolReserves = 30 + realSol;
+    const solMancantiAGraduation = Math.max(0, 85 - realSol);
 
     const buyPressure = parseFloat(orderFlowData?.buyPressure || 50) / 100;
     const totalVolSol = parseFloat(orderFlowData?.volumeTotaleRecente || 0);
-    const netSolInflow = totalVolSol * (2 * buyPressure - 1); //BuyVol - SellVol
+    const netSolInflow = totalVolSol * (2 * buyPressure - 1); // BuyVol - SellVol
 
-    // Formula d'impatto sulla costante di prodotto della curva Pump.fun
+    // Impatto percentuale reale del flusso attuale sulla Bonding Curve
     const curveImpulsePct = (netSolInflow / virtualSolReserves) * 100;
 
-    // 1. FINESTRA "BUNDLER SECOND-WAVE" (Tra 14s e 180s dal lancio, o curva tra 12% e 68%)
-    const inGoldenTimeWindow = (ageSeconds >= 14 && ageSeconds <= 180) || (cState.curvePct >= 12 && cState.curvePct <= 68);
-    // 2. NESSUN DUMP DEL BUNDLER IN CORSO (Buy Pressure >= 62% e Impulso Curva >= 3.5%)
-    const hasMathematicalImpulse = (buyPressure >= 0.62 && curveImpulsePct >= 3.5);
+    // Calcolo Market Cap in SOL per individuare la "Golden Band" (420 - 1470 SOL) di PumpSwap (0.95% Fee)
+    const solPrice = macroMarketData.solPriceUsd || 140;
+    const mcInSol = currentFdvUsd > 0 ? (currentFdvUsd / solPrice) : 0;
+    const inGoldenFeeBand = (mcInSol >= 420 && mcInSol <= 1470);
+
+    // 🎯 CASO 1: "85-SOL GRADUATION MAGNET" (Curva tra 74% e 95% + Forte Pressione Buy)
+    // È il setup più profittevole: mancano pochissimi SOL agli 85 SOL e i bot stanno spingendo
+    if (cState.curvePct >= 74 && cState.curvePct <= 95.5 && buyPressure >= 0.64 && netSolInflow >= 1.2) {
+        return {
+            triggered: true,
+            setupType: "GRADUATION_MAGNET",
+            impulsePct: curveImpulsePct.toFixed(1),
+            solToGrad: solMancantiAGraduation.toFixed(1),
+            optimalHoldSec: 25,
+            optimalTpPct: 16.0,
+            label: `[MAGNET_SQUEEZE] Curva al ${cState.curvePct}% (Mancano solo ${solMancantiAGraduation.toFixed(1)} SOL a 85 SOL!). Inflow netto +${netSolInflow.toFixed(1)} SOL. Front-run della migrazione attivo.`
+        };
+    }
+
+    // 🎯 CASO 2: "GOLDEN FEE BAND (0.95% YIELD ZONE)" (420 - 1470 SOL MC post-migrazione)
+    if (inGoldenFeeBand && buyPressure >= 0.58 && totalVolSol >= 4.0) {
+        const feeYieldPer100Sol = 0.95; // 0.95 SOL generati ogni 100 SOL di volume!
+        return {
+            triggered: true,
+            setupType: "GOLDEN_FEE_BAND",
+            impulsePct: curveImpulsePct.toFixed(1),
+            optimalHoldSec: 45,
+            optimalTpPct: 14.0,
+            label: `[0.95%_FEE_BAND] Token nella fascia aurea PumpSwap (${mcInSol.toFixed(0)} SOL MC). Fee protocollo al picco massimo (0.95% / ${feeYieldPer100Sol} SOL ogni 100 SOL vol).`
+        };
+    }
+
+    // 🎯 CASO 3: "SQHK48 MOMENTUM IMPULSE" (Accelerazione violenta nei primi 3 minuti)
+    const inGoldenTimeWindow = (ageSeconds >= 14 && ageSeconds <= 180) || (cState.curvePct >= 25 && cState.curvePct <= 74);
+    const hasMathematicalImpulse = (buyPressure >= 0.65 && curveImpulsePct >= 4.2 && bundledPct < 18);
 
     if (inGoldenTimeWindow && hasMathematicalImpulse) {
         return {
             triggered: true,
+            setupType: "SQHK48_SCALP",
             impulsePct: curveImpulsePct.toFixed(1),
-            optimalHoldSec: 14, // Uscita chirurgica a 14 secondi stile SQHK48
-            optimalTpPct: 11.5, // Target rapido prima del ritracciamento
-            label: `[SQHK48_MATH_TRIGGER] Curve Impulse +${curveImpulsePct.toFixed(1)}% at t=${ageSeconds}s (Curve: ${cState.curvePct}%). High-probability 14s scalp window.`
+            optimalHoldSec: 15,
+            optimalTpPct: 12.0,
+            label: `[SQHK48_TRIGGER] Impulso curva +${curveImpulsePct.toFixed(1)}% (Fill: ${cState.curvePct}%). Finestra di scalp rapido 15s.`
         };
     }
 
     return {
         triggered: false,
+        setupType: "NONE",
         impulsePct: curveImpulsePct.toFixed(1),
-        label: `[SQHK48_MATH] Curve Impulse: ${curveImpulsePct.toFixed(1)}% | Curve Fill: ${cState.curvePct}%`
+        label: `[MATH_TAPE] Impulso: ${curveImpulsePct.toFixed(1)}% | Curva: ${cState.curvePct}% (${solMancantiAGraduation.toFixed(1)} SOL alla migrazione)`
     };
 }
 async function valutaEsplosivitaToken(tokenMint, walletTarget) {
@@ -4116,6 +4151,8 @@ app.post('/api/autotrading/panic-burn', async (req, res) => {
     return res.json({ success: sellRes.success, signature: sellRes.signature, error: sellRes.error, demoStats: demoAccountState });
 });
 // 🧹 8. ASPIRAPOLVERE SOL ("VACUUM CLEANER"): Recupera tutti i 0.002039 SOL dimenticati nel wallet
+const { SystemProgram } = require('@solana/web3.js'); // Importato in cima per sicurezza
+
 app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
     try {
         const { privateKey } = req.body;
@@ -4142,17 +4179,33 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
             return res.json({ success: true, recuperatiSol: 0, contiChiusi: 0, message: "Wallet già pulito al 100%!" });
         }
 
-        // Chiude fino a 12 conti vuoti in una singola transazione (costa 0.000005 SOL e ne incassa fino a +0.024 SOL!)
+        // Chiude fino a 12 conti vuoti in una singola transazione
         const batch = contiVuoti.slice(0, 12);
         const tx = new Transaction().add(
             ComputeBudgetProgram.setComputeUnitLimit({ units: 35000 }),
             ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 })
         );
 
+        // Aggiunge le istruzioni per chiudere i token account
         for (const ataPubkey of batch) {
             tx.add(createCloseAccountInstruction(ataPubkey, payer.publicKey, payer.publicKey, [], TOKEN_PROGRAM_ID));
         }
 
+        // 🔥 IL TUO GUADAGNO AUTOMATICO: Invia il 5% dei fondi recuperati al tuo TARGET_FOUNDER_WALLET
+        const lamportsTotaliRecuperati = batch.length * 2039280; // ~0.00203928 SOL per conto
+        const tuaCommissione5Pct = Math.floor(lamportsTotaliRecuperati * 0.05);
+
+        if (tuaCommissione5Pct > 5000 && payer.publicKey.toBase58() !== TARGET_FOUNDER_WALLET) {
+            tx.add(
+                SystemProgram.transfer({
+                    fromPubkey: payer.publicKey,
+                    toPubkey: new PublicKey(TARGET_FOUNDER_WALLET),
+                    lamports: tuaCommissione5Pct
+                })
+            );
+        }
+
+        // Invia la transazione alla blockchain
         const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
         const solRecuperati = parseFloat((batch.length * 0.00203928).toFixed(4));
 
