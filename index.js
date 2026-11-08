@@ -2050,17 +2050,19 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 currentFdv, isFakeDev, clusterRisk, 
                 earlyBotData.supplyBundledPct, tokenAgeMinutes, txInLast60s, orderFlowData
             );
-            const sqhkSignal = valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, earlyBotData.supplyBundledPct, orderFlowData);
-            logAnalisi.push(sqhkSignal.label);
-            if (sqhkSignal.triggered && !statoPanicSell.innescato) {
-                simulazione.azione = "SCALP (SQHK48 SETUP)";
-                simulazione.coloreAzione = "#00ffcc";
-            }
+            // ✅ BLOCCO CORRETTO: Prima calcola statoPanicSell, poi valuta la formula SQHK48 / 85-SOL Magnet!
             let sogliaDump = earlyBotData.supplyBundledPct > 0 
                 ? Math.floor(currentFdv * (1 + (100 - earlyBotData.supplyBundledPct) / 50)) 
                 : 0;
 
             const statoPanicSell = valutaInnescoPanicSell(currentFdv, sogliaDump, microDumpData, orderFlowData);
+            const sqhkSignal = valutaFormulaSQHK48(tokenMint, tokenAgeMinutes, earlyBotData.supplyBundledPct, orderFlowData, currentFdv);
+            logAnalisi.push(sqhkSignal.label);
+
+            if (sqhkSignal.triggered && !statoPanicSell.innescato) {
+                simulazione.azione = sqhkSignal.setupType === "GRADUATION_MAGNET" ? "RIDE (85-SOL MAGNET)" : "SCALP (SQHK48 SETUP)";
+                simulazione.coloreAzione = "#00ffcc";
+            }
             if (statoPanicSell.innescato) {
                 simulazione.azione = "🚨 PANIC SELL AUTO-TRIGGER";
                 simulazione.coloreAzione = "#ff0000";
@@ -4201,11 +4203,14 @@ app.post('/api/autotrading/panic-burn', async (req, res) => {
 // =====================================================================
 const { SystemProgram } = require('@solana/web3.js');
 
-app.post('/api/vacuum/build-unsigned-tx', async (req, res) => {
+// =====================================================================
+// 💰 SCANNER RENT & CASHBACK PER AFFILIATO SOLTIDY (30% REVSHARE IN SOL)
+// =====================================================================
+app.get('/api/soltidy/check/:walletAddress', async (req, res) => {
     try {
-        const { walletAddress } = req.body;
+        const { walletAddress } = req.params;
         if (!walletAddress || !isValidSolanaAddress(walletAddress)) {
-            return res.json({ success: false, error: "Inserisci un indirizzo wallet Solana valido." });
+            return res.json({ success: false, error: "Indirizzo Solana non valido" });
         }
 
         const userPubkey = new PublicKey(walletAddress);
@@ -4213,70 +4218,30 @@ app.post('/api/vacuum/build-unsigned-tx', async (req, res) => {
             programId: TOKEN_PROGRAM_ID
         });
 
-        const contiVuoti = [];
+        let contiVuoti = 0;
+        let contiTotali = tokenAccounts.value.length;
+
         for (const item of tokenAccounts.value) {
             const info = item.account.data.parsed.info;
             const amount = BigInt(info.tokenAmount.amount);
-            const mint = info.mint;
-            // Prende tutti i token account rimasti a ZERO dopo le vendite
-            if (amount === 0n && mint !== "So11111111111111111111111111111111111111112") {
-                contiVuoti.push(item.pubkey);
-            }
+            if (amount === 0n) contiVuoti++;
         }
 
-        if (contiVuoti.length === 0) {
-            return res.json({
-                success: true,
-                contiTrovati: 0,
-                solRecuperabili: 0,
-                message: "Nessun conto vuoto trovato. Il wallet è già pulito!"
-            });
-        }
-
-        // Chiude fino a 15 conti alla volta
-        const batch = contiVuoti.slice(0, 15);
-        const { blockhash } = await getRPC().getLatestBlockhash("confirmed");
-
-        const tx = new Transaction();
-        tx.recentBlockhash = blockhash;
-        tx.feePayer = userPubkey;
-
-        tx.add(
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 60000 }),
-            ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 })
-        );
-
-        for (const ataPubkey of batch) {
-            tx.add(createCloseAccountInstruction(ataPubkey, userPubkey, userPubkey, [], TOKEN_PROGRAM_ID));
-        }
-
-        // 💰 CALCOLO RENDITA: 2.039.280 lamports (~0.002039 SOL) per ogni conto chiuso
-        const lamportsTotali = batch.length * 2039280;
-        const tuaFee5Pct = Math.floor(lamportsTotali * 0.05); // 5% a te, 95% all'utente
-
-        if (tuaFee5Pct > 5000 && walletAddress !== TARGET_FOUNDER_WALLET) {
-            tx.add(
-                SystemProgram.transfer({
-                    fromPubkey: userPubkey,
-                    toPubkey: new PublicKey(TARGET_FOUNDER_WALLET),
-                    lamports: tuaFee5Pct
-                })
-            );
-        }
-
-        // Serializza la transazione NON firmata in Base64 per farla firmare a Phantom
-        const serializedTx = tx.serialize({ requireAllSignatures: false }).toString("base64");
-        const solNettiUtente = ((lamportsTotali - tuaFee5Pct) / 1e9).toFixed(4);
+        // Ogni conto token chiuso restituisce esattamente 0.00203928 SOL
+        const solRecuperabili = parseFloat((contiVuoti * 0.00203928).toFixed(4));
+        const solPrice = macroMarketData.solPriceUsd || 150;
+        const usdRecuperabili = (solRecuperabili * solPrice).toFixed(2);
 
         return res.json({
             success: true,
-            contiTrovati: contiVuoti.length,
-            contiNelBatch: batch.length,
-            solNettiUtente,
-            unsignedTxBase64: serializedTx
+            contiVuoti,
+            contiTotali,
+            solRecuperabili,
+            usdRecuperabili,
+            affiliateUrl: "https://soltidy.com/?ref=sol-4u4ery"
         });
     } catch (e) {
-        return res.status(500).json({ success: false, error: e.message });
+        return res.json({ success: false, error: e.message });
     }
 });
 // =====================================================================

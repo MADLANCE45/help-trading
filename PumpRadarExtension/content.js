@@ -1864,18 +1864,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         `}
                     </div>
 
-                    <!-- TAB 2: TRACKER -->
-                    <div id="view-tracker" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Wallet Tracker</h3></div>
-                        
-                        <div style="display: flex; gap: 6px; margin-bottom: 15px; align-items: stretch;">
-                            <input type="text" id="new-wallet-name" placeholder="Alias" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em; font-family: monospace;">
-                            <input type="text" id="new-wallet-input" placeholder="Paste Wallet..." style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
-                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em; font-family: monospace;">Add</button>
+                    <!-- 💰 BANNER MONETIZZAZIONE SOLTIDY (30% AFFILIATE FEE) -->
+                        <div style="background: linear-gradient(145deg, #0b1a14, #090c10); border: 1px solid #00e676; border-left: 3px solid #00ffcc; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-family: monospace;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <span style="color:#00e676; font-weight:900; font-size:0.75em;">💰 UNCLAIMED SOL RENT SCANNER</span>
+                                <span style="background:rgba(0,230,118,0.15); color:#00ffcc; padding:2px 6px; border-radius:4px; font-size:0.6em; font-weight:bold;">INSTANT CLAIM</span>
+                            </div>
+                            <div style="display:flex; gap:6px; margin-bottom:8px;">
+                                <input type="text" id="soltidy-wallet-input" placeholder="Paste your Solana Wallet to check SOL..." style="flex:1; background:#050608; border:1px solid #2d3142; color:#00ffcc; padding:6px 8px; border-radius:4px; font-family:monospace; font-size:0.7em; outline:none;">
+                                <button id="btn-check-soltidy" style="background:#00ffcc; color:#000; border:none; padding:0 10px; border-radius:4px; font-family:monospace; font-weight:900; font-size:0.7em; cursor:pointer;">CHECK</button>
+                            </div>
+                            <div id="soltidy-result-box" style="font-size:0.72em; color:#ccc; text-align:center; margin-bottom:8px;">
+                                Every dead memecoin leaves <b>0.0020 SOL</b> locked in your wallet. Scan & claim them back!
+                            </div>
+                            <a href="https://soltidy.com/?ref=sol-4u4ery" target="_blank" style="display:block; text-align:center; background:linear-gradient(90deg, #00e676, #00ffcc); color:#000; text-decoration:none; padding:8px; border-radius:5px; font-weight:900; font-size:0.76em; letter-spacing:0.5px; box-shadow: 0 0 12px rgba(0,230,118,0.3);">
+                                🧹 CLAIM LOCKED SOL & FEES ON SOLTIDY ↗
+                            </a>
                         </div>
-                        
-                        <div id="tracked-wallets-list" style="font-size: 11px;"></div>
-                    </div>
 
                     <!-- TAB 3: SPY FEED -->
                     <div id="view-spy" style="display: none;">
@@ -2859,35 +2864,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function inizializzaTracker() {
-        const btnAdd = document.getElementById('add-wallet-btn');
-        if (!btnAdd) return;
-        
-        btnAdd.addEventListener('click', () => {
-            const addressInput = document.getElementById('new-wallet-input');
-            const nameInput = document.getElementById('new-wallet-name');
-            const address = addressInput ? addressInput.value.trim() : "";
-            const name = nameInput && nameInput.value.trim() !== "" ? nameInput.value.trim() : "Sconosciuto";
-            
-            if (address.length < 32) {
-                addressInput.style.border = "1px solid #ff4d4d";
-                setTimeout(() => addressInput.style.border = "1px solid #2d3142", 2000);
-                return;
-            }
-
-            chrome.storage.local.get(['trackedWallets'], (res) => {
-                let wallets = res.trackedWallets || [];
-                wallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Sconosciuto" } : w);
-                
-                if (!wallets.find(w => w.address === address)) {
-                    wallets.push({ address: address, name: name });
-                    chrome.storage.local.set({ trackedWallets: wallets }, () => {
-                        addressInput.value = '';
-                        if(nameInput) nameInput.value = '';
-                        loadSavedWallets(); 
-                    });
+        const btnCheckTidy = document.getElementById('btn-check-soltidy');
+        if (btnCheckTidy) {
+            btnCheckTidy.addEventListener('click', async () => {
+                const wInput = document.getElementById('soltidy-wallet-input')?.value.trim();
+                const resBox = document.getElementById('soltidy-result-box');
+                if (!wInput || wInput.length < 32) {
+                    if (resBox) resBox.innerHTML = `<span style="color:#ffaa00;">Paste a valid Solana wallet address first!</span>`;
+                    return;
+                }
+                if (resBox) resBox.innerHTML = `Scanning blockchain for locked SOL...`;
+                try {
+                    const r = await fetch(`https://help-trading-production.up.railway.app/api/soltidy/check/${wInput}`);
+                    const d = await r.json();
+                    if (d.success) {
+                        resBox.innerHTML = d.contiVuoti > 0
+                            ? `<span style="color:#00e676; font-weight:bold;">FOUND ${d.contiVuoti} EMPTY ACCOUNTS = +${d.solRecuperabili} SOL ($${d.usdRecuperabili}) READY TO CLAIM!</span>`
+                            : `<span style="color:#00ffcc;">${d.contiTotali} active token accounts found. Click below to check unclaimed Creator/Cashback fees!</span>`;
+                    }
+                } catch (e) {
+                    if (resBox) resBox.innerHTML = `<span style="color:#00ffcc;">Ready! Click the green button below to scan on SOLTidy.</span>`;
                 }
             });
-        });
+        }
     }
 
     function loadSavedWallets() {
