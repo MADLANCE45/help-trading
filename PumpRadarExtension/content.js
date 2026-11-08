@@ -511,7 +511,67 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch(e) {}
     });
+    // =========================================================
+    // 🧲 ALLARME SONORO + POPUP "GRADUATION SQUEEZE" (68-83 SOL)
+    // =========================================================
+    socket.off('graduation_squeeze_alert');
+    socket.on('graduation_squeeze_alert', (dati) => {
+        // 🔔 BEEP SONORO SINTETICO NATIVO (Non viene bloccato da link esterni e funziona offline!)
+        try {
+            const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctxAudio.createOscillator();
+            const gain = ctxAudio.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(880, ctxAudio.currentTime); // La5
+            osc.frequency.setValueAtTime(1318.5, ctxAudio.currentTime + 0.12); // Mi6
+            gain.gain.setValueAtTime(0.15, ctxAudio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctxAudio.currentTime + 0.45);
+            osc.connect(gain);
+            gain.connect(ctxAudio.destination);
+            osc.start();
+            osc.stop(ctxAudio.currentTime + 0.45);
+        } catch (errAudio) {}
 
+        let squeezeBox = document.getElementById('graduation-squeeze-box');
+        if (!squeezeBox) {
+            squeezeBox = document.createElement('div');
+            squeezeBox.id = 'graduation-squeeze-box';
+            squeezeBox.style.cssText = `
+                position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+                width: 92%; max-width: 340px; background: linear-gradient(135deg, #1f0812 0%, #090b10 100%);
+                border: 2px solid #ff007f; box-shadow: 0 10px 30px rgba(0,0,0,0.95), 0 0 20px rgba(255, 0, 127, 0.4);
+                padding: 12px; border-radius: 10px; z-index: 2147483647; color: white;
+                font-family: monospace; box-sizing: border-box;
+            `;
+            document.body.appendChild(squeezeBox);
+        }
+
+        squeezeBox.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #ff007f; padding-bottom:6px; margin-bottom:8px;">
+                <span style="color:#ff007f; font-weight:900; font-size:0.95em; letter-spacing:0.5px;">🧲 85-SOL GRADUATION SQUEEZE</span>
+                <button id="close-squeeze-alert" style="background:transparent; border:none; color:#888; cursor:pointer; font-weight:bold; font-size:1.1em;">✕</button>
+            </div>
+            <div style="font-size:0.82em; line-height:1.5; margin-bottom:10px; background:rgba(0,0,0,0.4); padding:8px; border-radius:6px;">
+                <div>TOKEN: <b style="color:#fff;">${dati.name} ($${dati.symbol})</b></div>
+                <div>CURVA PUMP.FUN: <b style="color:#00e676;">${dati.curvePct}% (${dati.realSol} / 85 SOL)</b></div>
+                <div>MANCANO ALLA MIGRAZIONE: <b style="color:#ffaa00;">SOLO ${dati.solMancanti} SOL!</b></div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button id="copy-squeeze-mint" style="flex:1; background:#1a1c29; color:#00ffcc; border:1px solid #00ffcc; border-radius:6px; padding:8px; font-family:monospace; font-weight:bold; font-size:0.75em; cursor:pointer;">COPIA CA</button>
+                <a href="https://pump.fun/${dati.mint}" target="_blank" style="flex:1.5; text-align:center; background:linear-gradient(90deg, #ff007f, #ffaa00); color:#000; text-decoration:none; padding:8px; border-radius:6px; font-weight:900; font-size:0.8em;">APRI SQUEEZE ↗</a>
+            </div>
+        `;
+
+        document.getElementById('close-squeeze-alert').onclick = () => squeezeBox.remove();
+        const btnCopySq = document.getElementById('copy-squeeze-mint');
+        if (btnCopySq) {
+            btnCopySq.onclick = () => {
+                navigator.clipboard.writeText(dati.mint);
+                btnCopySq.innerText = "COPIATO!";
+            };
+        }
+        setTimeout(() => { if (document.body.contains(squeezeBox)) squeezeBox.remove(); }, 15000);
+    });
     let orderFlowWindow = [];
     window.liveMetrics = { history: [], buyVol: 0, sellVol: 0, buyPressure: 50 };
     window.paperPosition = { active: false, entrySol: 0, pnlSol: 0 };

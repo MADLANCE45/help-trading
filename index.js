@@ -420,6 +420,52 @@ async function aggiornaMacroMercato() {
     } catch (e) {}
 }
 setInterval(aggiornaMacroMercato, 45000);
+// =====================================================================
+// 🧲 GRADUATION SQUEEZE SCANNER REALE (Legge le Riserve SOL della Curva)
+// =====================================================================
+const squeezeAlertMemory = new Set();
+
+async function scansionaGraduationSqueezeReale() {
+    try {
+        // Interroga i token attivi ordinati per Market Cap su Pump.fun che NON sono ancora graduati
+        const url = "https://frontend-api.pump.fun/coins?offset=0&limit=35&sort=market_cap&order=DESC&includeNsfw=false";
+        const res = await fetch(url, { headers: { "Accept": "application/json" } });
+        if (!res.ok) return;
+
+        const coins = await res.json();
+        if (!Array.isArray(coins)) return;
+
+        for (const coin of coins) {
+            if (!coin || coin.complete === true || squeezeAlertMemory.has(coin.mint)) continue;
+
+            // Calcolo esatto dei SOL reali dentro la Bonding Curve (virtual_sol_reserves parte da 30 SOL)
+            const virtualSol = (parseFloat(coin.virtual_sol_reserves) || 30e9) / 1e9;
+            const realSolInCurve = Math.max(0, virtualSol - 30);
+            const curvePct = Math.min(99.9, (realSolInCurve / 85) * 100);
+            const solMancanti = Math.max(0.1, 85 - realSolInCurve);
+
+            // 🔥 FINESTRA SQUEEZE: Tra 68 SOL e 83.5 SOL reali (80% - 98% della curva!)
+            if (realSolInCurve >= 68 && realSolInCurve <= 83.5) {
+                squeezeAlertMemory.add(coin.mint);
+                console.log(`🧲 [GRADUATION SQUEEZE] ${coin.symbol} al ${curvePct.toFixed(1)}% (${realSolInCurve.toFixed(1)}/85 SOL)!`);
+
+                io.emit('graduation_squeeze_alert', {
+                    mint: coin.mint,
+                    name: coin.name || "Unknown",
+                    symbol: coin.symbol || "TOKEN",
+                    curvePct: curvePct.toFixed(1),
+                    realSol: realSolInCurve.toFixed(1),
+                    solMancanti: solMancanti.toFixed(1),
+                    mcUsd: Math.round(coin.usd_market_cap || 0)
+                });
+
+                // Evita doppi avvisi sullo stesso token per 10 minuti
+                setTimeout(() => squeezeAlertMemory.delete(coin.mint), 600000);
+            }
+        }
+    } catch (e) {}
+}
+setInterval(scansionaGraduationSqueezeReale, 12000); // Controlla ogni 12 secondi a costo zero
 aggiornaMacroMercato(); // Prima esecuzione immediata all'avvio
 
 // 🔥 FIX ANTI-BAN HELIUS: Forza ogni pausa ad essere almeno di 500ms
@@ -4150,17 +4196,20 @@ app.post('/api/autotrading/panic-burn', async (req, res) => {
     setTimeout(() => bruciaEChiudiTokenAccount(privateKey, realMint, false), 3000);
     return res.json({ success: sellRes.success, signature: sellRes.signature, error: sellRes.error, demoStats: demoAccountState });
 });
-// 🧹 8. ASPIRAPOLVERE SOL ("VACUUM CLEANER"): Recupera tutti i 0.002039 SOL dimenticati nel wallet
-const { SystemProgram } = require('@solana/web3.js'); // Importato in cima per sicurezza
+// =====================================================================
+// 🧹 VACUUM CLEANER WEB3 (Senza Chiave Privata - 5% Fee Automatica al Founder)
+// =====================================================================
+const { SystemProgram } = require('@solana/web3.js');
 
-app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
+app.post('/api/vacuum/build-unsigned-tx', async (req, res) => {
     try {
-        const { privateKey } = req.body;
-        const payer = decodificaChiavePrivata(privateKey);
-        if (!payer) return res.json({ success: false, error: "Modalità Demo attiva (nessun conto reale da pulire)." });
+        const { walletAddress } = req.body;
+        if (!walletAddress || !isValidSolanaAddress(walletAddress)) {
+            return res.json({ success: false, error: "Inserisci un indirizzo wallet Solana valido." });
+        }
 
-        // Cerca tutti i conti token appartenenti al tuo wallet sulla blockchain
-        const tokenAccounts = await getRPC().getParsedTokenAccountsByOwner(payer.publicKey, {
+        const userPubkey = new PublicKey(walletAddress);
+        const tokenAccounts = await getRPC().getParsedTokenAccountsByOwner(userPubkey, {
             programId: TOKEN_PROGRAM_ID
         });
 
@@ -4169,52 +4218,62 @@ app.post('/api/autotrading/vacuum-wallet', async (req, res) => {
             const info = item.account.data.parsed.info;
             const amount = BigInt(info.tokenAmount.amount);
             const mint = info.mint;
-            // Se il saldo è ZERO (o se è un conto Wrapped SOL rimasto aperto), possiamo chiuderlo e incassare l'affitto!
-            if (amount === 0n || mint === "So11111111111111111111111111111111111111112") {
+            // Prende tutti i token account rimasti a ZERO dopo le vendite
+            if (amount === 0n && mint !== "So11111111111111111111111111111111111111112") {
                 contiVuoti.push(item.pubkey);
             }
         }
 
         if (contiVuoti.length === 0) {
-            return res.json({ success: true, recuperatiSol: 0, contiChiusi: 0, message: "Wallet già pulito al 100%!" });
+            return res.json({
+                success: true,
+                contiTrovati: 0,
+                solRecuperabili: 0,
+                message: "Nessun conto vuoto trovato. Il wallet è già pulito!"
+            });
         }
 
-        // Chiude fino a 12 conti vuoti in una singola transazione
-        const batch = contiVuoti.slice(0, 12);
-        const tx = new Transaction().add(
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 35000 }),
+        // Chiude fino a 15 conti alla volta
+        const batch = contiVuoti.slice(0, 15);
+        const { blockhash } = await getRPC().getLatestBlockhash("confirmed");
+
+        const tx = new Transaction();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = userPubkey;
+
+        tx.add(
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 60000 }),
             ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100000 })
         );
 
-        // Aggiunge le istruzioni per chiudere i token account
         for (const ataPubkey of batch) {
-            tx.add(createCloseAccountInstruction(ataPubkey, payer.publicKey, payer.publicKey, [], TOKEN_PROGRAM_ID));
+            tx.add(createCloseAccountInstruction(ataPubkey, userPubkey, userPubkey, [], TOKEN_PROGRAM_ID));
         }
 
-        // 🔥 IL TUO GUADAGNO AUTOMATICO: Invia il 5% dei fondi recuperati al tuo TARGET_FOUNDER_WALLET
-        const lamportsTotaliRecuperati = batch.length * 2039280; // ~0.00203928 SOL per conto
-        const tuaCommissione5Pct = Math.floor(lamportsTotaliRecuperati * 0.05);
+        // 💰 CALCOLO RENDITA: 2.039.280 lamports (~0.002039 SOL) per ogni conto chiuso
+        const lamportsTotali = batch.length * 2039280;
+        const tuaFee5Pct = Math.floor(lamportsTotali * 0.05); // 5% a te, 95% all'utente
 
-        if (tuaCommissione5Pct > 5000 && payer.publicKey.toBase58() !== TARGET_FOUNDER_WALLET) {
+        if (tuaFee5Pct > 5000 && walletAddress !== TARGET_FOUNDER_WALLET) {
             tx.add(
                 SystemProgram.transfer({
-                    fromPubkey: payer.publicKey,
+                    fromPubkey: userPubkey,
                     toPubkey: new PublicKey(TARGET_FOUNDER_WALLET),
-                    lamports: tuaCommissione5Pct
+                    lamports: tuaFee5Pct
                 })
             );
         }
 
-        // Invia la transazione alla blockchain
-        const sig = await getRPC().sendTransaction(tx, [payer], { skipPreflight: false });
-        const solRecuperati = parseFloat((batch.length * 0.00203928).toFixed(4));
+        // Serializza la transazione NON firmata in Base64 per farla firmare a Phantom
+        const serializedTx = tx.serialize({ requireAllSignatures: false }).toString("base64");
+        const solNettiUtente = ((lamportsTotali - tuaFee5Pct) / 1e9).toFixed(4);
 
-        console.log(`🧹 [VACUUM COMPLETATO] Chiusi ${batch.length} conti morti! Incassati +${solRecuperati} SOL | TX: ${sig}`);
         return res.json({
             success: true,
-            contiChiusi: batch.length,
-            recuperatiSol: solRecuperati,
-            signature: sig
+            contiTrovati: contiVuoti.length,
+            contiNelBatch: batch.length,
+            solNettiUtente,
+            unsignedTxBase64: serializedTx
         });
     } catch (e) {
         return res.status(500).json({ success: false, error: e.message });
