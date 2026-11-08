@@ -24,7 +24,8 @@ const isValidEVMAddress = (address) => /^0x[a-fA-F0-9]{40}$/.test(address);
 app.use(cors({ origin: "*" }));
 
 // Parsing del body in JSON e impostazione proxy per Railway/Vercel
-app.use(express.json()); 
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.set('trust proxy', 1);
 // 🚀 CONNESSIONE REDIS (UPSTASH)
 const redis = new Redis({
@@ -88,7 +89,7 @@ const TARGET_FOUNDER_WALLET = 'ERRYCEdzkYXcnCycVGYNmoQ2RHhdhi1wDfnFuRKHJ7QA';
 // 🛡️ DIFESA 2: REITTIEN MUKAAN ERIYTETTY RATE LIMITING
 const generalLimiter = rateLimit({
     windowMs: 1 * 60 * 1000,
-    max: 60,
+    max: 300, // Evita l'auto-blocco durante il polling live dell'estensione
     message: { error: 'RATE_LIMIT_EXCEEDED', details: 'Too many requests.' }
 });
 
@@ -361,9 +362,6 @@ const io = new Server(server, {
 
 
 // Parsing del body in JSON e impostazione proxy per Railway/Vercel
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.set('trust proxy', 1);
 //app.use(cors());
 const CACHE_TTL_MS = 60000; // 60 secondi di memoria per salvare in caso di chiusura acci
 // 🔥 GARBAGE COLLECTOR OTTIMIZZATO (Solo per WebSocket)
@@ -1915,9 +1913,20 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 pairCreatedAt = pumpDataRaw.created_timestamp;
             }
 
-            // 🔥 CORRECTIO: Si API DexScreener/Pump.fun deficiunt, utimur functione robusta
-            if (!currentFdv || currentFdv <= 0) {
-                currentFdv = await ottieniPrezzoToken(tokenMint);
+            // 🔥 FIX CRITICO: Popola sempre curveStateMemory con i SOL reali della Bonding Curve!
+            if (pumpDataRaw && pumpDataRaw.virtual_sol_reserves && !pumpDataRaw.complete) {
+                const vSol = (parseFloat(pumpDataRaw.virtual_sol_reserves) || 30e9) / 1e9;
+                const rSol = Math.max(0, vSol - 30);
+                const cPct = Math.min(100, parseFloat(((rSol / 85) * 100).toFixed(1)));
+                curveStateMemory.set(tokenMint, {
+                    curvePct: cPct,
+                    realSolInPool: rSol.toFixed(2),
+                    isKothWindow: (cPct >= 45.5 && cPct <= 50.5),
+                    isGraduationDumpZone: (cPct >= 93.0)
+                });
+            } else {
+                const onChainMc = await ottieniPrezzoToken(tokenMint);
+                if (!currentFdv || currentFdv <= 0) currentFdv = onChainMc;
             }
 
             const nowSec = Math.floor(Date.now() / 1000);
@@ -4495,7 +4504,7 @@ Reply ONLY with valid JSON:
         // =================================================================
         // RAMO A: CASINO HOLD'EM (2 Carte Giocatore + 3 Carte Flop sul tavolo)
         // =================================================================
-        if (gameType === "HOLDEM" || myCardsArr.length === 2) {
+        if (myCardsArr.length <= 2) {
             const heroCards = parsePokerCards(myCardsArr.slice(0, 2));
             const boardCards = parsePokerCards(tableCardsArr.slice(0, 5));
 
