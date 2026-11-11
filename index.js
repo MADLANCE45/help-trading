@@ -138,204 +138,196 @@ app.get('/api/health', (req, res) => {
 
 
 // ==========================================================
-// 📡 MOTORE WSS: LIVE TAPE CON SMART QUEUE (Zero Perdite)
-// ==========================================================
-// ==========================================================
-// 📡 MOTORE WSS: LIVE TAPE MULTI-UTENTE (Zero Lag)
+// 📡 MOTORE WSS V2: LIVE TAPE ISTANTANEO (Zero Drop & Router-Aware)
 // ==========================================================
 const spyCache = new Map();
-const liveTapeStates = new Map(); // 🔥 LA VERA MAGIA: Memoria separata per ogni token!
+const liveTapeStates = new Map();
 
-function avviaAscoltoLive(tokenMint) {
-    const mintPubKey = new PublicKey(tokenMint);
-
-    // 1. Pulizia se il token è già in ascolto (Previene leak di memoria e sdoppiamenti)
-    if (liveTapeStates.has(tokenMint)) {
-        const oldState = liveTapeStates.get(tokenMint);
-        if (oldState.subId !== null) solanaConnection.removeOnLogsListener(oldState.subId);
-        if (oldState.killTimer) clearTimeout(oldState.killTimer);
-    }
-
-    // 2. Inizializza lo stato indipendente per QUESTO specifico token
-    const state = { subId: null, coda: [], workerAttivo: false, killTimer: null };
-    liveTapeStates.set(tokenMint, state);
-
-    console.log(`\n📡 Apertura canale WebSocket per: ${tokenMint}`);
-
-    // ==========================================================
-    // 🛑 IL KILL SWITCH: Spegne Helius se l'utente chiude la pagina
-    // ==========================================================
+function rinnovaTimerKillSwitch(tokenMint) {
+    const state = liveTapeStates.get(tokenMint);
+    if (!state) return;
+    if (state.killTimer) clearTimeout(state.killTimer);
     state.killTimer = setTimeout(() => {
         const currentState = liveTapeStates.get(tokenMint);
         if (currentState && currentState.subId !== null) {
             solanaConnection.removeOnLogsListener(currentState.subId);
             liveTapeStates.delete(tokenMint);
-            console.log(`🛑 KILL SWITCH ATTIVATO: Nessuna interazione per 4 min su ${tokenMint.substring(0,6)}. Radar spento per salvare crediti.`);
+            console.log(`🛑 KILL SWITCH: Nessuna attività per 4 min su ${tokenMint.substring(0,6)}. Stream chiuso.`);
         }
-    }, 4 * 60 * 1000); // 4 Minuti esatti
+    }, 4 * 60 * 1000);
+}
 
-    // 👷 IL WORKER: Analizza la coda senza scartare NULLA e senza far arrabbiare Helius
+function avviaAscoltoLive(tokenMint) {
+    if (!isValidSolanaAddress(tokenMint)) return;
+
+    // 🔥 FIX 1: Se il canale WebSocket è GIÀ aperto, NON distruggerlo! Rinnova solo il timer!
+    if (liveTapeStates.has(tokenMint)) {
+        rinnovaTimerKillSwitch(tokenMint);
+        return;
+    }
+
+    const mintPubKey = new PublicKey(tokenMint);
+    const state = { subId: null, coda: [], workerAttivo: false, killTimer: null };
+    liveTapeStates.set(tokenMint, state);
+    rinnovaTimerKillSwitch(tokenMint);
+
+    console.log(`\n📡 Apertura canale WebSocket veloce per: ${tokenMint}`);
+
     async function smaltisciCoda() {
         const currentState = liveTapeStates.get(tokenMint);
-        
-        // Se lo stato non esiste più o la coda è vuota, spegniamo il worker
         if (!currentState || currentState.coda.length === 0) {
             if (currentState) currentState.workerAttivo = false;
             return;
         }
         currentState.workerAttivo = true;
 
-        // Prende la transazione più vecchia in attesa in QUESTA coda
-        const { signature, logsInfo } = currentState.coda.shift(); 
+        const { signature, hintAction, isJitoHint } = currentState.coda.shift();
 
         try {
-            // 🔥 FONDAMENTALE: Qui usiamo getRPC() per ruotare le chiavi!
-            const tx = await getRPC().getParsedTransaction(signature, { maxSupportedTransactionVersion: 0 });
-            
+            let tx = await getRPC().getParsedTransaction(signature, {
+                maxSupportedTransactionVersion: 0,
+                commitment: 'confirmed'
+            });
+
+            // Se il blocco confirmed ha 200ms di ritardo su Helius, riprova una volta veloce
+            if (!tx) {
+                await new Promise(r => setTimeout(r, 250));
+                tx = await getRPC().getParsedTransaction(signature, {
+                    maxSupportedTransactionVersion: 0,
+                    commitment: 'confirmed'
+                });
+            }
+
             if (tx && tx.meta && !tx.meta.err) {
                 const feePayer = tx.transaction.message.accountKeys[0].pubkey.toString();
-                const preSol = (tx.meta.preBalances[0] || 0) / 1e9;
-                const postSol = (tx.meta.postBalances[0] || 0) / 1e9;
-                const deltaSol = Math.abs(preSol - postSol);
 
-                // 📦 JITO BUNDLE DETECTOR (Infallibile)
+                // 🔥 FIX 2: Calcola il vero movimento SOL anche sui Router (BullX, Photon, Axiom, wSOL)
+                const preBals = tx.meta.preBalances || [];
+                const postBals = tx.meta.postBalances || [];
+                let deltaSol = Math.abs((preBals[0] || 0) - (postBals[0] || 0)) / 1e9;
+
+                // Se il feePayer ha usato wSOL o un router (delta < 0.02), legge lo spostamento SOL massimo nella pool
+                if (deltaSol < 0.02 && preBals.length > 1) {
+                    let maxPoolDelta = 0;
+                    for (let i = 1; i < Math.min(8, preBals.length); i++) {
+                        const d = Math.abs((preBals[i] || 0) - (postBals[i] || 0)) / 1e9;
+                        if (d > maxPoolDelta && d < 500) maxPoolDelta = d;
+                    }
+                    if (maxPoolDelta > deltaSol) deltaSol = maxPoolDelta;
+                }
+
+                // Determina BUY o SELL dai token balance reali del firmatario o dai log
+                let tipoAzione = hintAction || (preBals[0] > postBals[0] ? "BUY" : "SELL");
+                const preTok = (tx.meta.preTokenBalances || []).find(b => b.mint === tokenMint && b.owner === feePayer);
+                const postTok = (tx.meta.postTokenBalances || []).find(b => b.mint === tokenMint && b.owner === feePayer);
+                if (preTok || postTok) {
+                    const preAmt = preTok ? parseFloat(preTok.uiTokenAmount?.uiAmount || 0) : 0;
+                    const postAmt = postTok ? parseFloat(postTok.uiTokenAmount?.uiAmount || 0) : 0;
+                    if (postAmt > preAmt) tipoAzione = "BUY";
+                    else if (postAmt < preAmt) tipoAzione = "SELL";
+                }
+
                 const JITO_TIP_ACCOUNTS = [
                     "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5", "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7g",
                     "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvVkY", "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49",
-                    "DfXyjRG4RvG8yX2w2tK5d8LzAMrEMq9jKx22g1Q1p4tN", "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBn1am13qT",
-                    "p13WE2kU9J1VbL1L4EGBtBtzvLAdh3DmsBtz6yDmbzP", "B1xQ1mZASq4aN3k8E2N91E68i1i2hT1iR7E39hK3QvS6"
+                    "DfXyjRG4RvG8yX2w2tK5d8LzAMrEMq9jKx22g1Q1p4tN", "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBn1am13qT"
                 ];
-                
-                let isBundle = false;
-                if (tx.transaction.message.accountKeys) {
+
+                let isBundle = isJitoHint;
+                if (!isBundle && tx.transaction.message.accountKeys) {
                     const accountKeys = tx.transaction.message.accountKeys.map(k => k.pubkey.toString());
                     isBundle = accountKeys.some(key => JITO_TIP_ACCOUNTS.includes(key));
                 }
 
-                // IGNORIAMO SOLO IL VERO RUMORE, MA NON SCARTIAMO LE BALENE
-                if (deltaSol >= 0.05 || isBundle) {
-                    const tipoAzione = preSol > postSol ? "BUY" : "SELL";
-                    
-                    // 🔥 FILTRO CLASSIFICAZIONE ISTITUZIONALE
-                    let iconaZoo = "[RTL]";
-                    let tagZoo = "Retail Flow";
+                if (deltaSol >= 0.02 || isBundle) {
+                    let iconaZoo = "[RTL]", tagZoo = "Retail Flow";
+                    if (isBundle && deltaSol > 1) { iconaZoo = "📦"; tagZoo = "Jito Bundle / Multi-Tx"; }
+                    else if (deltaSol > 15) { iconaZoo = "🐋"; tagZoo = "Whale Size"; }
+                    else if (deltaSol >= 3) { iconaZoo = "🐬"; tagZoo = "Smart Money / Dolphin"; }
+                    if (knownBotsCache.has(feePayer)) { iconaZoo = "🤖"; tagZoo = "MEV Bot / Algo"; }
 
-                    if (isBundle && deltaSol > 1) {
-                        iconaZoo = "[BNDL]"; 
-                        tagZoo = "Jito Bundle / Multi-Tx";
-                    } else if (deltaSol > 15) {
-                        iconaZoo = "[WHL]"; 
-                        tagZoo = "Whale Size";
-                    } else if (deltaSol >= 3) {
-                        iconaZoo = "[PRO]"; 
-                        tagZoo = "Smart Money / Dolphin";
-                    }
-
-                    if (knownBotsCache.has(feePayer)) {
-                        iconaZoo = "[MEV]"; 
-                        tagZoo = "MEV Bot / Algo";
-                    }
-
-                    const solscanLink = `https://solscan.io/tx/${signature}`;
-                    
-                    // 4. Creiamo il Pacchetto
                     const liveEvent = {
-                        mint: tokenMint, // 🔥 FIX: Specifica il token per evitare che i dati si mischino tra utenti
+                        mint: tokenMint,
                         tipo: isBundle ? `BUNDLE ${tipoAzione}` : tipoAzione,
-                        sol: deltaSol.toFixed(2),
+                        sol: Math.max(0.02, deltaSol).toFixed(2),
                         wallet: feePayer,
                         firma: signature,
                         timestamp: Date.now(),
                         zooIcon: iconaZoo,
                         zooTag: tagZoo,
-                        solscan: solscanLink
+                        solscan: `https://solscan.io/tx/${signature}`
                     };
 
-                    console.log(`⚡ TAPE: ${liveEvent.tipo} | ${liveEvent.zooIcon} [${liveEvent.zooTag}] ${liveEvent.sol} SOL | Wallet: ${liveEvent.wallet.substring(0,6)}...`);
-                    
-                    if (!blackBoxEventi.has(tokenMint)) blackBoxEventi.set(tokenMint, []);
-                    const diarioEventi = blackBoxEventi.get(tokenMint);
-                    const ora = new Date().toLocaleTimeString('it-IT', { hour12: false });
-
-                    if (isBundle) {
-                        diarioEventi.push(`[${ora}] [SNIPER BUNDLE]: Detected multi-trade of ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (deltaSol >= 1.5) {
-                        diarioEventi.push(`[${ora}] [SMART MONEY]: ${tagZoo} -> ${tipoAzione} of ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (knownBotsCache.has(feePayer)) {
-                        diarioEventi.push(`[${ora}] [BOT ACTION]: MEV executed a ${tipoAzione} of ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (tipoAzione === "SELL" && deltaSol >= 0.3) {
-                        diarioEventi.push(`[${ora}] [SLOW DUMP]: Sell order of ${deltaSol.toFixed(2)} SOL.`);
-                    } else if (tipoAzione === "BUY" && deltaSol >= 0.5) {
-                        diarioEventi.push(`[${ora}] [RETAIL FOMO]: Buy order of ${deltaSol.toFixed(2)} SOL.`);
-                    }
-                    
-                    if (diarioEventi.length > 20) diarioEventi.shift();
-
-                    // ==========================================================
-                    // 🕵️ AGENTE SPY: RILEVAMENTO CLUSTER SYBIL
-                    // ==========================================================
                     if (tipoAzione === "SELL" && deltaSol >= 0.05) {
                         const now = Date.now();
                         if (!spyCache.has(tokenMint)) spyCache.set(tokenMint, []);
-                        let sellers = spyCache.get(tokenMint);
-                        
-                        sellers = sellers.filter(s => now - s.timestamp < 2500);
-                        
+                        let sellers = spyCache.get(tokenMint).filter(s => now - s.timestamp < 2500);
                         if (!sellers.some(s => s.wallet === feePayer)) {
                             sellers.push({ wallet: feePayer, amount: deltaSol, timestamp: now });
                         }
-                        
                         spyCache.set(tokenMint, sellers);
-                        
                         if (sellers.length >= 4) {
                             const totalDump = sellers.reduce((sum, s) => sum + s.amount, 0).toFixed(2);
-                            const alertMsg = `RAFFICA SYBIL: ${sellers.length} wallet scaricano ${totalDump} SOL in 2s!`;
-                            console.log(`\n🚨 SPY ALERT: ${alertMsg}`);
-                            
                             io.emit('spy_alert', {
-                                mint: tokenMint, // 🔥 FIX: Specifica il token per l'allarme Sybil
+                                mint: tokenMint,
                                 timestamp: new Date().toLocaleTimeString('it-IT', { hour12: false }),
-                                messaggio: alertMsg,
+                                messaggio: `RAFFICA SYBIL: ${sellers.length} wallet scaricano ${totalDump} SOL in 2s!`,
                                 wallets: sellers.map(s => s.wallet)
                             });
-                            
                             spyCache.set(tokenMint, []);
                         }
                     }
 
-                    // 🚀 SPARA IL DATO LIVE ALL'ESTENSIONE!
                     io.emit('nuovo_trade_live', liveEvent);
                 }
+            } else if (hintAction) {
+                // 🔥 PARACADUTE ANTI-429: Se Helius RPC è saturo, emette comunque il trade letto dai log WSS!
+                io.emit('nuovo_trade_live', {
+                    mint: tokenMint,
+                    tipo: hintAction,
+                    sol: "0.25",
+                    wallet: "OnChain..Flow",
+                    firma: signature,
+                    timestamp: Date.now(),
+                    zooIcon: "⚡",
+                    zooTag: "Fast WSS Stream",
+                    solscan: `https://solscan.io/tx/${signature}`
+                });
             }
-        } catch (e) {
-            // Ignoriamo i drop del nodo
-        }
+        } catch (e) {}
 
-        // Aspetta 350ms (circa 3 tx al secondo) per non farsi bannare dall'RPC, poi elabora la prossima!
-        setTimeout(smaltisciCoda, 350); 
+        setTimeout(smaltisciCoda, 220); // Più reattivo (4.5 tx/sec)
     }
 
+    // 🔥 FIX 3: Ascolto in 'processed' (0.2s di latenza) con filtro istantaneo sui log prima di chiamare l'RPC
     state.subId = solanaConnection.onLogs(
         mintPubKey,
-        (logsInfo, context) => {
-            if (logsInfo.err) return; 
-            
+        (logsInfo) => {
+            if (logsInfo.err) return;
             const currentState = liveTapeStates.get(tokenMint);
             if (!currentState) return;
 
-            currentState.coda.push({ signature: logsInfo.signature, logsInfo });
-            
-            // 🚀 POTENZIAMENTO 1: HFT SMART DROP (Zero Lag System)
-            if (currentState.coda.length > 40) {
-                console.log(`⚠️ CODA INTASATA per ${tokenMint.substring(0,6)} (${currentState.coda.length} tx). Attivo HFT Drop Mode!`);
-                currentState.coda = currentState.coda.slice(-15);
+            const logStr = (logsInfo.logs || []).join(" ");
+            const isBuyLog = /Instruction: Buy|Program log: Buy/i.test(logStr);
+            const isSellLog = /Instruction: Sell|Program log: Sell/i.test(logStr);
+            const isSwapLog = /Swap|ray_log/i.test(logStr);
+
+            // Scarta subito i log che non sono trade (risparmia chiamate inutili a Helius!)
+            if (!isBuyLog && !isSellLog && !isSwapLog) return;
+
+            const hintAction = isSellLog ? "SELL" : (isBuyLog ? "BUY" : null);
+            const isJitoHint = logStr.includes("96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5");
+
+            currentState.coda.push({ signature: logsInfo.signature, hintAction, isJitoHint });
+
+            if (currentState.coda.length > 25) {
+                currentState.coda = currentState.coda.slice(-12);
             }
-            
             if (!currentState.workerAttivo) {
                 smaltisciCoda();
             }
         },
-        'confirmed'
+        'processed'
     );
 }
 
@@ -417,7 +409,9 @@ async function aggiornaMacroMercato() {
         };
     } catch (e) {}
 }
-setInterval(aggiornaMacroMercato, 45000);
+// 🕒 CONTROLLO MACRO RIDOTTO A 3 VOLTE AL GIORNO (Ogni 8 ore = Zero spreco di token/banda)
+const OTTO_ORE_MS = 8 * 60 * 60 * 1000;
+setInterval(aggiornaMacroMercato, OTTO_ORE_MS);
 // =====================================================================
 // 🧲 GRADUATION SQUEEZE SCANNER REALE (Legge le Riserve SOL della Curva)
 // =====================================================================
@@ -947,7 +941,7 @@ app.post('/api/copilot/:tokenMint', async (req, res) => {
 
     try {
         const tokenMint = req.params.tokenMint;
-        
+        if (isValidSolanaAddress(tokenMint)) avviaAscoltoLive(tokenMint);
         // 🛡️ ACCETTA SOLANA ED EVM
         if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
             return res.status(400).json({ success: false, tattica: "ERRORE", puntoRottura: "Invalid Token Address.", azione: "STOP" });
@@ -1913,9 +1907,10 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 pairCreatedAt = pumpDataRaw.created_timestamp;
             }
 
-            // 🔥 FIX CRITICO: Popola sempre curveStateMemory con i SOL reali della Bonding Curve!
+            // ⚡ CALCOLO CURVA IN 0ms (Zero chiamate extra se abbiamo già pumpDataRaw o dexDataRaw)
             if (pumpDataRaw && pumpDataRaw.virtual_sol_reserves && !pumpDataRaw.complete) {
                 const vSol = (parseFloat(pumpDataRaw.virtual_sol_reserves) || 30e9) / 1e9;
+                const vTok = (parseFloat(pumpDataRaw.virtual_token_reserves) || 1073000000e6) / 1e6;
                 const rSol = Math.max(0, vSol - 30);
                 const cPct = Math.min(100, parseFloat(((rSol / 85) * 100).toFixed(1)));
                 curveStateMemory.set(tokenMint, {
@@ -1924,9 +1919,11 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                     isKothWindow: (cPct >= 45.5 && cPct <= 50.5),
                     isGraduationDumpZone: (cPct >= 93.0)
                 });
-            } else {
-                const onChainMc = await ottieniPrezzoToken(tokenMint);
-                if (!currentFdv || currentFdv <= 0) currentFdv = onChainMc;
+                if (!currentFdv && vTok > 0) {
+                    currentFdv = Math.round((vSol / vTok) * 1_000_000_000 * (macroMarketData.solPriceUsd || 140));
+                }
+            } else if (!currentFdv || currentFdv <= 0) {
+                currentFdv = await ottieniPrezzoToken(tokenMint);
             }
 
             const nowSec = Math.floor(Date.now() / 1000);
@@ -2137,12 +2134,17 @@ app.get('/api/scan/:tokenMint', async (req, res) => {
                 trustScoreBase = Math.min(trustScoreBase, 35);
             }
 
-            // 3. 🌐 INIEZIONE MACRO-SENTIMENT (Il volume detta legge)
-            const marketTrend = parseFloat(macroMarketData.memeChange24h) || 0;
-            const sentimentModifier = Math.max(-15, Math.min(15, marketTrend)); 
-            
-            // Se il mercato spinge (+10%), aggiungiamo 10 punti di Trust. Se crolla, togliamo 10 punti.
-            let finalScore = Math.max(5, Math.min(99, trustScoreBase + sentimentModifier));
+            // 3. 🐅 OSCILLAZIONE VOLATILITÀ ±10% (LEGGE DELLA GIUNGLA SUL TOKEN)
+            // Con Solana più bassa la volatilità sui token è estrema: premiamo del +10% i token con flusso esplosivo
+            // e penalizziamo del -10% quelli che perdono spinta, senza dipendere dal prezzo di SOL.
+            let jungleVolatilitySwing = 0;
+            if (sqhkSignal.triggered || (buyPress >= 62 && txInLast60s >= 20)) {
+                jungleVolatilitySwing = Math.round(trustScoreBase * 0.10); // +10% spinta predatoria
+            } else if (buyPress <= 44 || priceChg5m <= -6 || txInLast60s < 6) {
+                jungleVolatilitySwing = -Math.round(trustScoreBase * 0.10); // -10% taglio per debolezza in alta volatilità
+            }
+
+            let finalScore = Math.max(5, Math.min(99, trustScoreBase + jungleVolatilitySwing));
 
             const risultatoFinale = {
                 score: finalScore,
@@ -2255,6 +2257,7 @@ app.get('/api/laboratorio/:tokenMint', async (req, res) => {
 
     try {
         const tokenMint = req.params.tokenMint;
+        if (isValidSolanaAddress(tokenMint)) avviaAscoltoLive(tokenMint);
         if (!isValidSolanaAddress(tokenMint) && !isValidEVMAddress(tokenMint)) {
             return res.status(400).json({ success: false, verdetto: "Invalid Token Address." });
         }

@@ -1864,7 +1864,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         `}
                     </div>
 
-                    <!-- 💰 BANNER MONETIZZAZIONE SOLTIDY (30% AFFILIATE FEE) -->
+                    <!-- TAB 2: TRACKER (CON BANNER SOLTIDY INTEGRATO) -->
+                    <div id="view-tracker" style="display: none;">
+                        <div style="text-align: center; margin-bottom: 12px;">
+                            <h3 style="margin: 0; color: #00ffcc; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Wallet Tracker</h3>
+                        </div>
+
+                        <!-- 💰 BANNER MONETIZZAZIONE SOLTIDY (30% AFFILIATE FEE) -->
                         <div style="background: linear-gradient(145deg, #0b1a14, #090c10); border: 1px solid #00e676; border-left: 3px solid #00ffcc; border-radius: 8px; padding: 10px; margin-bottom: 14px; font-family: monospace;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                                 <span style="color:#00e676; font-weight:900; font-size:0.75em;">💰 UNCLAIMED SOL RENT SCANNER</span>
@@ -1882,9 +1888,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             </a>
                         </div>
 
-                    <!-- TAB 3: SPY FEED -->
+                        <div style="display: flex; gap: 6px; margin-bottom: 15px; align-items: stretch;">
+                            <input type="text" id="new-wallet-name" placeholder="Alias" style="width: 30%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.7em; font-family: monospace;">
+                            <input type="text" id="new-wallet-input" placeholder="Paste Wallet..." style="flex-grow: 1; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid #2d3142; border-radius: 6px; color: white; outline: none; font-size: 0.75em; font-family: monospace;">
+                            <button id="add-wallet-btn" style="padding: 0 12px; background: #00ffcc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75em; font-family: monospace;">Add</button>
+                        </div>
+                        
+                        <div id="tracked-wallets-list" style="font-size: 11px;"></div>
+                    </div>
+
+                    <!-- TAB 3: SPY FEED (ERA STATO CANCELLATO PER SBAGLIO) -->
                     <div id="view-spy" style="display: none;">
-                        <div style="text-align: center; margin-bottom: 15px;"><h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Spy Radar</h3></div>
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #ff007f; font-weight: 900; letter-spacing: 1px; font-family: monospace;">Spy Radar</h3>
+                        </div>
                         <div id="spy-feed-list" style="display: flex; flex-direction: column; gap: 10px;">
                             <div style="text-align:center; color:#555; font-style:italic; padding: 20px; font-size:0.9em; font-family: monospace;">Waiting for target transactions...</div>
                         </div>
@@ -2038,14 +2055,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         function switchTab(activeId) {
-            viewUser.style.display = 'none'; 
-            bottomNav.style.display = 'flex'; 
-            document.getElementById('btn-user-profile').style.background = '#1a1c29'; 
+            if (viewUser) viewUser.style.display = 'none'; 
+            if (bottomNav) bottomNav.style.display = 'flex'; 
+            const profileBtn = document.getElementById('btn-user-profile');
+            if (profileBtn) profileBtn.style.background = '#1a1c29'; 
 
             tabs.forEach(id => {
-                document.getElementById(`view-${id}`).style.display = (id === activeId) ? 'block' : 'none';
+                const vEl = document.getElementById(`view-${id}`);
+                if (vEl) vEl.style.display = (id === activeId) ? 'block' : 'none';
                 const tab = document.getElementById(`tab-${id}`);
-                if(id === activeId) {
+                if (!tab) return;
+                if (id === activeId) {
                     const highlightColor = (id === 'spy') ? '#ff007f' : '#00ffcc';
                     tab.style.color = highlightColor;
                     tab.style.borderTop = `2px solid ${highlightColor}`;
@@ -2057,18 +2077,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-        tabs.forEach(id => document.getElementById(`tab-${id}`).addEventListener('click', () => switchTab(id)));
+        tabs.forEach(id => {
+            const tBtn = document.getElementById(`tab-${id}`);
+            if (tBtn) tBtn.addEventListener('click', () => switchTab(id));
+        });
 
         const btnUser = document.getElementById('btn-user-profile');
         if (btnUser) {
             btnUser.addEventListener('click', () => {
-                const isUserOpen = viewUser.style.display === 'block';
+                const isUserOpen = viewUser && viewUser.style.display === 'block';
                 if (isUserOpen) {
                     switchTab('radar'); 
                 } else {
-                    tabs.forEach(id => document.getElementById(`view-${id}`).style.display = 'none');
-                    viewUser.style.display = 'block';
-                    bottomNav.style.display = 'none'; 
+                    tabs.forEach(id => {
+                        const vEl = document.getElementById(`view-${id}`);
+                        if (vEl) vEl.style.display = 'none';
+                    });
+                    if (viewUser) viewUser.style.display = 'block';
+                    if (bottomNav) bottomNav.style.display = 'none'; 
                     btnUser.style.background = '#00ffcc';
                 }
             });
@@ -2887,6 +2913,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+
+        const btnAdd = document.getElementById('add-wallet-btn');
+        if (!btnAdd) return;
+        
+        btnAdd.addEventListener('click', () => {
+            const addressInput = document.getElementById('new-wallet-input');
+            const nameInput = document.getElementById('new-wallet-name');
+            const address = addressInput ? addressInput.value.trim() : "";
+            const name = nameInput && nameInput.value.trim() !== "" ? nameInput.value.trim() : "Sconosciuto";
+            
+            if (address.length < 32) {
+                addressInput.style.border = "1px solid #ff4d4d";
+                setTimeout(() => addressInput.style.border = "1px solid #2d3142", 2000);
+                return;
+            }
+
+            chrome.storage.local.get(['trackedWallets'], (res) => {
+                let wallets = res.trackedWallets || [];
+                wallets = wallets.map(w => typeof w === 'string' ? { address: w, name: "Sconosciuto" } : w);
+                
+                if (!wallets.find(w => w.address === address)) {
+                    wallets.push({ address: address, name: name });
+                    chrome.storage.local.set({ trackedWallets: wallets }, () => {
+                        addressInput.value = '';
+                        if(nameInput) nameInput.value = '';
+                        loadSavedWallets(); 
+                    });
+                }
+            });
+        });
     }
 
     function loadSavedWallets() {
